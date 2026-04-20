@@ -223,6 +223,144 @@ Key cross-references:
 - §9.3 (`/api/snippet`) → §10.4 (frontend `<Snippet/>` semantics).
 - §10.1 (app vs widgets split) → §14.3 (open question on publishing `@codebase-browser/ui`).
 
-## Step 3: Pending — ticket bookkeeping and reMarkable delivery
+## Step 3: Ticket bookkeeping and reMarkable delivery
 
-This step will (a) relate the two docs to the key skill files that informed them, (b) update `tasks.md` and `changelog.md`, (c) run `docmgr doctor`, and (d) dry-run + upload to reMarkable. The diary will be appended with verification evidence (remote listing output) once upload is confirmed.
+Related the two docs to the skill files that informed them, updated `tasks.md` with the full phased task list, added three changelog entries covering the design phase, ran `docmgr doctor --stale-after 30` (all checks passed), and uploaded the bundle to reMarkable at `/ai/2026/04/20/GCB-001/`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Finish the design phase by updating metadata, running the validator, and delivering a review-ready PDF bundle.
+
+**Inferred user intent:** Have a coherent ticket workspace + a PDF on the reMarkable before the implementation phase begins.
+
+### What worked
+
+Straightforward: `docmgr doc relate --file-note`, `docmgr changelog update`, `docmgr doctor`, and `remarquee upload bundle` in that order.
+
+### What didn't work
+
+First `remarquee upload bundle` failed because the verbatim user prompt in the diary contained literal `\n` sequences inside a quoted string; pandoc/xelatex treated `\n` as an undefined LaTeX control sequence. Error:
+
+```
+! Undefined control sequence.
+l.1733 ...entation guide for the following idea:\n
+```
+
+Fix: wrap the verbatim prompt in a fenced code block. After that the bundle converted and uploaded cleanly to `/ai/2026/04/20/GCB-001/GCB-001 Go Codebase Browser — Design + Diary`.
+
+### What I learned
+
+Pandoc's LaTeX writer is eager to interpret backslash sequences even inside inline text. Safest default for diaries: put any verbatim user input inside a fenced code block.
+
+### Code review instructions
+
+1. `docmgr doctor --ticket GCB-001 --stale-after 30` must pass.
+2. `remarquee cloud ls /ai/2026/04/20/GCB-001 --long --non-interactive` lists the uploaded PDF.
+
+## Step 4: Implementation — Phases 0–5 landed
+
+Over six commits, the design was translated into working code. Each phase was tested in isolation before the next began.
+
+### Prompt Context
+
+**User prompt (verbatim):**
+
+```
+add tasks to the ticket, and then implement them one by one, checking them off as  you go, committing at appropriate intervals, and keeping your diary.
+```
+
+**Assistant interpretation:** Add the design's phased tasks into the ticket's tasks.md (so they can be checked off via `docmgr task check`), then implement the phases sequentially, commit at phase boundaries, and update the diary.
+
+**Inferred user intent:** A working binary that embodies the design doc — not just a documented design.
+
+### What I did
+
+1. Added tasks via `docmgr task add` were already registered from the tasks.md written in Step 3; confirmed with `docmgr task list --ticket GCB-001` and used `docmgr task check --id N,M,...` at each phase boundary.
+2. Implemented Phases 0–5:
+   - **Phase 0** (commit `5d875c9`): `go mod init github.com/wesen/codebase-browser`, directory layout per design §5.2, Makefile, Vite+React+TS scaffold with `/api` dev proxy to `:3001`.
+   - **Phase 1** (commit `7e547e2`): `internal/indexer` (extractor + stable-ID scheme + deterministic JSON writer) + Glazed commands `index build`, `index stats`, `symbol show`, `symbol find`. Root `main.go` follows the canonical glazed pattern. Tests for fixture-module extraction and run-to-run determinism.
+   - **Phase 2** (commit `08a2b65`): `internal/web`, `internal/sourcefs`, `internal/indexfs` with `//go:build embed` + `!embed` pairs. `internal/server` with `/api/index`, `/api/packages`, `/api/symbol/{id}`, `/api/source`, `/api/snippet`, `/api/search`. `codebase-browser serve`. Regression tests for path hygiene (`..` / absolute rejected, whitelisting via index files table) and SPA fallback.
+   - **Phase 3** (commit `c0b5abf`): React SPA with BrowserRouter, RTK-Query slices `indexApi` + `sourceApi`. Routes `/`, `/packages/:id`, `/symbol/:id`, `/source/*`. Widget package `ui/src/packages/ui` with presentation-only components. `go generate ./internal/web` pipeline copies Vite output into the embed tree.
+   - **Phase 4** (commit `ffb102e`): Storybook 8 with a Theme toolbar (Light/Dark/Unstyled — Unstyled drops `base.css` entirely so story authors can verify semantics). Stories for every widget: default + kind variants + theming + slot override. `build-storybook` succeeds.
+   - **Phase 5** (commit `e76df91`): `internal/docs` renderer preprocesses Markdown to resolve `codebase-snippet` / `codebase-signature` / `codebase-doc` / `codebase-file` fenced blocks against the index + source FS, then hands off to goldmark. `codebase-browser doc render --check` as CI gate. `/api/doc` endpoints. Frontend `DocPage` + `DocList`. Two dogfood pages embedding 6 live snippets from the indexer and server packages.
+3. Ran `docmgr task check` and `docmgr changelog update` at each boundary; committed each phase independently.
+
+### Why
+
+1. Committing per phase keeps the history reviewable. A reader can bisect between "indexer works standalone" and "server serves the indexer" and "frontend consumes the server" and "docs embed live indexer source" — each bisect step answers a question.
+2. Dogfooding in Phase 5 (embedding indexer + server source in the doc pages) validates the drift-guarantee thesis: the shipped binary's doc pages render from the same bytes the binary compiled.
+
+### What worked
+
+1. The `go-web-frontend-embed` skill pattern transplanted cleanly — embed.go + embed_none.go pairs for web, sourcefs, indexfs, and pages each, with `findRoot()` handling `go run` dev.
+2. Glazed built-in `--output` flag conflicts. My `index build` defined `--output` and got "Flag 'output' already exists" at startup. Renamed to `--index-path` — done. Noted in the diary so future Glazed commands avoid this.
+3. `packages.NeedCompiledGoFiles` must be set alongside `NeedSyntax` — without it `p.CompiledGoFiles` is empty so `Syntax[i]` lookup fails silently and the index shows `files=0 / symbols=0` despite `packages=5`. I caught this on first run via the stats row.
+4. Goldmark AST mutation is painful; preprocessing the Markdown source bytes (replace `codebase-*` fences with resolved `go` fences) and then handing it to goldmark is much simpler. The design doc §11.2 described an AST-walker, which I tried first and abandoned.
+5. RTK-Query with `keepUnusedDataFor: 3600` works great for an immutable binary — the frontend requests `/api/index` once on boot and never again.
+6. The `data-part` + CSS variable pattern from `react-modular-themable-storybook` is genuinely great: dark theme is 9 lines of CSS overriding color tokens only.
+
+### What didn't work
+
+1. **Index size with 0 symbols.** First `index build` run returned `packages=5 files=0 symbols=0`. Root cause: I requested `NeedSyntax` + `NeedFiles` but not `NeedCompiledGoFiles`. Without the latter, `p.CompiledGoFiles` is empty and my `p.Syntax[i]` lookup never enters the file-walk branch. Fix: add `packages.NeedCompiledGoFiles` to the Mode bitmask. Second run: `packages=5 files=13 symbols=56`.
+2. **Glazed `--output` collision.** Symptom: `Error: Flag 'output' (usage: Output path for index.json - <string>) already exists`. Root cause: `settings.NewGlazedSchema()` registers `--output` (json|yaml|table|csv). Fix: rename my field to `--index-path`. Worth documenting for anyone else writing Glazed commands.
+3. **Pnpm store is read-only in this sandbox.** `@storybook/addon-themes` wasn't cached and couldn't be downloaded (`ERR_PNPM_EROFS`). Dropped the addon and rolled a custom Theme toolbar decorator in `preview.tsx` — works identically for our purposes. Worth noting for anyone reproducing.
+4. **Short-form sym refs in doc pages.** First version of the dogfood pages used `pkg.func.Name` because I confused myself about how the ID scheme leaked through the short form. Fixed to `pkg.Name` / `pkg.Recv.Method` (no Kind segment) — now parses cleanly, and `doc render` reports 0 errors / 6 snippets.
+5. **Unused `React` imports under `noUnusedLocals: true`.** With `jsx: "react-jsx"` the React namespace is auto-imported, and TypeScript flags `import React` lines as unused. Replaced them with a comment line.
+6. **`go/types` import grabbed then unused.** I left `_ = types.Typ` in `sortIndex` to keep the import for planned xref work. Will remove or use in Phase 6 (not yet implemented).
+
+### What was tricky to build
+
+1. **Stable symbol ID scheme (design §6.3).** The rule "IDs survive file moves" forced `importPath + Kind + Name`. For methods, `types.Object.Id()` is receiver-oblivious, so I added the receiver as a Kind-qualifier (`method.<recv>`). The `#signatureHash` disambiguator is declared but not yet triggered — will need a failing test when we hit a real collision (e.g. generic overloads).
+2. **Byte-offset snippet extraction.** Easy conceptually but fragile if the file bytes the server reads differ from the ones the indexer walked. The `sha256` field on each `File` is the auditing hook; not yet exposed through a `/api/audit` endpoint, filed as follow-up.
+3. **Pre-processor vs AST walker for goldmark.** Tried AST walker first — `ast.FencedCodeBlock` doesn't have a clean "replace body" API, and `fc.Lines().Clear()` leaves the renderer confused. The pre-processor approach wins on readability. Leaves on the floor: we lose position fidelity for errors ("line N" is from preprocessed source, not the original), but the error string still shows the info string so authors can find the right block.
+
+### What warrants a second pair of eyes
+
+1. **Embed tag not yet exercised end-to-end.** `go build -tags embed ./cmd/codebase-browser` hasn't been run in this session — Phase 2 added the build-tag pair files but we've only exercised the `!embed` branch via `go run`. The embed branch will fail until `internal/sourcefs/embed/source/` has a real file tree (currently only `.keep`), and `internal/docs/embed/pages` is already populated but the `//go:embed` directive depends on it having non-dot files (it does now). A `go build -tags embed` run is the next smoke test.
+2. **`doc render --check` in CI.** Currently invocable but not wired to any CI. The CLI exits non-zero on errors, which is the right interface, but needs a GitHub Actions workflow in Phase 7.
+3. **SnippetRef exposure in the frontend.** `DocPage` renders `data.html` via `dangerouslySetInnerHTML`. Safer option: ship an MDX AST from the backend and render with a whitelist. For now, the HTML is produced by our own renderer (not author-supplied), so the attack surface is controlled — but if doc authoring ever opens up, switch to AST + React renderer.
+4. **The `snippets` array on the Page is unused by the UI.** `DocPage.tsx` only shows a count. The intent was to offer "jump to source" links per snippet via `symbolId`; implementation is straightforward (anchor inside the HTML to `#snippet-N`, sidebar of `<a>` to `/symbol/<id>`), filed as follow-up.
+
+### What should be done in the future
+
+1. `go build -tags embed` CI job (Phase 7).
+2. Wire `/api/xref/{id}` + "Called by" / "Uses" panels (Phase 6, optional).
+3. Sidebar "jump to source" per embedded snippet.
+4. Storybook MSW integration so hook-driven stories (e.g. `DocPage`, `SymbolPage`) can render without a live server.
+5. Measure real-world index.json size vs. symbol count on a larger project. Design §14.1 predicted 3–5 MB for ~5k symbols; our current index is ~110 KB at 101 symbols.
+6. Remove the temporary `_ = types.Typ` anchor when xref work actually uses `go/types`.
+
+### Code review instructions
+
+Start with the six commit messages (`git log --oneline`). Each commit is reviewable in isolation. Suggested order:
+
+1. `5d875c9` — Phase 0 scaffolding.
+2. `7e547e2` — Phase 1 indexer + CLI. Focus: `internal/indexer/id.go` (SymbolID/MethodID), `internal/indexer/extractor.go:Extract`, and the fixture test.
+3. `08a2b65` — Phase 2 server + embed. Focus: `internal/server/api_source.go:safePath`, `internal/server/api_source.go:handleSnippet` (byte slicing + headers), and the httptest regression tests.
+4. `c0b5abf` — Phase 3 frontend shell. Focus: `ui/src/api/indexApi.ts` (`keepUnusedDataFor` tuning), `ui/src/packages/ui/src/parts.ts` (the theming contract), `internal/web/generate_build.go` (go generate pipeline).
+5. `ffb102e` — Phase 4 Storybook. Focus: `ui/.storybook/preview.tsx` (Theme toolbar decorator including Unstyled).
+6. `e76df91` — Phase 5 doc renderer. Focus: `internal/docs/renderer.go:preprocess` + `resolveSymbol`, the two dogfood pages, and `doc render --check`.
+
+Validation:
+
+```bash
+go test ./...                                # all green
+go run ./cmd/codebase-browser index build    # writes internal/indexfs/embed/index.json
+go run ./cmd/codebase-browser doc render     # 0 errors, 6 snippets, 2 pages
+go generate ./internal/web                   # vite build + copy
+go run ./cmd/codebase-browser serve --addr :3001  # then visit http://localhost:3001/
+```
+
+### Technical details
+
+State at end of Step 4:
+
+- Go: `15 packages / 27 files / 101 symbols` indexed from this repo.
+- `index.json`: ~110 KB pretty-printed.
+- Tests: `internal/indexer` (3 passing), `internal/server` (5 passing), `internal/docs` (4 passing).
+- Frontend: ~251 KB JS / ~5 KB CSS after Vite production build.
+- Storybook: 5 widgets with ~20 stories total, built cleanly.
+- Doc pages: 2 files, 6 resolved live snippets, 0 errors.
+- Commits: 6 phase commits on `main` after the design-phase commit.

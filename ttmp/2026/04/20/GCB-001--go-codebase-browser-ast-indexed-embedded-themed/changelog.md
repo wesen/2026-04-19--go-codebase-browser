@@ -49,3 +49,8 @@ Phase 4 complete: widgets extracted into ui/src/packages/ui (future @codebase-br
 
 Phase 5 complete: internal/docs renderer resolves codebase-snippet/-signature/-doc/-file fenced blocks via a goldmark pre-processor. Short-form symbol refs (pkg.Name / pkg.Recv.Method) resolved against the index with ambiguity as a hard error. cmd/codebase-browser doc render + --check gate. /api/doc + /api/doc/{slug} server endpoints. Frontend DocPage + DocList wired via docApi. Two dogfood doc pages (01-overview.md, 02-api.md) embed 6 live snippets from the indexer + server packages; doc render reports 0 errors, 6 snippets across 2 pages.
 
+
+## 2026-04-20
+
+Completed dark theme via CSS-var override (phase-task 36) and measured real index.json size at ~110 KB for 101 symbols (phase-task 43) — well below design §14.1 threshold so the single-load-on-boot strategy stands.
+

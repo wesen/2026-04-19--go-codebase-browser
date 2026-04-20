@@ -61,7 +61,7 @@
 
 ## Phase 7 — Polish
 
-- [ ] Dark theme + one custom theme example
+- [x] Dark theme + one custom theme example
 - [ ] Doc page that embeds the doc-renderer source (meta)
 - [ ] README with screenshot
 - [ ] GitHub Actions: frozen pnpm lockfile → `go generate ./...` → `go build -tags embed ./...`
@@ -71,4 +71,4 @@
 - [ ] Commit generated `index.json` to repo, or regenerate in CI? (design §14.3 recommends regenerate)
 - [ ] Publish `@codebase-browser/ui` to npm, or keep in-tree? (design §14.3 recommends in-tree for phase 1)
 - [ ] `<Snippet/>` inline vs lazy-load threshold (design §14.3 recommends ≤ 8 KB inline)
-- [ ] Measure real `index.json` size before committing to "load whole index on boot"
+- [x] Measure real `index.json` size before committing to "load whole index on boot"
