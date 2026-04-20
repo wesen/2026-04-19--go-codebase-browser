@@ -146,8 +146,24 @@ func Extract(opts ExtractOptions) (*Index, error) {
 		idx.Packages = append(idx.Packages, pkg)
 	}
 
+	stampLanguage(idx, "go")
 	sortIndex(idx)
 	return idx, nil
+}
+
+// stampLanguage sets Language on every Package/File/Symbol in the index.
+// Cheaper than threading a field through every constructor and matches the
+// two-pass approach in sortIndex/deduplicate.
+func stampLanguage(idx *Index, lang string) {
+	for i := range idx.Packages {
+		idx.Packages[i].Language = lang
+	}
+	for i := range idx.Files {
+		idx.Files[i].Language = lang
+	}
+	for i := range idx.Symbols {
+		idx.Symbols[i].Language = lang
+	}
 }
 
 func parseBuildTags(f *ast.File) []string {

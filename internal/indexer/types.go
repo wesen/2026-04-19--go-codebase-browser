@@ -19,6 +19,9 @@ type Package struct {
 	Doc        string   `json:"doc,omitempty"`
 	FileIDs    []string `json:"fileIds"`
 	SymbolIDs  []string `json:"symbolIds"`
+	// Language is "go", "ts", ... Empty defaults to "go" so older indexes
+	// stay readable without a migration.
+	Language string `json:"language,omitempty"`
 }
 
 type File struct {
@@ -29,6 +32,7 @@ type File struct {
 	LineCount int      `json:"lineCount"`
 	BuildTags []string `json:"buildTags,omitempty"`
 	SHA256    string   `json:"sha256"`
+	Language  string   `json:"language,omitempty"`
 }
 
 // Range holds both line/col (for display) and byte offsets (authoritative
@@ -42,7 +46,9 @@ type Range struct {
 	EndOffset   int `json:"endOffset"`
 }
 
-// Symbol represents a Go identifier (func, method, type, const, var, field, ...).
+// Symbol represents a Go/TS identifier (func, method, class, iface, type,
+// const, var, ...). The Kind vocabulary is shared across languages; see
+// design GCB-002 §5.5 for the current list.
 type Symbol struct {
 	ID         string    `json:"id"`
 	Kind       string    `json:"kind"`
@@ -57,6 +63,7 @@ type Symbol struct {
 	Exported   bool      `json:"exported"`
 	Children   []Symbol  `json:"children,omitempty"`
 	Tags       []string  `json:"tags,omitempty"`
+	Language   string    `json:"language,omitempty"`
 }
 
 type Receiver struct {

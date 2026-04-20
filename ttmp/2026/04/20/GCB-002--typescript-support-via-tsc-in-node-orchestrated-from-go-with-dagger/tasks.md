@@ -4,7 +4,7 @@
 
 - [ ] Add tasks here
 
-- [ ] Phase 1: Extractor interface refactor + Language field + Merge()
+- [x] Phase 1: Extractor interface refactor + Language field + Merge()
 - [ ] Phase 2: tools/ts-indexer/ package with extract.ts + CLI + fixture test
 - [ ] Phase 3: cmd/build-ts-index Dagger program + local-pnpm fallback
 - [ ] Phase 4: codebase-browser index build --lang auto (merge+write)
