@@ -58,15 +58,25 @@ export function extract(opts: ExtractOptions): Index {
   };
 
   const pkgByImportPath = new Map<string, Package>();
+  // Populated during the symbol pass, consumed during the refs pass.
+  // Maps every TS declaration node we emitted a Symbol for to that
+  // symbol's ID, so TypeChecker-resolved identifier uses can be rewritten
+  // into inter-symbol Ref records.
+  const declToSymbolID = new Map<ts.Declaration, string>();
+  // File IDs we emitted symbols for, keyed by absolute filename — the
+  // refs pass needs the same fid for Ref.fileId.
+  const fileIDByAbs = new Map<string, string>();
 
-  for (const sf of program.getSourceFiles()) {
-    if (sf.isDeclarationFile) continue;
+  const projectFiles = program.getSourceFiles().filter((sf) => {
+    if (sf.isDeclarationFile) return false;
     const absFile = sf.fileName;
-    if (!absFile.startsWith(root + path.sep) && absFile !== root) continue;
-    // Skip anything inside node_modules — tsconfig's default includes may
-    // still pull in transitively-referenced .ts files from installed
-    // packages, which we don't want to index as "our" source.
-    if (absFile.includes(`${path.sep}node_modules${path.sep}`)) continue;
+    if (!absFile.startsWith(root + path.sep) && absFile !== root) return false;
+    if (absFile.includes(`${path.sep}node_modules${path.sep}`)) return false;
+    return true;
+  });
+
+  for (const sf of projectFiles) {
+    const absFile = sf.fileName;
     const relNative = path.relative(root, absFile).replace(/\\/g, '/');
     // File.path is prefix-scoped so it resolves against the outer repo's
     // source FS when this index lives in a Go-module-rooted server.
@@ -101,6 +111,7 @@ export function extract(opts: ExtractOptions): Index {
     };
     idx.files.push(file);
     pkg.fileIds.push(file.id);
+    fileIDByAbs.set(absFile, file.id);
 
     // TypeScript treats each file as its own module, so symbols in different
     // files inside the same directory (e.g. Storybook's `const meta` in every
@@ -113,7 +124,19 @@ export function extract(opts: ExtractOptions): Index {
     const symScope = `${moduleName}/${relNative.replace(/\.(tsx?|mts|cts)$/, '')}`;
 
     ts.forEachChild(sf, (node) => {
-      collectTopLevel(node, sf, symScope, file.id, pkg!, idx);
+      collectTopLevel(node, sf, symScope, file.id, pkg!, idx, declToSymbolID);
+    });
+  }
+
+  // Refs pass: walk function/method bodies and resolve identifier uses
+  // against declToSymbolID via the TypeChecker. Runs after symbol extraction
+  // so every decl we might point at is already registered.
+  const checker = program.getTypeChecker();
+  for (const sf of projectFiles) {
+    const fid = fileIDByAbs.get(sf.fileName);
+    if (!fid) continue;
+    ts.forEachChild(sf, (node) => {
+      collectRefs(node, sf, fid, declToSymbolID, checker, idx);
     });
   }
 
@@ -124,6 +147,16 @@ export function extract(opts: ExtractOptions): Index {
     if (a.packageId !== b.packageId) return a.packageId.localeCompare(b.packageId);
     if (a.fileId !== b.fileId) return a.fileId.localeCompare(b.fileId);
     return a.range.startOffset - b.range.startOffset;
+  });
+  idx.refs.sort((a, b) => {
+    if (a.fileId !== b.fileId) return a.fileId.localeCompare(b.fileId);
+    if (a.range.startOffset !== b.range.startOffset) {
+      return a.range.startOffset - b.range.startOffset;
+    }
+    if (a.fromSymbolId !== b.fromSymbolId) {
+      return a.fromSymbolId.localeCompare(b.fromSymbolId);
+    }
+    return a.toSymbolId.localeCompare(b.toSymbolId);
   });
   for (const p of idx.packages) {
     p.fileIds.sort();
@@ -178,11 +211,13 @@ function collectTopLevel(
   fid: string,
   pkg: Package,
   idx: Index,
+  declToSymbolID: Map<ts.Declaration, string>,
 ) {
   if (ts.isFunctionDeclaration(node) && node.name) {
     const name = node.name.text;
+    const id = symbolID(importPath, 'func', name);
     addSymbol(idx, pkg, {
-      id: symbolID(importPath, 'func', name),
+      id,
       kind: 'func',
       name,
       packageId: pkg.id,
@@ -193,11 +228,13 @@ function collectTopLevel(
       exported: isExported(node),
       language: 'ts',
     });
+    declToSymbolID.set(node, id);
   } else if (ts.isClassDeclaration(node) && node.name) {
     const className = node.name.text;
     const exported = isExported(node);
+    const classId = symbolID(importPath, 'class', className);
     addSymbol(idx, pkg, {
-      id: symbolID(importPath, 'class', className),
+      id: classId,
       kind: 'class',
       name: className,
       packageId: pkg.id,
@@ -208,11 +245,13 @@ function collectTopLevel(
       exported,
       language: 'ts',
     });
+    declToSymbolID.set(node, classId);
     for (const m of node.members) {
       if (ts.isMethodDeclaration(m) && m.name && ts.isIdentifier(m.name)) {
         const mname = m.name.text;
+        const mid = methodID(importPath, className, mname);
         addSymbol(idx, pkg, {
-          id: methodID(importPath, className, mname),
+          id: mid,
           kind: 'method',
           name: mname,
           packageId: pkg.id,
@@ -224,12 +263,14 @@ function collectTopLevel(
           exported,
           language: 'ts',
         });
+        declToSymbolID.set(m, mid);
       }
     }
   } else if (ts.isInterfaceDeclaration(node)) {
     const name = node.name.text;
+    const id = symbolID(importPath, 'iface', name);
     addSymbol(idx, pkg, {
-      id: symbolID(importPath, 'iface', name),
+      id,
       kind: 'iface',
       name,
       packageId: pkg.id,
@@ -240,10 +281,12 @@ function collectTopLevel(
       exported: isExported(node),
       language: 'ts',
     });
+    declToSymbolID.set(node, id);
   } else if (ts.isTypeAliasDeclaration(node)) {
     const name = node.name.text;
+    const id = symbolID(importPath, 'alias', name);
     addSymbol(idx, pkg, {
-      id: symbolID(importPath, 'alias', name),
+      id,
       kind: 'alias',
       name,
       packageId: pkg.id,
@@ -254,6 +297,7 @@ function collectTopLevel(
       exported: isExported(node),
       language: 'ts',
     });
+    declToSymbolID.set(node, id);
   } else if (ts.isVariableStatement(node)) {
     const kind: Kind =
       node.declarationList.flags & ts.NodeFlags.Const ? 'const' : 'var';
@@ -265,8 +309,9 @@ function collectTopLevel(
     for (const d of node.declarationList.declarations) {
       if (!ts.isIdentifier(d.name)) continue;
       const name = d.name.text;
+      const id = symbolID(importPath, kind, name);
       addSymbol(idx, pkg, {
-        id: symbolID(importPath, kind, name),
+        id,
         kind,
         name,
         packageId: pkg.id,
@@ -277,8 +322,123 @@ function collectTopLevel(
         exported,
         language: 'ts',
       });
+      // The checker returns `d` (VariableDeclaration) as the decl for
+      // identifier uses of the variable, not the containing statement.
+      declToSymbolID.set(d, id);
     }
   }
+}
+
+// collectRefs walks function/method bodies and emits a Ref per identifier
+// use that resolves (via the TypeChecker) to a declaration we indexed.
+// Mirrors internal/indexer/xref.go:addRefsForFile — the top-level traversal
+// is intentionally shallow (FunctionDeclaration body + ClassDeclaration
+// method bodies), since those are the only places Go emits refs from today.
+function collectRefs(
+  node: ts.Node,
+  sf: ts.SourceFile,
+  fid: string,
+  declToSymbolID: Map<ts.Declaration, string>,
+  checker: ts.TypeChecker,
+  idx: Index,
+) {
+  if (ts.isFunctionDeclaration(node) && node.name && node.body) {
+    const fromID = declToSymbolID.get(node);
+    if (fromID) {
+      emitBodyRefs(node.body, sf, fid, fromID, declToSymbolID, checker, idx);
+    }
+  } else if (ts.isClassDeclaration(node)) {
+    for (const m of node.members) {
+      if (ts.isMethodDeclaration(m) && m.body) {
+        const fromID = declToSymbolID.get(m);
+        if (fromID) {
+          emitBodyRefs(m.body, sf, fid, fromID, declToSymbolID, checker, idx);
+        }
+      }
+    }
+  }
+}
+
+function emitBodyRefs(
+  body: ts.Node,
+  sf: ts.SourceFile,
+  fid: string,
+  fromID: string,
+  declToSymbolID: Map<ts.Declaration, string>,
+  checker: ts.TypeChecker,
+  idx: Index,
+) {
+  const visit = (n: ts.Node): void => {
+    if (ts.isIdentifier(n)) {
+      // Skip identifiers in binding positions — getSymbolAtLocation still
+      // returns the symbol for parameter/local names, but emitting refs
+      // from a function to its own parameters would be noise.
+      const parent = n.parent;
+      if (
+        parent &&
+        ((ts.isParameter(parent) && parent.name === n) ||
+          (ts.isVariableDeclaration(parent) && parent.name === n) ||
+          (ts.isBindingElement(parent) && parent.name === n))
+      ) {
+        ts.forEachChild(n, visit);
+        return;
+      }
+      let sym = checker.getSymbolAtLocation(n);
+      // Named imports resolve to an alias symbol pointing at the ImportSpecifier.
+      // Follow it to the real declaration so the ref targets the exported
+      // symbol (function/class/const) rather than the local import binding.
+      if (sym && sym.flags & ts.SymbolFlags.Alias) {
+        try {
+          sym = checker.getAliasedSymbol(sym);
+        } catch {
+          // getAliasedSymbol throws on unresolvable aliases; fall back to the
+          // original symbol (will just fail the decl-map lookup below).
+        }
+      }
+      const toID = resolveSymbolID(sym, declToSymbolID);
+      if (toID && toID !== fromID) {
+        idx.refs.push({
+          fromSymbolId: fromID,
+          toSymbolId: toID,
+          kind: refKindFor(sym!),
+          fileId: fid,
+          range: rangeFrom(sf, n.getStart(sf), n.getEnd()),
+        });
+      }
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(body);
+}
+
+function resolveSymbolID(
+  sym: ts.Symbol | undefined,
+  declToSymbolID: Map<ts.Declaration, string>,
+): string | undefined {
+  if (!sym || !sym.declarations) return undefined;
+  for (const d of sym.declarations) {
+    const id = declToSymbolID.get(d);
+    if (id) return id;
+  }
+  return undefined;
+}
+
+function refKindFor(sym: ts.Symbol): string {
+  const f = sym.flags;
+  if (f & (ts.SymbolFlags.Function | ts.SymbolFlags.Method)) return 'call';
+  if (
+    f &
+    (ts.SymbolFlags.Class |
+      ts.SymbolFlags.Interface |
+      ts.SymbolFlags.TypeAlias |
+      ts.SymbolFlags.Enum)
+  ) {
+    return 'uses-type';
+  }
+  if (f & (ts.SymbolFlags.Variable | ts.SymbolFlags.BlockScopedVariable)) {
+    return 'reads';
+  }
+  return 'use';
 }
 
 // Let this module be runnable as a script for quick iteration:
