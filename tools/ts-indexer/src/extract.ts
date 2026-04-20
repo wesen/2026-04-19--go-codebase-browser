@@ -173,9 +173,40 @@ function rangeFrom(sf: ts.SourceFile, pos: number, end: number): Range {
     startCol: s.character + 1,
     endLine: e.line + 1,
     endCol: e.character + 1,
-    startOffset: pos,
-    endOffset: end,
+    // TS positions are UTF-16 code units; the Go server slices source bytes
+    // in UTF-8. Convert up-front so all downstream consumers (snippet,
+    // snippet-refs, xref) stay byte-aligned for files that contain
+    // non-ASCII characters (e.g. the HORIZONTAL ELLIPSIS in DocPage.tsx).
+    startOffset: utf16ToByte(sf, pos),
+    endOffset: utf16ToByte(sf, end),
   };
+}
+
+// Cached UTF-16-position → UTF-8-byte-offset table, computed once per file.
+// For ASCII-only files this is the identity; for files with non-BMP/multi-
+// byte chars it accumulates the extra bytes per TS position so the reported
+// offsets match what the Go server sees when it reads the file as bytes.
+const utf16ToByteCache = new WeakMap<ts.SourceFile, number[]>();
+
+function utf16ToByte(sf: ts.SourceFile, pos: number): number {
+  let offsets = utf16ToByteCache.get(sf);
+  if (!offsets) {
+    const text = sf.text;
+    offsets = new Array<number>(text.length + 1);
+    let byte = 0;
+    for (let i = 0; i < text.length; i++) {
+      offsets[i] = byte;
+      const code = text.charCodeAt(i);
+      if (code < 0x80) byte += 1;
+      else if (code < 0x800) byte += 2;
+      else if (code >= 0xd800 && code <= 0xdbff) byte += 4; // high surrogate pair
+      else if (code >= 0xdc00 && code <= 0xdfff) byte += 0; // low surrogate (counted above)
+      else byte += 3;
+    }
+    offsets[text.length] = byte;
+    utf16ToByteCache.set(sf, offsets);
+  }
+  return offsets[Math.min(Math.max(pos, 0), offsets.length - 1)];
 }
 
 function isExported(node: ts.Node): boolean {
