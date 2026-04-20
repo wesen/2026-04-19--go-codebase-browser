@@ -62,7 +62,7 @@ func (c *ServeCommand) Run(ctx context.Context, vals *values.Values) error {
 	}
 	data := indexfs.Bytes()
 	if len(data) == 0 {
-		return errors.New("index.json not found; run `codebase-browser index build` or `go generate ./...` first")
+		return errors.New("index.json not found; run `codebase-browser index build` or `make build` first")
 	}
 	loaded, err := browser.LoadFromBytes(data)
 	if err != nil {

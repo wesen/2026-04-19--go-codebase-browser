@@ -32,7 +32,7 @@ func (s *Server) spaHandler() http.Handler {
 		// SPA fallback: serve index.html for client-side-routed paths.
 		data, err := fs.ReadFile(s.SPAFS, "index.html")
 		if err != nil {
-			http.Error(w, "SPA not built. Run 'pnpm -C ui run build' then 'go generate ./internal/web'.", http.StatusNotFound)
+			http.Error(w, "SPA not built. Run 'go generate ./internal/web'.", http.StatusNotFound)
 			return
 		}
 		writeSPA(w, "index.html", data)

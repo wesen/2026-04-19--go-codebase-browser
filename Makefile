@@ -9,7 +9,7 @@ help:
 	@echo "  dev-frontend    Run Vite on :3000 with proxy to :3001"
 	@echo "  frontend-check  TypeScript check"
 	@echo "  frontend-build  Vite production build -> ui/dist/public/"
-	@echo "  generate        Run go generate ./... (builds index + copies SPA assets)"
+	@echo "  generate        Run go generate on the generator packages (builds index + copies assets)"
 	@echo "  build           Build single embedded binary (tag: embed)"
 	@echo "  smoke           Run binary and curl /api/index"
 	@echo "  test            go test ./..."
@@ -29,7 +29,7 @@ frontend-build:
 	pnpm -C ui run build
 
 generate:
-	go generate ./...
+	go generate ./cmd/... ./internal/browser ./internal/docs ./internal/indexer ./internal/indexfs ./internal/server ./internal/sourcefs ./internal/web
 
 build: generate
 	go build -tags embed -o bin/$(BINARY) ./cmd/$(BINARY)

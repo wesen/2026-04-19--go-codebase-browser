@@ -29,6 +29,18 @@ topics:
       description: Node/pnpm build tooling invoked from Go
     - slug: multi-language
       description: Multi-language indexer / extractor pluggability
+    - slug: ghcr
+      description: GitHub Container Registry publishing and pulls
+    - slug: argocd
+      description: Argo CD application and reconciliation workflows
+    - slug: github-actions
+      description: GitHub Actions CI and release workflows
+    - slug: gitops
+      description: GitOps repositories and declarative deployment state
+    - slug: deployment
+      description: Application packaging and runtime rollout
+    - slug: kubernetes
+      description: Kubernetes workload and ingress deployment
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

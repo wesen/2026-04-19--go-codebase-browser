@@ -25,16 +25,17 @@ index at request time. See `03-meta.md` for a worked example.
 
 ## Quick start
 
-Prerequisites: Go 1.22+, Node 22+, pnpm 10.x, optional Docker for the
-hermetic Dagger path.
+Prerequisites: Go 1.22+ and optional Docker for the hermetic Dagger build path.
+Node 22+ and pnpm 10.x are only needed if you want to work on the frontend
+or the TypeScript indexer directly.
 
 ```bash
-# 1) Install UI deps + TS indexer deps
+# 1) Optional: install UI deps for local frontend / indexer work
 pnpm -C ui install
 pnpm -C tools/ts-indexer install
 
 # 2) Build index + frontend bundle, embed, and compile the binary
-make build              # runs `go generate ./...` then `go build -tags embed`
+make build              # runs `go generate` on the generator packages, then `go build -tags embed`
 
 # 3) Run
 ./bin/codebase-browser serve --addr :3001
@@ -61,11 +62,19 @@ make dev-frontend       # :3000 — Vite + proxy to :3001
    (default `ui`). Dagger orchestrates a `node:22` container with a
    pnpm `CacheVolume`; set `BUILD_TS_LOCAL=1` to fall back to local
    `pnpm + node` when Docker isn't available.
-3. Calls `indexer.Merge` to stitch both parts together, detecting
+3. `go generate ./internal/web` builds the Vite SPA in a Dagger
+   container and copies the generated `ui/dist/public` assets into
+   `internal/web/embed/public/`; set `BUILD_WEB_LOCAL=1` to fall back to
+   local `pnpm` when Docker isn't available.
+4. Calls `indexer.Merge` to stitch both parts together, detecting
    duplicate IDs rather than silently dropping records.
-4. Writes `internal/indexfs/embed/index.json`, picked up by the
+5. Writes `internal/indexfs/embed/index.json`, picked up by the
    `//go:embed` in `internal/indexfs/embed.go` on the next
    `go build -tags embed`.
+
+Separately, `go generate ./internal/sourcefs` mirrors the repository
+source tree into `internal/sourcefs/embed/source/`, excluding build
+outputs and local caches so snippet lookups stay deterministic.
 
 Flags on `codebase-browser index build`:
 

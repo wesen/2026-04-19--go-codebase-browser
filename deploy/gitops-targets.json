@@ -1,0 +1,11 @@
+{
+  "targets": [
+    {
+      "name": "codebase-browser-prod",
+      "gitops_repo": "wesen/2026-03-27--hetzner-k3s",
+      "gitops_branch": "main",
+      "manifest_path": "gitops/kustomize/codebase-browser/deployment.yaml",
+      "container_name": "codebase-browser"
+    }
+  ]
+}
