@@ -15,8 +15,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	htmlpkg "html"
 	"io/fs"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/yuin/goldmark"
@@ -28,10 +30,16 @@ import (
 
 // SnippetRef is one resolved snippet embedding inside a doc page.
 type SnippetRef struct {
+	// StubID matches the `data-stub-id` attribute on the stub <div> emitted
+	// into Page.HTML — stable within a single rendered page so the frontend
+	// can line each stub up with its metadata entry.
+	StubID    string `json:"stubId"`
 	Directive string `json:"directive"`
 	SymbolID  string `json:"symbolId,omitempty"`
 	FilePath  string `json:"filePath,omitempty"`
 	Kind      string `json:"kind,omitempty"`
+	// Language of the resolved symbol (go | ts | ...). Empty for codebase-file.
+	Language  string `json:"language,omitempty"`
 	Text      string `json:"text"`
 	StartLine int    `json:"startLine,omitempty"`
 	EndLine   int    `json:"endLine,omitempty"`
@@ -86,6 +94,7 @@ func preprocess(src []byte, loaded *browser.Loaded, sourceFS fs.FS) ([]byte, []S
 	var errs []string
 
 	i := 0
+	stubCounter := 0
 	for i < len(lines) {
 		line := lines[i]
 		m := fenceOpenRe.FindStringSubmatch(line)
@@ -108,10 +117,16 @@ func preprocess(src []byte, loaded *browser.Loaded, sourceFS fs.FS) ([]byte, []S
 			// Emit a visible marker so authors see the error in the rendered page.
 			out = append(out, fmt.Sprintf("> **doc error**: %s (`%s`)", err, info))
 		} else {
+			stubCounter++
+			ref.StubID = "stub-" + strconv.Itoa(stubCounter)
 			snippets = append(snippets, *ref)
-			out = append(out, fence+"go")
-			out = append(out, strings.Split(ref.Text, "\n")...)
-			out = append(out, fence)
+			// Emit the stub as a raw-HTML block (blank line above + below so
+			// goldmark treats it as a standalone HTML block rather than
+			// inline HTML — this preserves the stub's attributes verbatim
+			// through markdown rendering).
+			out = append(out, "")
+			out = append(out, stubHTML(ref))
+			out = append(out, "")
 		}
 		if j < len(lines) {
 			i = j + 1
@@ -120,6 +135,32 @@ func preprocess(src []byte, loaded *browser.Loaded, sourceFS fs.FS) ([]byte, []S
 		}
 	}
 	return []byte(strings.Join(out, "\n")), snippets, errs
+}
+
+// stubHTML renders a SnippetRef as a single self-contained <div> that the
+// React frontend can hydrate. The stub's inner body is the pre-resolved
+// plaintext fallback so JS-disabled readers still see something useful.
+func stubHTML(ref *SnippetRef) string {
+	var body string
+	switch ref.Directive {
+	case "codebase-signature":
+		body = "<pre><code>" + htmlpkg.EscapeString(ref.Text) + "</code></pre>"
+	case "codebase-doc":
+		body = "<blockquote>" + htmlpkg.EscapeString(ref.Text) + "</blockquote>"
+	default: // codebase-snippet, codebase-file
+		lang := ref.Language
+		if lang == "" {
+			lang = "text"
+		}
+		body = `<pre><code class="language-` + lang + `">` +
+			htmlpkg.EscapeString(ref.Text) + "</code></pre>"
+	}
+	return fmt.Sprintf(
+		`<div class="codebase-snippet" data-codebase-snippet `+
+			`data-stub-id=%q data-sym=%q data-directive=%q `+
+			`data-kind=%q data-lang=%q>%s</div>`,
+		ref.StubID, ref.SymbolID, ref.Directive, ref.Kind, ref.Language, body,
+	)
 }
 
 func resolveDirective(info string, loaded *browser.Loaded, sourceFS fs.FS) (*SnippetRef, error) {
@@ -146,6 +187,10 @@ func resolveDirective(info string, loaded *browser.Loaded, sourceFS fs.FS) (*Sni
 		ref.SymbolID = sym.ID
 		ref.StartLine = sym.Range.StartLine
 		ref.EndLine = sym.Range.EndLine
+		ref.Language = sym.Language
+		if ref.Language == "" {
+			ref.Language = "go"
+		}
 		switch directive {
 		case "codebase-doc":
 			ref.Kind = "doc"

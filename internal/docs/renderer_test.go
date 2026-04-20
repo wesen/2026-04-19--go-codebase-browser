@@ -94,3 +94,39 @@ func TestFirstH1(t *testing.T) {
 		t.Errorf("firstH1=%q", got)
 	}
 }
+
+func TestRender_EmitsHydrationStubs(t *testing.T) {
+	l, srcFS := fixtureLoaded(t)
+	md := "# t\n\n```codebase-snippet sym=example.com/foo.Hello\n```\n\n" +
+		"```codebase-signature sym=example.com/foo.Hello\n```\n"
+	page, err := Render("p", []byte(md), l, srcFS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Errors) > 0 {
+		t.Fatalf("errors: %v", page.Errors)
+	}
+	if len(page.Snippets) != 2 {
+		t.Fatalf("want 2 snippets, got %d", len(page.Snippets))
+	}
+	// Each snippet has a non-empty StubID matching a data-stub-id in the HTML.
+	for _, s := range page.Snippets {
+		if s.StubID == "" {
+			t.Errorf("snippet %s has no StubID", s.SymbolID)
+		}
+		if !strings.Contains(page.HTML, `data-stub-id="`+s.StubID+`"`) {
+			t.Errorf("html missing stub-id %q", s.StubID)
+		}
+	}
+	// Stub carries sym, directive, kind, lang.
+	if !strings.Contains(page.HTML, `data-directive="codebase-snippet"`) {
+		t.Errorf("html missing directive attr: %s", page.HTML)
+	}
+	if !strings.Contains(page.HTML, `data-lang="go"`) {
+		t.Errorf("html missing lang attr: %s", page.HTML)
+	}
+	// Plaintext fallback still inside the stub (goldmark escapes angle brackets).
+	if !strings.Contains(page.HTML, "func Hello(name string) string") {
+		t.Errorf("html missing fallback signature: %s", page.HTML)
+	}
+}
