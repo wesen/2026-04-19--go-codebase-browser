@@ -19,11 +19,11 @@
 
 ## Phase 1 — Indexer + CLI
 
-- [ ] `internal/indexer/{extractor,id,write}.go` (packages, files, top-level symbols only)
-- [ ] `cmd/codebase-browser/cmds/index/{build,stats}.go` (Glazed conventions)
-- [ ] `cmd/codebase-browser/cmds/symbol/{show,find}.go`
-- [ ] Golden JSON test on fixture module (determinism)
-- [ ] Wire root main.go with logging + embedded help
+- [x] `internal/indexer/{extractor,id,write}.go` (packages, files, top-level symbols only)
+- [x] `cmd/codebase-browser/cmds/index/{build,stats}.go` (Glazed conventions)
+- [x] `cmd/codebase-browser/cmds/symbol/{show,find}.go`
+- [x] Golden JSON test on fixture module (determinism)
+- [x] Wire root main.go with logging + embedded help
 
 ## Phase 2 — Server + embed
 

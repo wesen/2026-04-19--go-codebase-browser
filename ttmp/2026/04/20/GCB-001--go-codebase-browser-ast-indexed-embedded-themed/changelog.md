@@ -24,3 +24,8 @@ Populated investigation diary with Steps 1-2 (ticket creation + design-doc draft
 
 Uploaded bundled PDF (design doc + diary) to reMarkable at /ai/2026/04/20/GCB-001/'GCB-001 Go Codebase Browser — Design + Diary'. Verified via remarquee cloud ls.
 
+
+## 2026-04-20
+
+Phase 1 complete: indexer (go/packages+go/ast+go/types) emits deterministic index.json with packages/files/symbols. Glazed commands: index build/stats and symbol show/find. Root main.go wires logging + help system. Unit tests for fixture module and determinism passing.
+
