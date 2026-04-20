@@ -27,10 +27,10 @@
 
 ## Phase 2 — Server + embed
 
-- [ ] `internal/indexfs/`, `internal/sourcefs/`, `internal/web/` with build-tag pairs
-- [ ] `internal/server/{server,api_index,api_source,api_doc,api_search}.go`
-- [ ] `cmd/codebase-browser/cmds/serve/run.go`
-- [ ] Regression tests: SPA fallback, `/api/source` path hygiene
+- [x] `internal/indexfs/`, `internal/sourcefs/`, `internal/web/` with build-tag pairs
+- [x] `internal/server/{server,api_index,api_source,api_doc,api_search}.go`
+- [x] `cmd/codebase-browser/cmds/serve/run.go`
+- [x] Regression tests: SPA fallback, `/api/source` path hygiene
 
 ## Phase 3 — Frontend shell
 

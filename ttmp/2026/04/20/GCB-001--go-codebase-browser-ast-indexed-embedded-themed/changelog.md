@@ -29,3 +29,8 @@ Uploaded bundled PDF (design doc + diary) to reMarkable at /ai/2026/04/20/GCB-00
 
 Phase 1 complete: indexer (go/packages+go/ast+go/types) emits deterministic index.json with packages/files/symbols. Glazed commands: index build/stats and symbol show/find. Root main.go wires logging + help system. Unit tests for fixture module and determinism passing.
 
+
+## 2026-04-20
+
+Phase 2 complete: internal/web + internal/sourcefs + internal/indexfs with //go:build embed + !embed pairs; internal/server with /api/index /api/packages /api/symbol /api/source /api/snippet /api/search endpoints plus SPA fallback. Path whitelist enforced via index; traversal/absolute paths 400; unknown /api 404 rather than falling through to index.html. Live smoke test passing against 12 packages / 22 files / 81 symbols indexed from this repo.
+

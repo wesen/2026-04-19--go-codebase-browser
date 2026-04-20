@@ -1,6 +1,11 @@
 package main
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/spf13/cobra"
 
-// registerServe is replaced in Phase 2 with the real serve wiring.
-func registerServe(_ *cobra.Command) {}
+	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/serve"
+)
+
+func registerServe(root *cobra.Command) {
+	cobra.CheckErr(serve.Register(root))
+}
