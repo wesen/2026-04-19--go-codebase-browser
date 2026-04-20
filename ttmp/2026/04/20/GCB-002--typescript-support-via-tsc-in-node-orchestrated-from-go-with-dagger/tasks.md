@@ -2,7 +2,6 @@
 
 ## TODO
 
-- [ ] Add tasks here
 
 - [x] Phase 1: Extractor interface refactor + Language field + Merge()
 - [x] Phase 2: tools/ts-indexer/ package with extract.ts + CLI + fixture test
