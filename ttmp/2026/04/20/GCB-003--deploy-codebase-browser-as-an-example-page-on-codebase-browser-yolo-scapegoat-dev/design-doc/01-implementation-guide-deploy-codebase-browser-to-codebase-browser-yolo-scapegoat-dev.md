@@ -196,6 +196,16 @@ on push to main:
   open a GitOps PR
 ```
 
+Before the first push, bootstrap the GitHub secret from the Hetzner K3s repo's `.envrc`:
+
+```bash
+cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
+set -a
+source .envrc
+set +a
+gh secret set GITOPS_PR_TOKEN --repo wesen/2026-04-19--go-codebase-browser
+```
+
 ### 4. Add the GitOps package in the Hetzner repo
 
 The GitOps repo should get a stateless public-app package that mirrors `artifacts` and `pretext`:
