@@ -72,3 +72,145 @@ Implementation phases 1 (server stubs) and 2 (frontend hydration), then meta-pag
 ### Technical details
 
 Ticket path: `ttmp/2026/04/20/GCB-004--react-hydrated-snippet-widgets-on-doc-pages/`.
+
+## Step 2: Server renders stubs instead of inline source
+
+Swapped the renderer's "replace the fenced block with a go-fenced code block" step for "replace with a raw-HTML `<div data-codebase-snippet …>` carrying the plaintext fallback inside." Goldmark passes the HTML block through unchanged. `SnippetRef` grew a `StubID` + `Language` field so the `/api/doc/{slug}` JSON contract lines up each stub with its metadata entry.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Commit (code):** `5d40b01` — "GCB-004 Phase 1: renderer emits data-codebase-snippet stubs"
+
+### What I did
+
+1. `SnippetRef` gained `StubID string` and `Language string`.
+2. `resolveDirective` now reads `sym.Language` (defaults to `"go"`).
+3. `preprocess` now:
+   - Assigns each resolved directive a monotonic `stub-1`, `stub-2`, ... ID.
+   - Emits the stub via a new `stubHTML(ref)` helper that writes `<div class="codebase-snippet" data-codebase-snippet data-stub-id=... data-sym=... data-directive=... data-kind=... data-lang=...><pre><code class="language-X">escaped text</code></pre></div>`.
+   - Sandwiches the raw-HTML block with blank lines so goldmark treats it as a standalone HTML block rather than inline HTML (which would escape the `<` characters).
+4. `stubHTML` picks the fallback body per directive: `<pre><code>` for snippet, `<pre><code>` for signature (same shape so the visual footprint matches), `<blockquote>` for doc.
+5. Added `TestRender_EmitsHydrationStubs` asserting: N snippets produce N stub divs, each stub-ID appears as both a `SnippetRef.StubID` and a `data-stub-id=` attribute, and `data-directive` / `data-lang` reach the HTML correctly.
+
+### Why
+
+The renderer doubles as the hydration contract. If the stub attributes are wrong or duplicated, the frontend can't line them up with the `snippets[]` JSON. Making the IDs deterministic (`stub-N` over a UUID) keeps test output readable and stable.
+
+### What worked
+
+Goldmark's raw-HTML-block handling "just works" once the stub is separated from surrounding prose by blank lines. No custom AST walker or renderer extension needed — the existing pipeline is `markdown → [preprocess swap] → markdown → goldmark → html`, and raw HTML inside markdown is already a markdown feature.
+
+### What didn't work
+
+First attempt emitted the stub directly inside the flow of other paragraphs (no blank lines). Goldmark treated it as inline HTML and escaped the angle brackets, producing `&lt;div data-codebase-snippet&gt;...`. Fixed by inserting blank-line separators before and after the stub.
+
+### What I learned
+
+`html.EscapeString` from the stdlib is enough — I was tempted to pull in a third-party escaper. Also: the `snippets[]` JSON response is still a flat array; each entry's `stubId` is the only way to associate it with an HTML anchor. This deliberately avoids structured JSON for the prose + snippets; the prose stays free-form markdown.
+
+### What was tricky to build
+
+Maintaining backward-compat. The existing renderer tests assert "the signature text appears in HTML." Those still pass because the stub's `<code>` fallback contains the signature. If some future test asserted "the signature is inside a fenced-code-block," it would need updating. Current tests don't, so we're fine.
+
+### What warrants a second pair of eyes
+
+`stubHTML` uses `fmt.Sprintf` with `%q` for attribute values — works for simple strings but if a symbol ID ever contained a double-quote (it can't today) we'd need HTML-entity escaping instead. Flagging for someone to confirm the ID scheme's character set.
+
+### What should be done in the future
+
+Optional: a `codebase-snippet` variant that doesn't render the header (`?headless=true`) for use inline inside prose. Not needed today.
+
+### Code review instructions
+
+1. `go test ./internal/docs` — should pass all 5 tests.
+2. `go run ./cmd/codebase-browser serve --addr :3001` then `curl /api/doc/03-meta | jq '.snippets'` — each entry should carry a `stubId`, and `jq '.html' | grep -c data-codebase-snippet` should equal `len(snippets)`.
+
+## Step 3: Frontend hydrates stubs with rich widgets
+
+Added `DocSnippet.tsx` which dispatches on directive (`snippet` → `<LinkedCode>` with xrefs, `signature` → `<Link>`, `doc` → `<blockquote>`). Amended `DocPage.tsx` with a post-mount `useEffect` that scans the article for `[data-codebase-snippet]` stubs, clears each stub's fallback, and uses `createPortal` to mount the right widget in place. Portals inherit the outer `<Provider>` so RTK-Query hooks inside `<DocSnippet>` just work.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Commit (code):** `87af108` — "GCB-004 Phase 2: hydrate doc-page stubs with rich React widgets"
+
+### What I did
+
+1. `docApi.SnippetRef` grew `stubId` + `language` fields to match the server contract.
+2. `ui/src/features/doc/DocSnippet.tsx` — new file, 3 sub-components for the 3 directive kinds.
+   - Snippet uses `useGetSymbolQuery` + `useGetSnippetQuery` + `useGetSnippetRefsQuery` → `<LinkedCode>`, same stack as `/symbol/{id}` pages.
+   - Signature uses `useGetSymbolQuery` → compact `<pre><code>` wrapped in `<Link>`.
+   - Godoc uses `useGetSymbolQuery` → `<blockquote>`.
+3. `ui/src/features/doc/DocPage.tsx` — added:
+   - `articleRef` to point into the SSR'd article element.
+   - `useEffect([data?.html])` that walks `articleRef.current.querySelectorAll('[data-codebase-snippet]')`, reads the stub's `data-*` attributes, clears its fallback `innerHTML`, and pushes it onto a `stubs` state array.
+   - JSX `{stubs.map(createPortal(<DocSnippet {...s}/>, s.el, key))}` under the article to mount one portal per stub.
+
+### Why
+
+Portals over `createRoot`: a fresh `createRoot` doesn't inherit the outer React context (Redux `<Provider>`, React-Router `<BrowserRouter>`), which means RTK-Query hooks inside the children would fail to find the store. `createPortal` keeps the subtree under the same React context while physically placing it in the stub's DOM node.
+
+### What worked
+
+First try compiled and produced visually correct HTML from the server. A single `useEffect` keyed on `data?.html` handles both the initial mount and re-hydration when a user navigates between two doc pages (React re-runs the effect when the HTML string changes, and the `setStubs([])` path clears old stubs when data is missing).
+
+### What didn't work
+
+`useGetSnippetQuery(sym)` signature — I forgot it takes `{ sym }` as an object (per `sourceApi.ts:21`). Fixed by passing `{ sym }` instead of the bare string. Caught by `pnpm typecheck` on first pass.
+
+### What I learned
+
+`createPortal` is the right primitive when you need to render React children into a DOM node that is *inside* an existing React tree but was inserted imperatively (e.g. by `dangerouslySetInnerHTML`). Think of it as "this child belongs to this component's React context but lives at that DOM location."
+
+### What was tricky to build
+
+Getting the effect dependency right. `[data?.html]` covers the common case (page navigation), but if the same HTML string is served twice (unlikely but possible with RTK-Query caching), the effect doesn't re-run. That's fine — the stubs are still mounted from the first run. The trickier case is if a new doc page happens to emit stubs for the same symbols with the same order; React's key-based portal list (`${slug}-${i}`) ensures each portal gets a stable identity across renders.
+
+### What warrants a second pair of eyes
+
+1. StrictMode double-mount: the effect runs twice in dev mode. Since `setStubs(found)` is idempotent (the list of stubs is the same both times), this should be OK. Worth eyeballing in a live dev session to confirm no duplicate portals.
+2. The plaintext fallback gets cleared the moment the effect runs. If the effect runs before the HTML is painted, readers might see a flash. In practice the effect runs after `dangerouslySetInnerHTML` mounts, so the order is paint-then-clear-then-portal. Visual verification useful.
+
+### What should be done in the future
+
+1. Storybook story for `<DocSnippet>` with a mocked RTK-Query provider — makes the three directives developable in isolation.
+2. CSS polish: stub-reserved min-height to avoid layout shift when the hydrated widget is taller than the plaintext fallback.
+
+### Code review instructions
+
+1. `pnpm -C ui run typecheck` — clean.
+2. `pnpm -C ui run build` — produces `dist/public/` without errors.
+3. `make build && ./bin/codebase-browser serve --addr :3001` — open `http://localhost:3001/doc/03-meta` and confirm:
+   - All 6 blocks render with syntax highlighting (Go + TS tokens coloured).
+   - `Merge` header shows `func` kind badge + clickable name.
+   - Identifier names inside `Merge`'s body (e.g. `Package`, `File`) are blue xref links that navigate to their symbol pages.
+   - `Server.handleXref` signature block is clickable and jumps to that method's page.
+
+### Technical details
+
+DocPage hydration hook in full (key part):
+
+```tsx
+useEffect(() => {
+  if (!data || !articleRef.current) { setStubs([]); return; }
+  const found: StubHandle[] = [];
+  articleRef.current.querySelectorAll<HTMLElement>('[data-codebase-snippet]')
+    .forEach((el) => {
+      const sym = el.getAttribute('data-sym') ?? '';
+      const directive = el.getAttribute('data-directive') ?? '';
+      // ...
+      el.innerHTML = '';
+      found.push({ el, sym, directive, kind, lang });
+    });
+  setStubs(found);
+}, [data?.html]);
+
+// in render:
+{stubs.map((s, i) =>
+  createPortal(<DocSnippet {...s} />, s.el, `${slug}-${i}`))}
+```
+
+The 6 stubs on `03-meta` dispatch to 3 full-snippet widgets (`Merge`, `tokenize`, `isJsxComponentRef`), 2 signature widgets (`handleXref`, `runDagger`), and 1 extra signature (`Merge`). Each full-snippet widget fetches its own `/api/symbol/{id}` + `/api/snippet` + `/api/snippet-refs` lazily via RTK-Query; cached across navigations (`keepUnusedDataFor: 3600`).
