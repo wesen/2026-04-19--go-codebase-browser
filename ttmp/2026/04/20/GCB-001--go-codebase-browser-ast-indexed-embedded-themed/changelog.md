@@ -34,3 +34,8 @@ Phase 1 complete: indexer (go/packages+go/ast+go/types) emits deterministic inde
 
 Phase 2 complete: internal/web + internal/sourcefs + internal/indexfs with //go:build embed + !embed pairs; internal/server with /api/index /api/packages /api/symbol /api/source /api/snippet /api/search endpoints plus SPA fallback. Path whitelist enforced via index; traversal/absolute paths 400; unknown /api 404 rather than falling through to index.html. Live smoke test passing against 12 packages / 22 files / 81 symbols indexed from this repo.
 
+
+## 2026-04-20
+
+Phase 3 complete: Vite+React+TS+Redux Toolkit frontend. RTK-Query slices indexApi + sourceApi (keepUnusedDataFor=3600 since binary is immutable). Routes: / (overview), /packages/:id, /symbol/:id, /source/*. Widget package @codebase-browser/ui with parts.ts + base.css + dark.css theme. go generate ./internal/web runs vite build + copies dist to embed dir. E2E verified: / returns index.html, /assets/*.js served with correct content-type, client-side-routed paths fall through to index.html via the SPA handler.
+

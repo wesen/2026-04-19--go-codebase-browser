@@ -34,9 +34,9 @@
 
 ## Phase 3 — Frontend shell
 
-- [ ] RTK-Query slices (indexApi, sourceApi, docApi)
-- [ ] Routes: /packages, /packages/:id, /symbol/:id, /source/*
-- [ ] Vite build wired into `go generate ./internal/web`
+- [x] RTK-Query slices (indexApi, sourceApi, docApi)
+- [x] Routes: /packages, /packages/:id, /symbol/:id, /source/*
+- [x] Vite build wired into `go generate ./internal/web`
 
 ## Phase 4 — Themable widget package + Storybook
 

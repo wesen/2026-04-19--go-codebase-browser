@@ -1,8 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { Provider } from 'react-redux';
+import { App } from './app/App';
+import { store } from './api/store';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <div>Codebase Browser — placeholder. Real app lands in Phase 3.</div>
+    <Provider store={store}>
+      <App />
+    </Provider>
   </React.StrictMode>,
 );

@@ -1,0 +1,10 @@
+/* Dark theme: override only the color tokens. */
+[data-widget='codebase-browser'][data-theme='dark'] {
+  --cb-color-bg: #0f172a;
+  --cb-color-surface: #1e293b;
+  --cb-color-text: #e2e8f0;
+  --cb-color-muted: #94a3b8;
+  --cb-color-accent: #60a5fa;
+  --cb-color-border: #334155;
+  --cb-color-code-bg: #0b1220;
+}
