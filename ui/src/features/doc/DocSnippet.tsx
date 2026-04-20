@@ -1,8 +1,8 @@
 // React namespace provided by jsx: react-jsx
 import { Link } from 'react-router-dom';
 import { useGetSymbolQuery } from '../../api/indexApi';
-import { useGetSnippetQuery, useGetSnippetRefsQuery } from '../../api/sourceApi';
-import { LinkedCode } from '../symbol/LinkedCode';
+import { ExpandableSymbol } from '../symbol/ExpandableSymbol';
+import { XrefPanel } from '../symbol/XrefPanel';
 
 /**
  * DocSnippet hydrates one `[data-codebase-snippet]` stub on a doc page.
@@ -21,10 +21,10 @@ export interface DocSnippetProps {
   lang: string;
 }
 
-export function DocSnippet({ sym, directive, lang }: DocSnippetProps) {
+export function DocSnippet({ sym, directive }: DocSnippetProps) {
   if (directive === 'codebase-signature') return <DocSignature sym={sym} />;
   if (directive === 'codebase-doc') return <DocGodoc sym={sym} />;
-  return <DocFullSnippet sym={sym} lang={lang} />;
+  return <DocFullSnippet sym={sym} />;
 }
 
 function DocSignature({ sym }: { sym: string }) {
@@ -47,38 +47,30 @@ function DocGodoc({ sym }: { sym: string }) {
   );
 }
 
-function DocFullSnippet({ sym, lang }: { sym: string; lang: string }) {
+// DocFullSnippet wraps <ExpandableSymbol> (same component used on symbol
+// pages) and adds a collapsible cross-reference panel beneath it. Readers
+// get the same rich, navigable view of an embedded snippet that they'd see
+// on /symbol/{id} — plus a show/hide toggle so long snippets can collapse
+// once they've been skimmed, and a <details> section for digging into
+// callers and callees without leaving the doc page.
+function DocFullSnippet({ sym }: { sym: string }) {
   const { data: symbol } = useGetSymbolQuery(sym);
-  const { data: snippet } = useGetSnippetQuery({ sym });
-  const { data: refs } = useGetSnippetRefsQuery(sym);
-  if (!symbol || snippet === undefined) {
+  if (!symbol) {
     return (
       <pre data-part="code-block">
         <code>Loading…</code>
       </pre>
     );
   }
-  const language = lang || symbol.language || 'go';
   return (
     <section data-part="doc-snippet">
-      <header data-part="symbol-header">
-        <span data-part="symbol-kind" data-role={symbol.kind}>
-          {symbol.kind}
-        </span>
-        <Link
-          to={`/symbol/${encodeURIComponent(sym)}`}
-          data-part="symbol-name"
-          data-role="xref"
-        >
-          <code>{symbol.name}</code>
-        </Link>
-        {symbol.signature && (
-          <code data-part="symbol-signature" data-role="hint">
-            {symbol.signature}
-          </code>
-        )}
-      </header>
-      <LinkedCode text={snippet} refs={refs} language={language} />
+      <ExpandableSymbol symbol={symbol} defaultOpen />
+      <details data-part="doc-snippet-xref" style={{ marginTop: 8 }}>
+        <summary data-role="hint" style={{ cursor: 'pointer' }}>
+          cross-references
+        </summary>
+        <XrefPanel symbolId={sym} />
+      </details>
     </section>
   );
 }
