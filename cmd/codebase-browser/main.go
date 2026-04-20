@@ -8,6 +8,7 @@ import (
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/spf13/cobra"
 
+	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/doc"
 	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/index"
 	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/symbol"
 )
@@ -31,6 +32,7 @@ func main() {
 
 	cobra.CheckErr(index.Register(rootCmd))
 	cobra.CheckErr(symbol.Register(rootCmd))
+	cobra.CheckErr(doc.Register(rootCmd))
 	registerServe(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {

@@ -1,0 +1,322 @@
+// Package docs renders Markdown documentation pages whose fenced code blocks
+// are resolved into live snippets from the indexed source tree. See design §11.
+//
+// Strategy: two-pass pipeline.
+//  1. preprocess — find lines like "```codebase-<directive> k=v ..." and
+//     replace the fenced block body with the resolved snippet text, changing
+//     the info string to "go" so goldmark syntax-highlights it as code.
+//  2. render — feed the preprocessed markdown through goldmark.
+//
+// Snippet metadata (symbol id, file, line range) is also emitted on a
+// parallel SnippetRef list so the frontend can offer "jump to source" links.
+package docs
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"io/fs"
+	"regexp"
+	"strings"
+
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/renderer/html"
+
+	"github.com/wesen/codebase-browser/internal/browser"
+	"github.com/wesen/codebase-browser/internal/indexer"
+)
+
+// SnippetRef is one resolved snippet embedding inside a doc page.
+type SnippetRef struct {
+	Directive string `json:"directive"`
+	SymbolID  string `json:"symbolId,omitempty"`
+	FilePath  string `json:"filePath,omitempty"`
+	Kind      string `json:"kind,omitempty"`
+	Text      string `json:"text"`
+	StartLine int    `json:"startLine,omitempty"`
+	EndLine   int    `json:"endLine,omitempty"`
+}
+
+// Page is a single rendered doc page.
+type Page struct {
+	Slug     string       `json:"slug"`
+	Title    string       `json:"title"`
+	HTML     string       `json:"html"`
+	Snippets []SnippetRef `json:"snippets"`
+	Errors   []string     `json:"errors,omitempty"`
+}
+
+// Render parses mdSource, resolves any codebase-* fenced blocks, and returns
+// the rendered HTML + the list of resolved snippets.
+func Render(slug string, mdSource []byte, loaded *browser.Loaded, sourceFS fs.FS) (*Page, error) {
+	page := &Page{Slug: slug}
+	page.Title = firstH1(mdSource)
+
+	processed, snippets, errs := preprocess(mdSource, loaded, sourceFS)
+	page.Snippets = snippets
+	page.Errors = errs
+
+	md := goldmark.New(goldmark.WithRendererOptions(html.WithUnsafe()))
+	var buf bytes.Buffer
+	if err := md.Convert(processed, &buf); err != nil {
+		return nil, fmt.Errorf("render: %w", err)
+	}
+	page.HTML = buf.String()
+	return page, nil
+}
+
+var h1Re = regexp.MustCompile(`(?m)^#\s+(.+)$`)
+
+func firstH1(src []byte) string {
+	m := h1Re.FindSubmatch(src)
+	if len(m) < 2 {
+		return ""
+	}
+	return strings.TrimSpace(string(m[1]))
+}
+
+// fenceRe matches ``` or ~~~ fenced openers whose info string starts with
+// "codebase-". We don't fold ``` and ~~~ across a single doc intentionally.
+var fenceOpenRe = regexp.MustCompile("^(?P<fence>```+|~~~+)(codebase-[a-z-]+[^\\n]*)$")
+
+func preprocess(src []byte, loaded *browser.Loaded, sourceFS fs.FS) ([]byte, []SnippetRef, []string) {
+	lines := strings.Split(string(src), "\n")
+	var out []string
+	var snippets []SnippetRef
+	var errs []string
+
+	i := 0
+	for i < len(lines) {
+		line := lines[i]
+		m := fenceOpenRe.FindStringSubmatch(line)
+		if m == nil {
+			out = append(out, line)
+			i++
+			continue
+		}
+		fence := m[1]
+		info := m[2]
+		// Find the closing fence.
+		j := i + 1
+		for j < len(lines) && !strings.HasPrefix(lines[j], fence) {
+			j++
+		}
+		// Resolve the directive, ignoring the (empty/noise) body between fences.
+		ref, err := resolveDirective(info, loaded, sourceFS)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("line %d: %s", i+1, err))
+			// Emit a visible marker so authors see the error in the rendered page.
+			out = append(out, fmt.Sprintf("> **doc error**: %s (`%s`)", err, info))
+		} else {
+			snippets = append(snippets, *ref)
+			out = append(out, fence+"go")
+			out = append(out, strings.Split(ref.Text, "\n")...)
+			out = append(out, fence)
+		}
+		if j < len(lines) {
+			i = j + 1
+		} else {
+			i = len(lines)
+		}
+	}
+	return []byte(strings.Join(out, "\n")), snippets, errs
+}
+
+func resolveDirective(info string, loaded *browser.Loaded, sourceFS fs.FS) (*SnippetRef, error) {
+	parts := strings.Fields(info)
+	directive := parts[0]
+	params := map[string]string{}
+	for _, p := range parts[1:] {
+		kv := strings.SplitN(p, "=", 2)
+		if len(kv) == 2 {
+			params[kv[0]] = kv[1]
+		}
+	}
+	ref := &SnippetRef{Directive: directive}
+	switch directive {
+	case "codebase-snippet", "codebase-signature", "codebase-doc":
+		symRef := params["sym"]
+		if symRef == "" {
+			return nil, errors.New("missing sym= on " + directive)
+		}
+		sym, err := resolveSymbol(symRef, loaded)
+		if err != nil {
+			return nil, err
+		}
+		ref.SymbolID = sym.ID
+		ref.StartLine = sym.Range.StartLine
+		ref.EndLine = sym.Range.EndLine
+		switch directive {
+		case "codebase-doc":
+			ref.Kind = "doc"
+			ref.Text = sym.Doc
+			return ref, nil
+		case "codebase-signature":
+			ref.Kind = "signature"
+			ref.Text = sym.Signature
+			return ref, nil
+		}
+		file, ok := loaded.File(sym.FileID)
+		if !ok {
+			return nil, fmt.Errorf("file for %s not indexed", sym.ID)
+		}
+		data, err := fs.ReadFile(sourceFS, file.Path)
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", file.Path, err)
+		}
+		start, end := sym.Range.StartOffset, sym.Range.EndOffset
+		if start < 0 || end > len(data) || start > end {
+			return nil, fmt.Errorf("range out of file for %s", sym.ID)
+		}
+		snippet := string(data[start:end])
+		if params["kind"] == "body" {
+			if open := strings.IndexByte(snippet, '{'); open >= 0 {
+				snippet = strings.TrimSpace(snippet[open:])
+			}
+		}
+		if params["dedent"] == "true" {
+			snippet = dedent(snippet)
+		}
+		ref.Kind = params["kind"]
+		if ref.Kind == "" {
+			ref.Kind = "declaration"
+		}
+		ref.Text = snippet
+		ref.FilePath = file.Path
+		return ref, nil
+
+	case "codebase-file":
+		path := params["path"]
+		if path == "" {
+			return nil, errors.New("missing path= on codebase-file")
+		}
+		if _, ok := loaded.File("file:" + path); !ok {
+			return nil, fmt.Errorf("file %s not in index", path)
+		}
+		data, err := fs.ReadFile(sourceFS, path)
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", path, err)
+		}
+		text := string(data)
+		if r := params["range"]; r != "" {
+			if trimmed, err := sliceByLines(text, r); err == nil {
+				text = trimmed
+			}
+		}
+		ref.FilePath = path
+		ref.Text = text
+		return ref, nil
+	}
+	return nil, fmt.Errorf("unknown directive %q", directive)
+}
+
+// resolveSymbol accepts either a full "sym:..." ID or a short form
+// "pkg/import/path.Name" / "pkg/import/path.Recv.Method". Ambiguous short
+// forms return an error so authors notice.
+func resolveSymbol(ref string, l *browser.Loaded) (*indexer.Symbol, error) {
+	if strings.HasPrefix(ref, "sym:") {
+		sym, ok := l.Symbol(ref)
+		if !ok {
+			return nil, fmt.Errorf("symbol %s not found", ref)
+		}
+		return sym, nil
+	}
+	// Short form: last segment is Name (or Recv.Method), rest is importPath.
+	dot := strings.LastIndex(ref, ".")
+	if dot < 0 {
+		return nil, fmt.Errorf("bad short ref %q", ref)
+	}
+	importPath := ref[:dot]
+	name := ref[dot+1:]
+	// Try method form: "pkg.Recv.Method" — shift dot to find (Recv, Method).
+	var candidates []*indexer.Symbol
+	for i := range l.Index.Symbols {
+		s := &l.Index.Symbols[i]
+		if s.PackageID != indexer.PackageID(importPath) {
+			continue
+		}
+		if s.Name != name {
+			continue
+		}
+		candidates = append(candidates, s)
+	}
+	// Also try treating it as a method: strip the "Recv." from name.
+	if dot2 := strings.LastIndex(importPath, "."); dot2 >= 0 {
+		pkg := importPath[:dot2]
+		recv := importPath[dot2+1:]
+		for i := range l.Index.Symbols {
+			s := &l.Index.Symbols[i]
+			if s.PackageID != indexer.PackageID(pkg) {
+				continue
+			}
+			if s.Kind != "method" || s.Name != name {
+				continue
+			}
+			if s.Receiver != nil && s.Receiver.TypeName == recv {
+				candidates = append(candidates, s)
+			}
+		}
+	}
+	if len(candidates) == 0 {
+		return nil, fmt.Errorf("symbol %q not found", ref)
+	}
+	if len(candidates) > 1 {
+		ids := make([]string, len(candidates))
+		for i, c := range candidates {
+			ids[i] = c.ID
+		}
+		return nil, fmt.Errorf("ambiguous %q: %s", ref, strings.Join(ids, ", "))
+	}
+	return candidates[0], nil
+}
+
+func dedent(s string) string {
+	lines := strings.Split(s, "\n")
+	prefix := -1
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		spaces := 0
+		for _, c := range line {
+			if c != ' ' && c != '\t' {
+				break
+			}
+			spaces++
+		}
+		if prefix < 0 || spaces < prefix {
+			prefix = spaces
+		}
+	}
+	if prefix <= 0 {
+		return s
+	}
+	for i, line := range lines {
+		if len(line) >= prefix {
+			lines[i] = line[prefix:]
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func sliceByLines(text, spec string) (string, error) {
+	dash := strings.IndexByte(spec, '-')
+	if dash <= 0 {
+		return text, errors.New("bad range")
+	}
+	var start, end int
+	if _, err := fmt.Sscanf(spec[:dash], "%d", &start); err != nil {
+		return text, err
+	}
+	if _, err := fmt.Sscanf(spec[dash+1:], "%d", &end); err != nil {
+		return text, err
+	}
+	lines := strings.Split(text, "\n")
+	if start < 1 {
+		start = 1
+	}
+	if end > len(lines) {
+		end = len(lines)
+	}
+	return strings.Join(lines[start-1:end], "\n"), nil
+}

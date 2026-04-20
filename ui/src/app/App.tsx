@@ -8,6 +8,7 @@ import { PackagePage } from '../features/tree/PackagePage';
 import { SymbolPage } from '../features/symbol/SymbolPage';
 import { SourcePage } from '../features/source/SourcePage';
 import { SearchPanel } from '../features/tree/SearchPanel';
+import { DocPage, DocList } from '../features/doc/DocPage';
 import { useGetIndexQuery } from '../api/indexApi';
 
 export function App() {
@@ -19,6 +20,10 @@ export function App() {
           <aside data-part="sidebar">
             <Header onToggleTheme={() => setDark((d) => !d)} dark={dark} />
             <SearchPanel />
+            <details open style={{ marginBottom: 12 }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600, padding: '4px 0' }}>Docs</summary>
+              <DocList />
+            </details>
             <PackageList />
           </aside>
           <main data-part="main">
@@ -27,6 +32,7 @@ export function App() {
               <Route path="/packages/:id" element={<PackagePage />} />
               <Route path="/symbol/:id" element={<SymbolPage />} />
               <Route path="/source/*" element={<SourcePage />} />
+              <Route path="/doc/:slug" element={<DocPage />} />
             </Routes>
           </main>
         </div>

@@ -47,11 +47,11 @@
 
 ## Phase 5 — Doc renderer with live snippets
 
-- [ ] goldmark custom fenced-block extension (`codebase-snippet`, `codebase-signature`, `codebase-doc`, `codebase-file`)
-- [ ] `cmd/codebase-browser/cmds/doc/render.go` (build-time AST emitter)
-- [ ] `/api/doc` and `/api/doc/{slug}` endpoints
-- [ ] Frontend DocPage + `<Snippet/>` with "jump to source" link
-- [ ] Ship 2-3 dogfood doc pages
+- [x] goldmark custom fenced-block extension (`codebase-snippet`, `codebase-signature`, `codebase-doc`, `codebase-file`)
+- [x] `cmd/codebase-browser/cmds/doc/render.go` (build-time AST emitter)
+- [x] `/api/doc` and `/api/doc/{slug}` endpoints
+- [x] Frontend DocPage + `<Snippet/>` with "jump to source" link
+- [x] Ship 2-3 dogfood doc pages
 
 ## Phase 6 — Cross-references (optional)
 

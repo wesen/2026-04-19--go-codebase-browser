@@ -44,3 +44,8 @@ Phase 3 complete: Vite+React+TS+Redux Toolkit frontend. RTK-Query slices indexAp
 
 Phase 4 complete: widgets extracted into ui/src/packages/ui (future @codebase-browser/ui) with parts.ts + theme/base.css + theme/dark.css. Storybook 8 configured with a Theme toolbar (Light/Dark/Unstyled via data-theme on widget root; Unstyled drops base.css). Stories cover SymbolCard (Default/WithSnippet/Method/Struct/Interface/Const/NoDoc/WithNameRenderer/AllKinds), TreeNav, SearchBox, Snippet (incl. JumpLink), SourceView (incl. highlight). Overview.mdx documents the theming contract. build-storybook succeeds.
 
+
+## 2026-04-20
+
+Phase 5 complete: internal/docs renderer resolves codebase-snippet/-signature/-doc/-file fenced blocks via a goldmark pre-processor. Short-form symbol refs (pkg.Name / pkg.Recv.Method) resolved against the index with ambiguity as a hard error. cmd/codebase-browser doc render + --check gate. /api/doc + /api/doc/{slug} server endpoints. Frontend DocPage + DocList wired via docApi. Two dogfood doc pages (01-overview.md, 02-api.md) embed 6 live snippets from the indexer + server packages; doc render reports 0 errors, 6 snippets across 2 pages.
+
