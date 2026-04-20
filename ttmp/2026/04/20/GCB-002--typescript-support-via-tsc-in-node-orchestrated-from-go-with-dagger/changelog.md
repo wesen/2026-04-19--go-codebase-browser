@@ -19,3 +19,8 @@ pnpm store rw access restored; removed the symlink + tsc-compile workaround from
 
 Phase 1 landed: Extractor interface in internal/indexer/multi.go (Language, Extract methods), GoExtractor wrapping existing Extract(), Merge([]*Index) with duplicate-id detection + stable sort. Added Language field on Package/File/Symbol (omitempty, empty-means-go). stampLanguage helper keeps each extractor from having to thread the field through every constructor. Tests cover merge, dup detection, nil handling, and language stamping. Real build stamps 'go' on 15 pkg / 30 files / 121 symbols.
 
+
+## 2026-04-20
+
+Phase 2 landed: tools/ts-indexer/ promoted from scripts prototype. src/extract.ts + src/cli.ts + src/ids.ts + src/types.ts (schema mirror). Vitest fixture test (6 tests, all green) covers language stamping, symbol counts, method receiver IDs, byte-offset roundtrip, and determinism. Compiled bin/cli.js runs via 'node bin/cli.js --module-root <path>'.
+

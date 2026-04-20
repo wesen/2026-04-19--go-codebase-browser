@@ -1,0 +1,26 @@
+{
+  "name": "@codebase-browser/ts-indexer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript-to-Index extractor for the codebase-browser. Invoked in-container by cmd/build-ts-index.",
+  "type": "module",
+  "packageManager": "pnpm@10.13.1",
+  "bin": {
+    "ts-indexer": "./bin/ts-indexer.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "typescript": "^5.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "tsx": "^4.19.0",
+    "vitest": "^2.1.0"
+  }
+}
