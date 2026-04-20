@@ -75,7 +75,8 @@ func (l *Loaded) Symbol(id string) (*indexer.Symbol, bool) { s, ok := l.bySymbol
 // If nameQuery is empty it matches everything.
 func (l *Loaded) FindSymbols(nameQuery, kind string) []*indexer.Symbol {
 	nameQuery = strings.ToLower(nameQuery)
-	var out []*indexer.Symbol
+	// Return an empty (non-nil) slice so the JSON endpoint renders [] not null.
+	out := []*indexer.Symbol{}
 	for i := range l.Index.Symbols {
 		s := &l.Index.Symbols[i]
 		if kind != "" && s.Kind != kind {

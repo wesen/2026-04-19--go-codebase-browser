@@ -29,7 +29,13 @@ func (s *Server) handleXref(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "symbol not found", http.StatusNotFound)
 		return
 	}
-	resp := xrefResponse{ID: id}
+	// Initialise slices so JSON renders as [] not null — the frontend
+	// treats null as an error (see ui XrefPanel.tsx reading .length).
+	resp := xrefResponse{
+		ID:     id,
+		UsedBy: []indexer.Ref{},
+		Uses:   []xrefUseTarget{},
+	}
 	byTarget := map[string]*xrefUseTarget{}
 	for i := range s.Loaded.Index.Refs {
 		ref := &s.Loaded.Index.Refs[i]
