@@ -2,6 +2,7 @@
   "name": "gcb-002-scripts",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.13.1",
   "scripts": {
     "extract": "tsx extract.ts"
   },

@@ -152,16 +152,16 @@ All four confirmed. The design now rests on working code, not speculation.
 
 ### What didn't work
 
-1. **`pnpm install` in `scripts/` failed with ERR_PNPM_EROFS.** Error verbatim:
+1. **`pnpm install` in `scripts/` initially failed with ERR_PNPM_EROFS.** Error verbatim (historical — resolved in Step 4):
 
    ```
    ERR_PNPM_EROFS  Failed to add tarball from "https://registry.npmjs.org/get-tsconfig/-/get-tsconfig-4.14.0.tgz"
-     to store: EROFS: read-only file system, open '/home/manuel/.local/share/pnpm/store/v10/files/f7/25181f1820b9bc37bd1dc279474a11d5b85227dc0195a97a806c1cc4b5fe756d8f24595c2ac66cc7446eb40a009d9a2a8efb0294614d2048b51aa5ab75a93ax13036213'
+     to store: EROFS: read-only file system, open '/home/manuel/.local/share/pnpm/store/v10/files/f7/...'
    ```
 
-   Not an issue in the real implementation — Dagger's own cache volume is writable; this is a sandbox-only constraint. Documented here so future-me doesn't chase it again.
+   The pnpm store (`~/.local/share/pnpm/store/v10/`) was mounted read-only during this session, so any tarball not already cached couldn't land. See Step 4 for the cleanup once rw access was restored.
 
-2. **`npx -p typescript@5 -p tsx@4 tsx extract.ts`** failed with `Cannot find module 'typescript'` — tsx's sandboxed `npx` context didn't expose the ephemeral typescript install to the script's module resolution. Symlink-to-ui-node_modules sidestepped it.
+2. **`npx -p typescript@5 -p tsx@4 tsx extract.ts`** failed with `Cannot find module 'typescript'` — tsx's sandboxed `npx` context didn't expose the ephemeral typescript install to the script's module resolution. Worked around with a symlink to `ui/node_modules`; the real fix (`pnpm install` in `scripts/`) lands in Step 4.
 
 3. **Type error on `ts.getCombinedModifierFlags(VariableStatement)`** — the API expects a `Declaration`, not a `Statement`. Fixed by passing `node.declarationList.declarations[0] as ts.Declaration` instead. Semantically identical; the modifier flags propagate from the statement to all its declarators so using the first is fine.
 
@@ -298,4 +298,96 @@ Design doc word-weight by section (approximate):
 §11 Testing strategy         ~130 words
 §12 Risks/alternatives/Qs    ~300 words
 §13 References               ~70 words
+```
+
+## Step 4: Clean-up — pnpm store writable, workaround removed
+
+The pnpm store's read-only state was a session artifact; it's writable now. Redid the scripts setup the normal way — plain `pnpm install` works, tarballs land in `~/.local/share/pnpm/store/v10/` without drama, and `pnpm run extract` runs the extractor via tsx without any symlink trick. The prototype's observable behaviour is identical (1 package / 2 files / 7 symbols).
+
+### Prompt Context
+
+**User prompt (verbatim):**
+
+```
+You should have rw access now, does that allow you to simplify the setup / remove the workarounds?
+```
+
+**Assistant interpretation:** Confirm the sandbox's pnpm store is now writable, remove the symlink + tsc-compile workaround from the prototype, and commit the pnpm-lock.yaml so the scripts dir reproduces cleanly.
+
+**Inferred user intent:** Leave the prototype in a shape that a reviewer can `pnpm install && pnpm run extract fixture-ts` on, not a shape that requires knowing about a sandbox quirk.
+
+### What I did
+
+1. Probed: `touch ~/.local/share/pnpm/store/v10/.probe` succeeded — writable.
+2. Removed the `scripts/node_modules` symlink and the `scripts/.build/` tsc output.
+3. Ran `pnpm install` in `scripts/` cleanly (`Done in 1.5s`, no EROFS).
+4. Ran `./node_modules/.bin/tsx extract.ts fixture-ts | jq '{module, packages, files, symbols, kinds}'` — output matches Step 2 byte-for-byte (modulo `generatedAt`).
+5. Added `packageManager: "pnpm@10.13.1"` to `scripts/package.json` per the `go-web-dagger-pnpm-build` skill's reproducibility convention.
+6. Replaced the `scripts/.gitignore`'s EROFS-era contents (`.build/`, `pnpm-lock.yaml`) with the normal `node_modules/` entry — we now commit the lockfile.
+7. Added `scripts/README.md` with the clean run instructions.
+8. Marked Step 2's EROFS notes as historical and pointed at Step 4.
+
+### Why
+
+The diary is append-only (we don't rewrite history), but the README + prototype layout should reflect the actual supported invocation. Keeping `scripts/.gitignore` with the old entries and the symlink-directory-tree in the diary would have mislead anyone opening the ticket from scratch.
+
+### What worked
+
+1. `pnpm install` in `scripts/` — 1.5 s.
+2. `./node_modules/.bin/tsx extract.ts fixture-ts` — produces identical JSON to the Step 2 prototype.
+3. Committing `pnpm-lock.yaml` gives deterministic installs for reviewers.
+
+### What didn't work
+
+Nothing. The cleanup was straightforward.
+
+### What I learned
+
+The skill's `packageManager` field convention matters not just for Vite builds — it belongs on any `package.json` in the repo so `corepack` / pnpm picks a consistent version. Added it to `scripts/package.json` as a small additional improvement over what the Step 2 setup had.
+
+### What was tricky to build
+
+N/A — cleanup step.
+
+### What warrants a second pair of eyes
+
+Whether `scripts/pnpm-lock.yaml` should be committed or not. Convention says yes (lockfile determinism); alternative is to rely on the `packageManager` pin + `package.json` semver ranges. Going with "commit" matches what we did for `ui/pnpm-lock.yaml` in GCB-001.
+
+### What should be done in the future
+
+Nothing specific to this cleanup. The Phase 2 `tools/ts-indexer/` package will inherit the clean layout (proper `pnpm install`, committed `pnpm-lock.yaml`, `packageManager` pinned).
+
+### Code review instructions
+
+1. `cd scripts/` then `pnpm install && pnpm run extract fixture-ts` — should print the fixture index JSON.
+2. `git log --diff-filter=D -- '*scripts/.build*'` — should show nothing (artifact was never committed).
+3. `grep -n 'symlink\|EROFS' reference/01-investigation-diary.md` — Step 2 retains historical mentions, Step 4 closes them.
+
+### Technical details
+
+Final `scripts/` layout:
+
+```
+scripts/
+├── .gitignore              # only: node_modules/
+├── README.md               # run instructions
+├── package.json            # packageManager pin + tsx + typescript
+├── pnpm-lock.yaml          # committed
+├── extract.ts              # prototype extractor (~200 lines)
+├── node_modules/           # gitignored
+└── fixture-ts/
+    ├── src/
+    │   ├── greeter.ts
+    │   └── main.ts
+    └── tsconfig.json
+```
+
+Verification:
+
+```bash
+$ cd scripts
+$ pnpm install
+Done in 1.5s using pnpm v10.13.1
+$ ./node_modules/.bin/tsx extract.ts fixture-ts | jq '{packages:.packages|length, files:.files|length, symbols:.symbols|length}'
+{ "packages": 1, "files": 2, "symbols": 7 }
 ```
