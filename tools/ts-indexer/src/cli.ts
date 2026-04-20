@@ -5,6 +5,7 @@ interface Args {
   moduleRoot: string;
   tsconfig?: string;
   moduleName?: string;
+  pathPrefix?: string;
   out: string;
   pretty: boolean;
 }
@@ -16,6 +17,7 @@ function parseArgs(argv: string[]): Args {
     if (a === '--module-root') args.moduleRoot = argv[++i];
     else if (a === '--tsconfig') args.tsconfig = argv[++i];
     else if (a === '--module-name') args.moduleName = argv[++i];
+    else if (a === '--path-prefix') args.pathPrefix = argv[++i];
     else if (a === '--out' || a === '-o') args.out = argv[++i];
     else if (a === '--compact') args.pretty = false;
     else if (a === '--help' || a === '-h') {
@@ -32,7 +34,8 @@ function parseArgs(argv: string[]): Args {
 
 function printUsage() {
   process.stderr.write(
-    `Usage: ts-indexer --module-root <path> [--tsconfig <file>] [--module-name <name>] [--out <file|-> ] [--compact]\n`,
+    `Usage: ts-indexer --module-root <path> [--tsconfig <file>] [--module-name <name>]\n` +
+      `                  [--path-prefix <p>] [--out <file|-> ] [--compact]\n`,
   );
 }
 
@@ -49,6 +52,7 @@ function main() {
     moduleRoot: args.moduleRoot,
     tsconfig: args.tsconfig,
     moduleName: args.moduleName,
+    pathPrefix: args.pathPrefix,
   });
   const text = args.pretty ? JSON.stringify(idx, null, 2) : JSON.stringify(idx);
   if (args.out === '-' || !args.out) {

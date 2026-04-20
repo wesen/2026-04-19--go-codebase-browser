@@ -12,6 +12,8 @@ export interface LinkedCodeProps {
 /**
  * LinkedCode wraps the widget-package <Code> with a React-Router-aware link
  * renderer. Kept in the app layer so the widget package stays router-free.
+ * Language defaults to 'go' for backward-compatibility with existing Go-only
+ * callers; TS callers pass language='ts' (usually from Symbol.language).
  */
 export function LinkedCode({ text, refs, language = 'go' }: LinkedCodeProps) {
   return (

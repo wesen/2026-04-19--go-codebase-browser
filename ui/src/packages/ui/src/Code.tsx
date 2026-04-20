@@ -1,6 +1,7 @@
 // React namespace provided by jsx: react-jsx
 import type { ReactNode } from 'react';
-import { tokenize, type Token } from './highlight/go';
+import type { Token } from './highlight/go';
+import { tokenizeForLanguage } from './highlight';
 import { annotateComment } from './highlight/annotations';
 
 export interface CodeRef {
@@ -33,7 +34,7 @@ export interface CodeProps {
  * a matching ref is provided.
  */
 export function Code({ text, language = 'go', refs, renderRefLink }: CodeProps) {
-  const tokens = language === 'go' ? tokenize(text) : [{ type: 'id', text } as Token];
+  const tokens = tokenizeForLanguage(language, text);
   // Index refs by byte offset for O(1) lookup while walking tokens.
   const refByOffset = new Map<number, CodeRef>();
   if (refs) for (const r of refs) refByOffset.set(r.offsetInSnippet, r);

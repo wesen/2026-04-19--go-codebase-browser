@@ -9,6 +9,13 @@ export interface ExtractOptions {
   moduleRoot: string;
   tsconfig?: string;
   moduleName?: string;
+  /**
+   * Prefix prepended to every File.path. Used when the TS project is a
+   * subdirectory of a larger repo — setting pathPrefix="ui" makes the
+   * emitted file paths resolvable against the outer repo's source FS.
+   * Does NOT change symbol IDs (those must be stable across repo moves).
+   */
+  pathPrefix?: string;
 }
 
 /** Extract builds an Index for the TypeScript project at options.moduleRoot. */
@@ -36,6 +43,8 @@ export function extract(opts: ExtractOptions): Index {
   });
 
   const moduleName = opts.moduleName ?? path.basename(root);
+  const prefix = (opts.pathPrefix ?? '').replace(/\\/g, '/').replace(/\/$/, '');
+  const joinPrefix = (p: string) => (prefix ? `${prefix}/${p}` : p);
 
   const idx: Index = {
     version: '1',
@@ -54,11 +63,16 @@ export function extract(opts: ExtractOptions): Index {
     if (sf.isDeclarationFile) continue;
     const absFile = sf.fileName;
     if (!absFile.startsWith(root + path.sep) && absFile !== root) continue;
-    const rel = path
-      .relative(root, absFile)
-      .replace(/\\/g, '/');
+    // Skip anything inside node_modules — tsconfig's default includes may
+    // still pull in transitively-referenced .ts files from installed
+    // packages, which we don't want to index as "our" source.
+    if (absFile.includes(`${path.sep}node_modules${path.sep}`)) continue;
+    const relNative = path.relative(root, absFile).replace(/\\/g, '/');
+    // File.path is prefix-scoped so it resolves against the outer repo's
+    // source FS when this index lives in a Go-module-rooted server.
+    const rel = joinPrefix(relNative);
 
-    const dir = path.dirname(rel).replace(/\\/g, '/');
+    const dir = path.dirname(relNative).replace(/\\/g, '/');
     const importPath = dir === '.' ? moduleName : `${moduleName}/${dir}`;
     let pkg = pkgByImportPath.get(importPath);
     if (!pkg) {
@@ -93,7 +107,10 @@ export function extract(opts: ExtractOptions): Index {
     // *.stories.tsx) need file-scoped IDs to stay unique. We keep `pkg.id`
     // as the directory grouping for tree-nav, but the ID segment threaded
     // through symbols uses the relative path minus extension.
-    const symScope = `${moduleName}/${rel.replace(/\.(tsx?|mts|cts)$/, '')}`;
+    // Symbol scope uses the un-prefixed path: IDs must stay stable across
+    // repo-layout changes (moving the ts project from ui/ to web/ shouldn't
+    // invalidate every doc snippet referencing a TS symbol).
+    const symScope = `${moduleName}/${relNative.replace(/\.(tsx?|mts|cts)$/, '')}`;
 
     ts.forEachChild(sf, (node) => {
       collectTopLevel(node, sf, symScope, file.id, pkg!, idx);

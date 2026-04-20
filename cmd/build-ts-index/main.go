@@ -51,19 +51,32 @@ func run(ctx context.Context) error {
 	tsconfig := envDefault("TS_TSCONFIG", "tsconfig.json")
 	moduleName := envDefault("TS_MODULE_NAME", filepath.Base(modRoot))
 
+	// pathPrefix = modRoot relative to repoRoot (e.g. "ui"). File paths in
+	// the emitted index are stored prefixed so the Go server's source FS
+	// (rooted at repoRoot) can read them without language-specific lookup.
+	pathPrefix := envDefault("TS_PATH_PREFIX", "")
+	if pathPrefix == "" {
+		if rel, err := filepath.Rel(repoRoot, modRoot); err == nil && !strings.HasPrefix(rel, "..") {
+			pathPrefix = filepath.ToSlash(rel)
+			if pathPrefix == "." {
+				pathPrefix = ""
+			}
+		}
+	}
+
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 		return fmt.Errorf("mkdir out dir: %w", err)
 	}
 
 	if os.Getenv("BUILD_TS_LOCAL") == "1" {
-		return runLocal(ctx, repoRoot, modRoot, tsconfig, moduleName, outPath)
+		return runLocal(ctx, repoRoot, modRoot, tsconfig, moduleName, pathPrefix, outPath)
 	}
 	// Opportunistic Dagger path — falls back to local if the engine is
 	// unreachable. The daemon probe is synchronous but cheap.
-	if err := runDagger(ctx, repoRoot, modRoot, tsconfig, moduleName, outPath); err != nil {
+	if err := runDagger(ctx, repoRoot, modRoot, tsconfig, moduleName, pathPrefix, outPath); err != nil {
 		if errors.Is(err, errDaggerUnavailable) {
 			fmt.Fprintln(os.Stderr, "dagger unavailable, falling back to local pnpm")
-			return runLocal(ctx, repoRoot, modRoot, tsconfig, moduleName, outPath)
+			return runLocal(ctx, repoRoot, modRoot, tsconfig, moduleName, pathPrefix, outPath)
 		}
 		return err
 	}
@@ -72,7 +85,7 @@ func run(ctx context.Context) error {
 
 var errDaggerUnavailable = errors.New("dagger: engine not reachable")
 
-func runDagger(ctx context.Context, repoRoot, modRoot, tsconfig, moduleName, outPath string) error {
+func runDagger(ctx context.Context, repoRoot, modRoot, tsconfig, moduleName, pathPrefix, outPath string) error {
 	client, err := dagger.Connect(ctx, dagger.WithLogOutput(os.Stdout))
 	if err != nil {
 		return fmt.Errorf("%w: %v", errDaggerUnavailable, err)
@@ -125,13 +138,13 @@ func runDagger(ctx context.Context, repoRoot, modRoot, tsconfig, moduleName, out
 		WithWorkdir("/module").
 		WithExec([]string{"sh", "-lc",
 			"if [ -f package.json ]; then pnpm install --prefer-offline --ignore-scripts || true; fi"}).
-		WithExec([]string{
+		WithExec(append([]string{
 			"node", "/ts-indexer/bin/cli.js",
 			"--module-root", "/module",
 			"--tsconfig", tsconfig,
 			"--module-name", moduleName,
 			"--out", "/out/index-ts.json",
-		})
+		}, pathPrefixFlag(pathPrefix)...))
 
 	if _, err := container.File("/out/index-ts.json").Export(ctx, outPath); err != nil {
 		return fmt.Errorf("export index-ts.json: %w", err)
@@ -141,7 +154,7 @@ func runDagger(ctx context.Context, repoRoot, modRoot, tsconfig, moduleName, out
 	return nil
 }
 
-func runLocal(ctx context.Context, repoRoot, modRoot, tsconfig, moduleName, outPath string) error {
+func runLocal(ctx context.Context, repoRoot, modRoot, tsconfig, moduleName, pathPrefix, outPath string) error {
 	indexerDir := filepath.Join(repoRoot, "tools", "ts-indexer")
 	// Make sure the extractor is compiled (idempotent; tsc is fast on 5 files).
 	binPath := filepath.Join(indexerDir, "bin", "cli.js")
@@ -154,12 +167,14 @@ func runLocal(ctx context.Context, repoRoot, modRoot, tsconfig, moduleName, outP
 			return fmt.Errorf("pnpm run build (local): %w", err)
 		}
 	}
-	cmd := exec.CommandContext(ctx, "node", binPath,
+	args := []string{binPath,
 		"--module-root", modRoot,
 		"--tsconfig", tsconfig,
 		"--module-name", moduleName,
 		"--out", outPath,
-	)
+	}
+	args = append(args, pathPrefixFlag(pathPrefix)...)
+	cmd := exec.CommandContext(ctx, "node", args...)
 	cmd.Stdout = os.Stderr // CLI emits progress on stderr; the index file goes to --out
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -192,4 +207,11 @@ func envDefault(k, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func pathPrefixFlag(prefix string) []string {
+	if prefix == "" {
+		return nil
+	}
+	return []string{"--path-prefix", prefix}
 }

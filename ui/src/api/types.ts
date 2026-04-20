@@ -26,6 +26,7 @@ export interface Symbol {
   exported: boolean;
   children?: Symbol[];
   tags?: string[];
+  language?: string;
 }
 
 export interface File {
@@ -36,6 +37,7 @@ export interface File {
   lineCount: number;
   buildTags?: string[];
   sha256: string;
+  language?: string;
 }
 
 export interface Package {
@@ -45,6 +47,7 @@ export interface Package {
   doc?: string;
   fileIds: string[];
   symbolIds: string[];
+  language?: string;
 }
 
 export interface PackageLite {

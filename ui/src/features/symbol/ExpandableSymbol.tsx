@@ -80,7 +80,7 @@ export function ExpandableSymbol({ symbol, snippetKind = 'declaration', defaultO
       {open && (snipLoading ? (
         <div data-part="loading">Loading snippet…</div>
       ) : snippet ? (
-        <LinkedCode text={snippet} refs={refs} />
+        <LinkedCode text={snippet} refs={refs} language={symbol.language ?? 'go'} />
       ) : null)}
     </article>
   );

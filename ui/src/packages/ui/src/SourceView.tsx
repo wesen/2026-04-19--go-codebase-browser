@@ -1,6 +1,6 @@
 // React namespace provided by jsx: react-jsx
 import { PARTS } from './parts';
-import { tokensByLine } from './highlight/go';
+import { tokensByLineForLanguage } from './highlight';
 import { annotateComment } from './highlight/annotations';
 
 export interface SourceViewProps {
@@ -12,7 +12,7 @@ export interface SourceViewProps {
 }
 
 export function SourceView({ source, highlightLine, language = 'go' }: SourceViewProps) {
-  const lines = language === 'go' ? tokensByLine(source) : source.split('\n').map((l) => [{ type: 'id' as const, text: l }]);
+  const lines = tokensByLineForLanguage(language, source);
   return (
     <div data-part={PARTS.sourceView} data-role={language}>
       {lines.map((tokens, i) => {

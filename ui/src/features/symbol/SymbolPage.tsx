@@ -48,7 +48,7 @@ export function SymbolPage() {
         {sym.doc && (
           <div data-part={PARTS.symbolDoc} data-role="doc">{sym.doc}</div>
         )}
-        {snippet && <LinkedCode text={snippet} refs={refs} />}
+        {snippet && <LinkedCode text={snippet} refs={refs} language={sym.language ?? 'go'} />}
       </article>
 
       <p data-part="symbol-doc">

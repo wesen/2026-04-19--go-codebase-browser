@@ -25,7 +25,7 @@ export function SourcePage() {
     <div>
       <h2 style={{ marginTop: 0 }}>{path}</h2>
       <BuildTagBanner tags={tags} />
-      <SourceView source={data} highlightLine={highlight} />
+      <SourceView source={data} highlightLine={highlight} language={file?.language ?? 'go'} />
     </div>
   );
 }

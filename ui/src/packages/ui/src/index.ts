@@ -16,5 +16,9 @@ export { BuildTagBanner } from './BuildTagBanner';
 export type { BuildTagBannerProps } from './BuildTagBanner';
 export { tokenize, tokensByLine } from './highlight/go';
 export type { Token, TokenType } from './highlight/go';
+export {
+  tokenizeForLanguage,
+  tokensByLineForLanguage,
+} from './highlight';
 export { annotateComment, detectLeadingAnnotation } from './highlight/annotations';
 export type { Annotation, AnnotationSpan } from './highlight/annotations';

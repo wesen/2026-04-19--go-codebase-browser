@@ -15,7 +15,9 @@
   --cb-color-kind-method: #8b5cf6;
   --cb-color-kind-type: #f59e0b;
   --cb-color-kind-struct: #f97316;
+  --cb-color-kind-class: #ec4899;
   --cb-color-kind-iface: #10b981;
+  --cb-color-kind-alias: #0d9488;
   --cb-color-kind-const: #ef4444;
   --cb-color-kind-var: #64748b;
   /* Syntax highlighting tokens (Go). Each token type is addressed via
@@ -114,7 +116,9 @@
 [data-widget='codebase-browser'] [data-part='symbol-kind'][data-role='method'] { background: var(--cb-color-kind-method); }
 [data-widget='codebase-browser'] [data-part='symbol-kind'][data-role='type'] { background: var(--cb-color-kind-type); }
 [data-widget='codebase-browser'] [data-part='symbol-kind'][data-role='struct'] { background: var(--cb-color-kind-struct); }
+[data-widget='codebase-browser'] [data-part='symbol-kind'][data-role='class'] { background: var(--cb-color-kind-class); }
 [data-widget='codebase-browser'] [data-part='symbol-kind'][data-role='iface'] { background: var(--cb-color-kind-iface); }
+[data-widget='codebase-browser'] [data-part='symbol-kind'][data-role='alias'] { background: var(--cb-color-kind-alias); }
 [data-widget='codebase-browser'] [data-part='symbol-kind'][data-role='const'] { background: var(--cb-color-kind-const); }
 [data-widget='codebase-browser'] [data-part='symbol-kind'][data-role='var'] { background: var(--cb-color-kind-var); }
 

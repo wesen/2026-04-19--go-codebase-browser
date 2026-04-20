@@ -34,3 +34,8 @@ Phase 3 landed: cmd/build-ts-index Dagger program with BUILD_TS_LOCAL=1 fallback
 
 Phase 4 landed: --lang go|ts|auto on 'index build'. Shells out to cmd/build-ts-index for ts/auto; Merge() combines Go + TS indexes. Output table reports go/ts symbol counts. Discovered + fixed a real TS ID collision: 'const meta' appeared in multiple story files in the same directory. Fix: scope TS symbol IDs to the file path (sym:<module>/<rel-file-stem>.<kind>.<name>) so intra-package cross-file collisions are impossible. Go IDs unchanged. --lang auto on this repo: 28 pkg / 69 files / 278 symbols (133 Go + 145 TS).
 
+
+## 2026-04-20
+
+Phase 5 landed: frontend TS support end-to-end. New highlight/ts.ts tokenizer (TS keywords, builtins, template literals, JSX punct). highlight/index.ts with tokenizeForLanguage + tokensByLineForLanguage dispatch; Code/SourceView now drive off symbol.language / file.language rather than a hardcoded 'go'. SymbolCard/SymbolPage/LinkedCode/ExpandableSymbol pass language through. base.css adds --cb-color-kind-class + -alias + data-role rules. Storybook: new TypeScript.stories.tsx showcasing class/method/iface/alias rendering. Frontend types gain optional language field. Also fixed a real bug along the way: TS File.path was relative to ui/ so /api/source returned empty; added --path-prefix to the extractor so File.path is prefixed with 'ui/' (IDs remain stable, paths resolve against the outer repo's source FS). node_modules now excluded from TS extraction. End-to-end verified: 134 Go + 163 TS symbols merged into one index, /api/snippet returns live TS source.
+

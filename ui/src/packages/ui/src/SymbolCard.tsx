@@ -44,7 +44,7 @@ export function SymbolCard({ symbol, snippet, renderName, actions }: SymbolCardP
           {symbol.doc}
         </div>
       )}
-      {snippet && <Code text={snippet} />}
+      {snippet && <Code text={snippet} language={symbol.language ?? 'go'} />}
     </article>
   );
 }
