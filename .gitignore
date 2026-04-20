@@ -8,5 +8,29 @@ internal/sourcefs/embed/source/*
 !internal/sourcefs/embed/source/.keep
 internal/indexfs/embed/index.json
 internal/indexfs/embed/index-ts.json
+
+# Go artefacts
+*.test
+*.out
+coverage.*
+/cover/
+/vendor/
+
+# Node / pnpm
+**/node_modules/
+*.tsbuildinfo
+.pnpm-store/
+npm-debug.log*
+pnpm-debug.log*
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Editor / OS
 *.log
+*.swp
 .DS_Store
+.idea/
+.vscode/
