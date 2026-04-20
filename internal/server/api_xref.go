@@ -78,6 +78,47 @@ type SnippetRefView struct {
 	Length       int    `json:"length"`
 }
 
+// SourceRefView is the payload returned by /api/source-refs — one entry per
+// identifier use anywhere in the file, with absolute file-byte offsets. The
+// frontend's <SourceView> uses the same offset-match rule <Code> does,
+// scaled up from per-snippet offsets to per-file offsets.
+type SourceRefView struct {
+	ToSymbolID string `json:"toSymbolId"`
+	Kind       string `json:"kind"`
+	Offset     int    `json:"offset"`
+	Length     int    `json:"length"`
+}
+
+func (s *Server) handleSourceRefs(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "missing path", http.StatusBadRequest)
+		return
+	}
+	fileID := "file:" + path
+	if _, ok := s.Loaded.File(fileID); !ok {
+		http.Error(w, "file not in index", http.StatusNotFound)
+		return
+	}
+	out := []SourceRefView{}
+	for i := range s.Loaded.Index.Refs {
+		ref := &s.Loaded.Index.Refs[i]
+		if ref.FileID != fileID {
+			continue
+		}
+		if _, known := s.Loaded.Symbol(ref.ToSymbolID); !known {
+			continue
+		}
+		out = append(out, SourceRefView{
+			ToSymbolID: ref.ToSymbolID,
+			Kind:       ref.Kind,
+			Offset:     ref.Range.StartOffset,
+			Length:     ref.Range.EndOffset - ref.Range.StartOffset,
+		})
+	}
+	writeJSON(w, out)
+}
+
 func (s *Server) handleSnippetRefs(w http.ResponseWriter, r *http.Request) {
 	symID := r.URL.Query().Get("sym")
 	sym, ok := s.Loaded.Symbol(symID)

@@ -1,6 +1,6 @@
 // React namespace provided by jsx: react-jsx
-import { useLocation, useSearchParams } from 'react-router-dom';
-import { useGetSourceQuery } from '../../api/sourceApi';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { useGetSourceQuery, useGetSourceRefsQuery } from '../../api/sourceApi';
 import { useGetIndexQuery } from '../../api/indexApi';
 import { SourceView } from '../../packages/ui/src/SourceView';
 import { BuildTagBanner } from '../../packages/ui/src/BuildTagBanner';
@@ -12,6 +12,9 @@ export function SourcePage() {
   const highlight = Number(params.get('line') ?? '0') || undefined;
 
   const { data, isLoading, error } = useGetSourceQuery(path, { skip: !path });
+  // File-level xrefs for linkified identifiers. Skipped until we have a
+  // path so the request isn't fired during the initial undefined render.
+  const { data: refs } = useGetSourceRefsQuery(path, { skip: !path });
   // Build tags come from the index, not the raw file, so they're a cheap
   // derived lookup.
   const { data: index } = useGetIndexQuery();
@@ -25,7 +28,17 @@ export function SourcePage() {
     <div>
       <h2 style={{ marginTop: 0 }}>{path}</h2>
       <BuildTagBanner tags={tags} />
-      <SourceView source={data} highlightLine={highlight} language={file?.language ?? 'go'} />
+      <SourceView
+        source={data}
+        highlightLine={highlight}
+        language={file?.language ?? 'go'}
+        refs={refs}
+        renderRefLink={(symbolId, children) => (
+          <Link to={`/symbol/${encodeURIComponent(symbolId)}`} data-role="xref">
+            {children}
+          </Link>
+        )}
+      />
     </div>
   );
 }

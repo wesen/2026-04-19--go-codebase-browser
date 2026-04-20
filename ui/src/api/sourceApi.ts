@@ -9,6 +9,13 @@ export interface SnippetRefView {
   length: number;
 }
 
+export interface SourceRefView {
+  toSymbolId: string;
+  kind: string;
+  offset: number;
+  length: number;
+}
+
 export const sourceApi = createApi({
   reducerPath: 'sourceApi',
   // Default query returns text; endpoints that need JSON override responseHandler.
@@ -28,6 +35,12 @@ export const sourceApi = createApi({
         responseHandler: 'json',
       }),
     }),
+    getSourceRefs: b.query<SourceRefView[], string>({
+      query: (path) => ({
+        url: `/source-refs?path=${encodeURIComponent(path)}`,
+        responseHandler: 'json',
+      }),
+    }),
   }),
 });
 
@@ -35,4 +48,5 @@ export const {
   useGetSourceQuery,
   useGetSnippetQuery,
   useGetSnippetRefsQuery,
+  useGetSourceRefsQuery,
 } = sourceApi;
