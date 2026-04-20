@@ -39,3 +39,37 @@ Phase 4 landed: --lang go|ts|auto on 'index build'. Shells out to cmd/build-ts-i
 
 Phase 5 landed: frontend TS support end-to-end. New highlight/ts.ts tokenizer (TS keywords, builtins, template literals, JSX punct). highlight/index.ts with tokenizeForLanguage + tokensByLineForLanguage dispatch; Code/SourceView now drive off symbol.language / file.language rather than a hardcoded 'go'. SymbolCard/SymbolPage/LinkedCode/ExpandableSymbol pass language through. base.css adds --cb-color-kind-class + -alias + data-role rules. Storybook: new TypeScript.stories.tsx showcasing class/method/iface/alias rendering. Frontend types gain optional language field. Also fixed a real bug along the way: TS File.path was relative to ui/ so /api/source returned empty; added --path-prefix to the extractor so File.path is prefixed with 'ui/' (IDs remain stable, paths resolve against the outer repo's source FS). node_modules now excluded from TS extraction. End-to-end verified: 134 Go + 163 TS symbols merged into one index, /api/snippet returns live TS source.
 
+
+## 2026-04-20
+
+Step 5: Phases 1-5 shipped (commits 569dc4c, 60a9adc, ce69ff3, ca47795, 7bf0370)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/cmd/build-ts-index/main.go — Dagger orchestrator + BUILD_TS_LOCAL fallback (Phase 3)
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/indexer/multi.go — Extractor interface + Merge added in Phase 1
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/tools/ts-indexer/src/extract.ts — Node-based TS extractor landed in Phase 2
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/packages/ui/src/highlight/ts.ts — Frontend TS tokenizer added in Phase 5
+
+
+## 2026-04-20
+
+Step 6: Phase 6 TS xref via TypeChecker (commit 5eb25d0)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/tools/ts-indexer/src/extract.ts — Two-pass extractor with decl-to-symbolID map and getSymbolAtLocation/getAliasedSymbol for refs
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/tools/ts-indexer/test/extract.test.ts — Added xref + kind assertions
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/tools/ts-indexer/test/fixture/src/main.ts — Cross-reference fixture (run -> greet/Greeter/hello/MaxRetries)
+
+
+## 2026-04-20
+
+Step 7: Phase 7 .tsx support confirmed + JSX component tokenizer polish (commit 39290c9)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/tools/ts-indexer/test/fixture/src/card.tsx — .tsx fixture with export default function + JSX body
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/packages/ui/src/highlight/ts.test.ts — Smoke assertions for JSX heuristic
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/packages/ui/src/highlight/ts.ts — Capitalized JSX tag names tokenize as type
+
