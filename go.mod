@@ -6,6 +6,7 @@ require (
 	github.com/go-go-golems/glazed v1.2.3
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.10.2
+	github.com/yuin/goldmark v1.8.2
 	golang.org/x/tools v0.44.0
 )
 
@@ -93,7 +94,6 @@ require (
 	github.com/xuri/efp v0.0.1 // indirect
 	github.com/xuri/excelize/v2 v2.10.0 // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
-	github.com/yuin/goldmark v1.8.2 // indirect
 	github.com/yuin/goldmark-emoji v1.0.5 // indirect
 	go.mongodb.org/mongo-driver v1.14.0 // indirect
 	golang.org/x/crypto v0.50.0 // indirect

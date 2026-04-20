@@ -1,5 +1,6 @@
 // React namespace provided by jsx: react-jsx
 import { PARTS } from './parts';
+import { Code } from './Code';
 
 export interface SnippetProps {
   text: string;
@@ -8,17 +9,15 @@ export interface SnippetProps {
   jumpTo?: string;
 }
 
-export function Snippet({ text, language, jumpTo }: SnippetProps) {
+export function Snippet({ text, language = 'go', jumpTo }: SnippetProps) {
   return (
-    <div data-part={PARTS.snippetEmbed} data-role={language ?? 'go'}>
+    <div data-part={PARTS.snippetEmbed} data-role={language}>
       {jumpTo && (
         <a href={jumpTo} data-role="jump">
           ↪ jump to source
         </a>
       )}
-      <pre>
-        <code>{text}</code>
-      </pre>
+      <Code text={text} language={language} />
     </div>
   );
 }

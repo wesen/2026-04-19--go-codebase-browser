@@ -10,3 +10,7 @@ export { Snippet } from './Snippet';
 export type { SnippetProps } from './Snippet';
 export { SourceView } from './SourceView';
 export type { SourceViewProps } from './SourceView';
+export { Code } from './Code';
+export type { CodeProps } from './Code';
+export { tokenize, tokensByLine } from './highlight/go';
+export type { Token, TokenType } from './highlight/go';

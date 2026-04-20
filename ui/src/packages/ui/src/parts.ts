@@ -19,6 +19,8 @@ export const PARTS = {
   sourceView: 'source-view',
   sourceLine: 'source-line',
   sourceGutter: 'source-gutter',
+  codeBlock: 'code-block',
+  symbolToggle: 'symbol-toggle',
   docPage: 'doc-page',
   snippetEmbed: 'snippet-embed',
   searchBox: 'search-box',

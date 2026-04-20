@@ -18,6 +18,15 @@
   --cb-color-kind-iface: #10b981;
   --cb-color-kind-const: #ef4444;
   --cb-color-kind-var: #64748b;
+  /* Syntax highlighting tokens (Go). Each token type is addressed via
+     [data-tok="..."]; overriding a single variable retints everything. */
+  --cb-tok-kw: #a21caf;
+  --cb-tok-type: #0369a1;
+  --cb-tok-str: #047857;
+  --cb-tok-num: #b45309;
+  --cb-tok-com: #6b7280;
+  --cb-tok-id: inherit;
+  --cb-tok-punct: #374151;
   --cb-font-family: ui-sans-serif, system-ui, sans-serif;
   --cb-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --cb-font-size: 14px;
@@ -127,7 +136,8 @@
 }
 
 [data-widget='codebase-browser'] [data-part='symbol-snippet'],
-[data-widget='codebase-browser'] [data-part='source-view'] {
+[data-widget='codebase-browser'] [data-part='source-view'],
+[data-widget='codebase-browser'] [data-part='code-block'] {
   background: var(--cb-color-code-bg);
   border: 1px solid var(--cb-color-border);
   border-radius: var(--cb-radius-1);
@@ -136,6 +146,57 @@
   font-size: calc(var(--cb-font-size) - 1px);
   overflow-x: auto;
   white-space: pre;
+  margin: 0;
+}
+
+[data-widget='codebase-browser'] [data-part='code-block'] code {
+  font-family: inherit;
+}
+
+[data-widget='codebase-browser'] [data-part='source-view'] {
+  white-space: normal; /* child lines re-assert `pre`-like layout */
+  padding: 0;
+}
+
+[data-widget='codebase-browser'] [data-part='source-line'] {
+  display: flex;
+  gap: var(--cb-space-3);
+  white-space: pre;
+  padding: 0 var(--cb-space-3);
+}
+[data-widget='codebase-browser'] [data-part='source-line'][data-state='highlight'] {
+  background: color-mix(in srgb, var(--cb-color-accent) 12%, transparent);
+}
+[data-widget='codebase-browser'] [data-part='source-gutter'] {
+  color: var(--cb-color-muted);
+  user-select: none;
+  text-align: right;
+  min-width: 4ch;
+}
+
+/* Syntax tokens. Note: unset decoration so anchor-wrapped identifiers
+   inside Code/SourceView stay visually distinct without default underline. */
+[data-widget='codebase-browser'] [data-tok='kw']    { color: var(--cb-tok-kw); font-weight: 600; }
+[data-widget='codebase-browser'] [data-tok='type']  { color: var(--cb-tok-type); }
+[data-widget='codebase-browser'] [data-tok='str']   { color: var(--cb-tok-str); }
+[data-widget='codebase-browser'] [data-tok='num']   { color: var(--cb-tok-num); }
+[data-widget='codebase-browser'] [data-tok='com']   { color: var(--cb-tok-com); font-style: italic; }
+[data-widget='codebase-browser'] [data-tok='id']    { color: var(--cb-tok-id); }
+[data-widget='codebase-browser'] [data-tok='punct'] { color: var(--cb-tok-punct); }
+
+/* Inline toggle button for expanding symbol snippets on index pages. */
+[data-widget='codebase-browser'] [data-part='symbol-toggle'] {
+  background: transparent;
+  border: 1px solid var(--cb-color-border);
+  border-radius: var(--cb-radius-1);
+  padding: 2px 8px;
+  font-size: calc(var(--cb-font-size) - 2px);
+  color: var(--cb-color-text);
+  cursor: pointer;
+  font-family: inherit;
+}
+[data-widget='codebase-browser'] [data-part='symbol-toggle']:hover {
+  background: var(--cb-color-border);
 }
 
 [data-widget='codebase-browser'] [data-part='search-box'] {

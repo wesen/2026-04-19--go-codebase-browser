@@ -1,7 +1,7 @@
 // React namespace provided by jsx: react-jsx
 import { Link, useParams } from 'react-router-dom';
 import { useGetIndexQuery } from '../../api/indexApi';
-import { SymbolCard } from '../../packages/ui/src/SymbolCard';
+import { ExpandableSymbol } from '../symbol/ExpandableSymbol';
 
 export function PackagePage() {
   const { id: rawId } = useParams<{ id: string }>();
@@ -33,13 +33,7 @@ export function PackagePage() {
 
       <h2>Symbols ({symbols.length})</h2>
       {symbols.map((s) => (
-        <SymbolCard
-          key={s.id}
-          symbol={s}
-          renderName={(name, sid) => (
-            <Link to={`/symbol/${encodeURIComponent(sid)}`}>{name}</Link>
-          )}
-        />
+        <ExpandableSymbol key={s.id} symbol={s} />
       ))}
     </div>
   );
