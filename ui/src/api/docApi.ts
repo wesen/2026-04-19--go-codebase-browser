@@ -1,10 +1,12 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
 export interface SnippetRef {
+  stubId: string;
   directive: string;
   symbolId?: string;
   filePath?: string;
   kind?: string;
+  language?: string;
   text: string;
   startLine?: number;
   endLine?: number;
