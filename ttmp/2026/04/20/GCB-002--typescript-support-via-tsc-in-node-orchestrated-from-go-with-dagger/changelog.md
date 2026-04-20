@@ -73,3 +73,16 @@ Step 7: Phase 7 .tsx support confirmed + JSX component tokenizer polish (commit 
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/packages/ui/src/highlight/ts.test.ts — Smoke assertions for JSX heuristic
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/packages/ui/src/highlight/ts.ts — Capitalized JSX tag names tokenize as type
 
+
+## 2026-04-20
+
+Step 8: loose-ends sweep — Dagger smoke, meta page, README, .gitignore, go:generate, xref nil-slice (commits b5e2dc9 40a8bb5 03959d3 0cd8ec5 b8a5cc5)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/README.md — Repo README landed in this sweep
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/docs/embed/pages/03-meta.md — Meta doc page exercising codebase-snippet across Go+TS
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/indexfs/generate_build.go — go generate wrapper for codebase-browser index build --lang auto
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/server/api_xref.go — Initialise slices to avoid JSON null for empty xref responses
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/tools/ts-indexer/src/cli.ts — mkdir -p fix exposed by Dagger smoke test
+

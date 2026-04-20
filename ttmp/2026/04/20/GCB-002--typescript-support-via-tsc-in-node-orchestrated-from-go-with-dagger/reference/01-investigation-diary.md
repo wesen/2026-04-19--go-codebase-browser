@@ -13,10 +13,16 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: README.md
+      Note: Repo README (Step 8)
     - Path: cmd/build-ts-index/main.go
       Note: Dagger + local fallback orchestrator (Step 5)
+    - Path: internal/docs/embed/pages/03-meta.md
+      Note: Meta doc page (Step 8)
     - Path: internal/indexer/multi.go
       Note: Merge + Extractor interface (Step 5)
+    - Path: internal/indexfs/generate_build.go
+      Note: go:generate wrapper (Step 8)
     - Path: tools/ts-indexer/src/extract.ts
       Note: 'Two-pass extractor: symbols + refs via TypeChecker (Steps 5 and 6)'
     - Path: tools/ts-indexer/test/extract.test.ts
@@ -35,6 +41,7 @@ LastUpdated: 2026-04-20T00:00:00Z
 WhatFor: Design-phase reasoning + prototype validation for GCB-002.
 WhenToUse: Read alongside the design doc before starting Phase 1 of implementation.
 ---
+
 
 
 
@@ -901,3 +908,226 @@ function isJsxComponentRef(out: Token[], word: string): boolean {
 
 Called from the identifier emitter after KEYWORDS/BUILTINS are ruled
 out, so those remain authoritative.
+
+## Step 8: Loose-ends sweep — Dagger smoke, meta page, README, .gitignore, go:generate, xref nil-slice
+
+Closed the "still open" column from the post-Phase-7 hand-off. The
+Dagger index build is now actually exercised (not just code-complete),
+uncovered and fixed a real bug in the TS CLI along the way, wired
+`go generate` so the pipeline is one command, added a meta doc page
+that demonstrates `codebase-snippet` against the browser's own code
+across both languages, wrote a README, extended the root `.gitignore`,
+and killed a `null`-versus-`[]` frontend crash in `XrefPanel`.
+
+### Prompt Context
+
+**User prompt (verbatim):**
+
+```
+do loose ends, meta doc page, READE. no publishing. commit at appropriate intervals, keep a diary.
+```
+
+(Preceded by "Can you make the index building a go generate step?" and
+a browser console error report showing `data.usedBy is null` in
+`XrefPanel.tsx`.)
+
+**Assistant interpretation:** Clear the explicit follow-ups — verify
+the Dagger path end-to-end, add a meta doc page, write a README, extend
+`.gitignore`, and fix the xref null-vs-empty bug. Explicitly *not*
+publishing `@codebase-browser/ui`.
+
+**Inferred user intent:** Leave the repo shippable: one-command build,
+a README for newcomers, a doc page demonstrating the self-hosted
+snippet feature, and the CI/embed story stitched into `go generate`.
+
+**Commits (code):**
+- `b5e2dc9` — "fix(api): return [] not null for empty xref/search slices"
+- `40a8bb5` — "Wire index build into go:generate"
+- `03959d3` — "fix(ts-indexer): mkdir -p the --out parent before writing"
+- `0cd8ec5` — "docs: add meta page that documents the browser with itself"
+- `b8a5cc5` — "Add repo README and extend .gitignore"
+
+### What I did
+
+1. **`go generate` wiring.** Added `internal/indexfs/generate.go` with
+   the `//go:generate go run generate_build.go` directive and
+   `generate_build.go` (build-tag `ignore`) that walks up to `go.mod`
+   and shells to `go run ./cmd/codebase-browser index build --lang auto`.
+   Mirrors the `internal/web/` pattern exactly. `go generate ./...` now
+   builds both the SPA bundle and the index.
+2. **Dagger smoke.** Ran `go generate ./internal/indexfs` without
+   `BUILD_TS_LOCAL=1`. First attempt failed: node exited 1 with
+   `ENOENT /out/index-ts.json` — the Dagger container doesn't create
+   `/out/` before the CLI runs. Fixed by having `cli.ts` call
+   `fs.mkdirSync(path.dirname(args.out), { recursive: true })` before
+   `writeFileSync`. Second attempt passed; bit-identical sha256 vs the
+   local-pnpm output on the 176-symbol `ui/` index.
+3. **Meta doc page.** Wrote `internal/docs/embed/pages/03-meta.md`
+   with six `codebase-snippet`/`codebase-signature` directives spanning
+   both languages: Go (`indexer.Merge`, `Server.handleXref`,
+   `build-ts-index.runDagger`) and TS (`tokenize`,
+   `isJsxComponentRef`). Verified via `/api/doc/03-meta` that all
+   six fenced blocks resolve and land in `html` as `<pre><code>`
+   blocks; `snippets` metadata list shows the six resolved symbol IDs.
+4. **README.** Six-section README (why / quick start / index build /
+   doc authoring / layout / testing / docs pointers), linking GCB-001
+   + GCB-002 tickets.
+5. **.gitignore.** Extended with Go artefacts (`*.test`, `coverage.*`,
+   `/vendor/`), broader node patterns (`**/node_modules/`,
+   `*.tsbuildinfo`, `.pnpm-store/`), env files (`.env`, `.env.*`,
+   keep `.env.example`), and editor dirs (`.idea/`, `.vscode/`).
+6. **Xref null-vs-empty bug.** User pasted an `XrefPanel` crash:
+   `TypeError: can't access property "length", data.usedBy is null`.
+   Cause: Go `nil` slice marshals to `null`, not `[]`. Fixed in two
+   places — `api_xref.go` initialises `resp.UsedBy` and `resp.Uses`
+   as empty slices; `browser.FindSymbols` now returns
+   `[]*indexer.Symbol{}` instead of `var out`.
+
+### Why
+
+The "loose ends" list was the gap between "Phase 7 done" and "someone
+else can pick up the repo." A Dagger smoke test ensures the hermetic
+build path works on the machine we'd actually ship from. The meta
+page is the dogfood proof: the same `codebase-snippet` pipeline the
+browser exposes for third-party docs is exercised against the browser
+itself, across both languages. `go generate` is the canonical Go
+one-liner for "rebuild derived artefacts" — without it, every
+contributor needs a Makefile or documented command to rebuild
+`index.json`. The nil-slice fix is an actual bug report from the user.
+
+### What worked
+
+1. Dagger build completes in ~30 s including `pnpm install`
+   (pnpm `CacheVolume` paying off), and the resulting `index-ts.json`
+   is byte-identical to the local-fallback output once `generatedAt`
+   is normalised:
+   ```
+   dagger sha256: 3542594924cfdead...
+   local  sha256: 3542594924cfdead...
+   ```
+2. Meta page resolves all six `codebase-snippet` directives on the
+   first `go run serve` — no symbol-not-found errors. Short-form refs
+   work for the Go symbols (`github.com/.../indexer.Merge`); TS
+   symbols need full `sym:` IDs to disambiguate intra-package
+   collisions (covered in the README).
+3. `go generate ./...` now runs two directives back-to-back
+   (`internal/web` → Vite build, `internal/indexfs` → index build);
+   `go generate -n ./...` lists both.
+4. `curl /api/xref/sym:...` after the nil-fix returns `"usedBy":[]`
+   for leaf symbols instead of `"usedBy":null`, and `XrefPanel`
+   renders "No callers in index." cleanly.
+
+### What didn't work
+
+1. **`ENOENT: /out/index-ts.json` in the Dagger container** — first
+   Dagger smoke run. Root cause: `/out/` doesn't exist until the
+   `Export` sink runs, but the CLI writes there first. Fix: CLI
+   creates its parent directory. (This is the kind of bug that only
+   surfaces when you actually run the Dagger path — worth the
+   smoke-test effort.)
+2. First cut of the meta page used short refs for TS (`ui/.../ts.tokenize`).
+   Dry-runs returned `symbol not found` because the TS package ID
+   is directory-scoped but short-form parsing splits on the last `.`,
+   putting `ts` in the package spot. Fixed by switching to full
+   `sym:` IDs for the two TS references.
+3. Initial `curl /api/docs` (plural) returned 404 — the route is
+   `/api/doc` (singular). No code change needed; just a test-harness
+   adjustment.
+
+### What I learned
+
+1. **Dagger-path bugs are real and local-fallback masks them.** The
+   `mkdir -p` was latent from day one of Phase 3; local pnpm works
+   because developers usually already have the output dir present
+   (it's left over from a prior run). The CLI should never depend on
+   that — idempotent output-path handling is now the pattern.
+2. **Byte-identical output between code paths is a strong invariant.**
+   The sha256 equality is better than a diff: if the Dagger container
+   ever drifts (different Node version, different pnpm install order,
+   different file listing), the hash diverges and we notice.
+3. **The short-form symbol-ref parser is Go-biased.** It splits on the
+   last `.` assuming `pkg.Name`, but TS package IDs are directory
+   paths that can end with a file-stem matching a Name. Meta-page
+   content must use full `sym:` IDs for TS. Worth documenting in the
+   README (done).
+
+### What was tricky to build
+
+Decidin between server-side fix (return `[]`) and frontend defensive
+coding (`data.usedBy ?? []`) for the xref bug. Server-side is the
+correct fix because the contract is "array response"; null is just a
+Go serialisation quirk. Frontend defensive-coding would paper over
+future drift in other endpoints too. Went server-side only, but
+listed "defensive frontend guard" as a nice-to-have in the status
+summary.
+
+### What warrants a second pair of eyes
+
+1. The `.gitignore` now excludes `**/node_modules/` at any depth —
+   confirm there's no intentional `node_modules` anywhere in the repo
+   that we want tracked (there isn't, but reviewer should double-
+   check).
+2. The meta page uses full `sym:` IDs for TS. If someone renames the
+   `highlight/ts.ts` file to `highlight/typescript.ts`, those IDs
+   silently break. A post-build doc-page validator (render all pages,
+   fail CI on resolve errors) would catch this — noted as a follow-up.
+
+### What should be done in the future
+
+1. Doc-page validation in CI: start the server, hit every page,
+   fail on any `symbol not found`. Would catch link-rot from renames.
+2. README screenshot — deferred per user instruction ("no
+   publishing", which I also read as "no marketing flourishes").
+3. GitHub Actions workflow: `go generate ./...` + `go build -tags
+   embed` + `make test` + `pnpm -C tools/ts-indexer test`. The
+   go-web-frontend-embed skill has a template for the frontend
+   half; the index half is a small extra step.
+
+### Code review instructions
+
+1. `make build && ./bin/codebase-browser serve --addr :3001` — open
+   http://localhost:3001/docs/03-meta and confirm the six snippet
+   blocks render with source code, not error stubs.
+2. `go generate ./internal/indexfs` (no env vars) — exercises the
+   Dagger path. Should complete in ~30 s and print the glazed table
+   summary.
+3. `diff <(BUILD_TS_LOCAL=1 go run ./cmd/build-ts-index && jq -S 'del(.generatedAt)' internal/indexfs/embed/index-ts.json) <(go run ./cmd/build-ts-index && jq -S 'del(.generatedAt)' internal/indexfs/embed/index-ts.json)` —
+   should be empty (Dagger and local produce the same JSON).
+4. `go test ./internal/server/... && curl -s /api/xref/<leaf-id>` —
+   should return `{"usedBy":[],"uses":[]}`, not `null`.
+
+### Technical details
+
+Directive wiring in `internal/indexfs/generate.go`:
+
+```go
+//go:generate go run generate_build.go
+```
+
+And the wrapper at `internal/indexfs/generate_build.go`
+(`//go:build ignore`):
+
+```go
+cmd := exec.Command("go", "run", "./cmd/codebase-browser",
+    "index", "build", "--lang", "auto")
+cmd.Dir = root
+cmd.Env = os.Environ()  // propagates BUILD_TS_LOCAL=1 when set
+```
+
+CLI mkdir fix in `tools/ts-indexer/src/cli.ts`:
+
+```ts
+fs.mkdirSync(path.dirname(args.out), { recursive: true });
+fs.writeFileSync(args.out, text + '\n');
+```
+
+Xref nil-slice initialisation in `internal/server/api_xref.go`:
+
+```go
+resp := xrefResponse{
+    ID:     id,
+    UsedBy: []indexer.Ref{},
+    Uses:   []xrefUseTarget{},
+}
+```
+
