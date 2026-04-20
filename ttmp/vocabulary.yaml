@@ -21,6 +21,14 @@ topics:
       description: Redux Toolkit Query data fetching
     - slug: documentation-tooling
       description: Tools that embed living source into docs
+    - slug: typescript
+      description: TypeScript source indexing and tsc-based extraction
+    - slug: dagger
+      description: Dagger containerised build pipelines
+    - slug: node-tooling
+      description: Node/pnpm build tooling invoked from Go
+    - slug: multi-language
+      description: Multi-language indexer / extractor pluggability
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

@@ -1,0 +1,12 @@
+{
+  "name": "gcb-002-scripts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "extract": "tsx extract.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4"
+  }
+}
