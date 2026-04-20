@@ -127,6 +127,7 @@ export function tokenize(src: string): Token[] {
       let type: TokenType = 'id';
       if (KEYWORDS.has(word)) type = 'kw';
       else if (BUILTINS.has(word)) type = 'type';
+      else if (isJsxComponentRef(out, word)) type = 'type';
       out.push({ type, text: word });
       i = j;
       continue;
@@ -137,6 +138,21 @@ export function tokenize(src: string): Token[] {
   }
 
   return out;
+}
+
+// isJsxComponentRef tags a capitalized identifier as a JSX component when it
+// directly follows `<` or `</` with no whitespace between. Lowercase names
+// (DOM elements: <div>, <span>) keep the default `id` tint; this preserves
+// the existing behavior for generic type args like `Array<number>` where
+// the inner name lowercases to an existing BUILTINS entry.
+function isJsxComponentRef(out: Token[], word: string): boolean {
+  if (!/^[A-Z]/.test(word)) return false;
+  // Walk back past a single `/` to catch the `</Name` case.
+  let k = out.length - 1;
+  if (k >= 0 && out[k].type === 'punct' && out[k].text === '/') k--;
+  if (k < 0) return false;
+  const prev = out[k];
+  return prev.type === 'punct' && prev.text === '<';
 }
 
 export function tokensByLine(src: string): Token[][] {

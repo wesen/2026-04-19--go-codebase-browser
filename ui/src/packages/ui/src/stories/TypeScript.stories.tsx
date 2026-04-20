@@ -96,3 +96,27 @@ export const InterfaceCard: Story = {
 export const AliasCard: Story = {
   render: () => <SymbolCard symbol={aliasSymbol} snippet={`type Prefix = string | undefined`} />,
 };
+
+// Showcase the JSX polish: component names (capitalized) after `<` / `</`
+// tint as type while lowercase DOM tags (div, span) keep the id colour.
+const jsxSnippet = `import { useState } from 'react';
+import { Greeter } from './greeter';
+
+interface Props { name: string }
+
+export function HelloCard({ name }: Props) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="card" role="region">
+      <Greeter.Label>Hello</Greeter.Label>
+      <button onClick={() => setOpen((v) => !v)}>
+        {open ? 'Hide' : <Icon name="chevron" />}
+      </button>
+      {open && <p>Welcome, {name}.</p>}
+    </div>
+  );
+}`;
+
+export const CodeBlockJSX: Story = {
+  render: () => <Code text={jsxSnippet} language="tsx" />,
+};

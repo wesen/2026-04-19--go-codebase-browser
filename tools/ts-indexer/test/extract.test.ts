@@ -30,9 +30,30 @@ describe('extract', () => {
       Greetable: 'iface',
       Prefix: 'alias',
       run: 'func',
+      Card: 'func',
+      Footer: 'func',
+      CardProps: 'iface',
     });
-    // 7 symbols total: 5 top-level + 1 method in greeter.ts, plus run() in main.ts.
-    expect(idx.symbols).toHaveLength(7);
+    // 10 symbols: 6 in greeter.ts + 1 in main.ts + 3 in card.tsx.
+    expect(idx.symbols).toHaveLength(10);
+  });
+
+  it('indexes .tsx files (export default function + JSX body)', () => {
+    const card = idx.symbols.find((s) => s.name === 'Card');
+    expect(card?.kind).toBe('func');
+    expect(card?.fileId).toBe('file:src/card.tsx');
+    // ExportDefault + function name together land in ModifierFlags; treat the
+    // symbol as exported.
+    expect(card?.exported).toBe(true);
+  });
+
+  it('emits xref from inside a JSX body', () => {
+    const cardCalls = idx.refs.filter(
+      (r) => r.fromSymbolId === 'sym:fixture/src/card.func.Card',
+    );
+    expect(cardCalls.map((r) => r.toSymbolId)).toContain(
+      'sym:fixture/src/greeter.func.greet',
+    );
   });
 
   it('method IDs embed the class as receiver and the file-stem as scope', () => {
