@@ -41,6 +41,14 @@ topics:
       description: Application packaging and runtime rollout
     - slug: kubernetes
       description: Kubernetes workload and ingress deployment
+    - slug: pr-review
+      description: Pull-request / code review tooling
+    - slug: semantic-diff
+      description: Symbol-level diffs derived from AST indexes
+    - slug: git-integration
+      description: Git history/blame integration in tooling
+    - slug: ui-design
+      description: UI affordance and wireframe exploration
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
