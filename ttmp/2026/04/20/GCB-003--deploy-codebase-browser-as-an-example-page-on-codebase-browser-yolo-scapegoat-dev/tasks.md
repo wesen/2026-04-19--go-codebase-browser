@@ -2,7 +2,6 @@
 
 ## Open
 
-- [ ] Add the matching GitOps package and Argo CD Application in the Hetzner K3s repo
 - [ ] Validate the public rollout after Argo CD syncs the new Application
 
 ## Completed
@@ -21,5 +20,5 @@
 - [x] Validate the local build and deployment contract, then update the diary and changelog
 - [x] Add deployment target metadata and GitOps PR helper in the app repo
 - [x] Add app repo release packaging: Dockerfile, .dockerignore, and a minimal runtime image for codebase-browser
-- [ ] Add the matching GitOps package and Argo CD Application in the Hetzner K3s repo
+- [x] Add the matching GitOps package and Argo CD Application in the Hetzner K3s repo
 - [x] Add GitHub Actions workflow to test, build, and publish immutable GHCR images

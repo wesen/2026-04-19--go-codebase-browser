@@ -84,6 +84,7 @@ This reference is useful when implementing the ticket because it captures the co
 8. Started implementation in the app repo: added the release packaging tasks and began wiring the Docker/CI release path.
 9. Adjusted the build plan after confirming the web generator still needed to be aligned with the Dagger-based build path.
 10. Implemented the source-tree snapshot generator, tightened the index build package set, and validated the embedded build path with `make build` and `go test ./...`.
+11. Added the matching GitOps package and Argo CD `Application` in the Hetzner K3s repo so the app can now be bootstrapped into cluster reconciliation.
 
 ## What worked
 
@@ -112,6 +113,7 @@ This reference is useful when implementing the ticket because it captures the co
 - Added `internal/sourcefs/generate.go` + `internal/sourcefs/generate_build.go` so the embedded source tree can be regenerated as part of the build.
 - Tightened `codebase-browser index build` defaults so the indexer does not crawl the embedded source snapshot.
 - Updated the README and SPA/serve error paths so the build instructions match the new Dagger-first flow.
+- Added the matching GitOps package and Argo CD `Application` in the Hetzner repo.
 - Validated the local build with `make build`, `go test ./...`, and a smoke test against `/api/index` on the embedded server.
 
 ## Code review instructions
