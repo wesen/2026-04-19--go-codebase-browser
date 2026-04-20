@@ -7,7 +7,6 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
-	"go/types"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -139,6 +138,9 @@ func Extract(opts ExtractOptions) (*Index, error) {
 					pkg.SymbolIDs = append(pkg.SymbolIDs, s.ID)
 				}
 			}
+
+			// Walk function bodies for cross-references.
+			idx.addRefsForFile(p, f, cfg.Fset, file.ID)
 		}
 
 		idx.Packages = append(idx.Packages, pkg)
@@ -363,5 +365,14 @@ func sortIndex(idx *Index) {
 		}
 		return a.Range.StartOffset < b.Range.StartOffset
 	})
-	_ = types.Typ // keep go/types imported for future xref work
+	sort.Slice(idx.Refs, func(i, j int) bool {
+		a, b := idx.Refs[i], idx.Refs[j]
+		if a.FromSymbolID != b.FromSymbolID {
+			return a.FromSymbolID < b.FromSymbolID
+		}
+		if a.ToSymbolID != b.ToSymbolID {
+			return a.ToSymbolID < b.ToSymbolID
+		}
+		return a.Range.StartOffset < b.Range.StartOffset
+	})
 }

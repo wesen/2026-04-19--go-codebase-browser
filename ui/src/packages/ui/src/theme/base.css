@@ -174,6 +174,20 @@
   min-width: 4ch;
 }
 
+/* Linkified identifiers inside code blocks — the <a> is rendered by the
+   app layer, but the styling belongs here so widgets package owns visuals. */
+[data-widget='codebase-browser'] [data-part='code-block'] a,
+[data-widget='codebase-browser'] [data-part='source-view'] a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px dotted var(--cb-color-accent);
+}
+[data-widget='codebase-browser'] [data-part='code-block'] a:hover,
+[data-widget='codebase-browser'] [data-part='source-view'] a:hover {
+  background: color-mix(in srgb, var(--cb-color-accent) 12%, transparent);
+  border-bottom-style: solid;
+}
+
 /* Syntax tokens. Note: unset decoration so anchor-wrapped identifiers
    inside Code/SourceView stay visually distinct without default underline. */
 [data-widget='codebase-browser'] [data-tok='kw']    { color: var(--cb-tok-kw); font-weight: 600; }

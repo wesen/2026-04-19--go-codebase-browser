@@ -54,3 +54,13 @@ Phase 5 complete: internal/docs renderer resolves codebase-snippet/-signature/-d
 
 Completed dark theme via CSS-var override (phase-task 36) and measured real index.json size at ~110 KB for 101 symbols (phase-task 43) — well below design §14.1 threshold so the single-load-on-boot strategy stands.
 
+
+## 2026-04-20
+
+Syntax highlighting (in-tree Go tokenizer + <Code>); godoc annotations (Deprecated/TODO/BUG/FIXME/NOTE/HACK/XXX) inline in comments and as card badges; build-tag banner wired from File.buildTags; inline symbol expand on package page via ExpandableSymbol + lazy /api/snippet fetch.
+
+
+## 2026-04-20
+
+Phase 6 cross-references: indexer emits Refs from types.Info.Uses (688 total, 162 internal to this repo). /api/xref/{id} returns usedBy + uses (deduplicated by target). /api/snippet-refs?sym returns ref occurrences with offsets relative to the snippet so <Code> can linkify identifier tokens. SymbolPage now shows used-by/uses panel; ExpandableSymbol and SymbolPage use LinkedCode so clicking an identifier jumps to /symbol/<id>.
+

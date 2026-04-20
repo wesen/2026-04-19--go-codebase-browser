@@ -55,9 +55,9 @@
 
 ## Phase 6 — Cross-references (optional)
 
-- [ ] Emit `refs` from `types.Info.Uses`
-- [ ] `/api/xref/{id}` endpoint
-- [ ] Frontend "Called by" / "Uses" panels
+- [x] Emit `refs` from `types.Info.Uses`
+- [x] `/api/xref/{id}` endpoint
+- [x] Frontend "Called by" / "Uses" panels
 
 ## Phase 7 — Polish
 

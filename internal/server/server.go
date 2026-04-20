@@ -36,6 +36,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/search", s.handleSearch)
 	mux.HandleFunc("/api/doc", s.handleDocList)
 	mux.HandleFunc("/api/doc/", s.handleDocPage)
+	mux.HandleFunc("/api/xref/", s.handleXref)
+	mux.HandleFunc("/api/snippet-refs", s.handleSnippetRefs)
 
 	mux.Handle("/", s.spaHandler())
 	return withCommonHeaders(mux)
