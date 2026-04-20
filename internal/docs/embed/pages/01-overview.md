@@ -26,5 +26,5 @@ Entry point for extraction — note how the loader config requests
 `NeedCompiledGoFiles` alongside `NeedSyntax` so `Syntax[i]` aligns with
 `CompiledGoFiles[i]`:
 
-```codebase-signature sym=github.com/wesen/codebase-browser/internal/indexer.Extract
+```codebase-signature sym=sym:github.com/wesen/codebase-browser/internal/indexer.func.Extract
 ```

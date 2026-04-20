@@ -228,11 +228,18 @@ func resolveSymbol(ref string, l *browser.Loaded) (*indexer.Symbol, error) {
 	}
 	importPath := ref[:dot]
 	name := ref[dot+1:]
-	// Try method form: "pkg.Recv.Method" — shift dot to find (Recv, Method).
+	// Short form "pkg.Name" addresses top-level (package-scoped) symbols
+	// only. Methods share the package ID of their receiver type, so without
+	// the filter below a ref like "internal/indexer.Extract" matches both
+	// `func Extract` and any `method X.Extract` in the same package. Force
+	// method use to go through the "pkg.Recv.Name" form handled below.
 	var candidates []*indexer.Symbol
 	for i := range l.Index.Symbols {
 		s := &l.Index.Symbols[i]
 		if s.PackageID != indexer.PackageID(importPath) {
+			continue
+		}
+		if s.Kind == "method" {
 			continue
 		}
 		if s.Name != name {
