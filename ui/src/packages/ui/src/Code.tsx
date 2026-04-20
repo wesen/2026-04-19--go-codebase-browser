@@ -75,11 +75,14 @@ function renderToken(
     );
   }
 
-  // Identifier tokens at a known ref offset become links.
-  if (t.type === 'id' && renderRefLink) {
+  // Any identifier-like token at a known ref offset becomes a link. The
+  // offset-match is authoritative — the indexer already resolved the symbol
+  // — so we can safely promote 'type'-tinted tokens too (e.g. capitalized
+  // JSX component names tagged by the TS tokenizer's Phase-7 polish).
+  if (renderRefLink && (t.type === 'id' || t.type === 'type')) {
     const ref = refByOffset.get(offset);
     if (ref) {
-      const inner = <span data-tok="id" data-role="ref">{t.text}</span>;
+      const inner = <span data-tok={t.type} data-role="ref">{t.text}</span>;
       return <span key={i}>{renderRefLink(ref.toSymbolId, inner)}</span>;
     }
   }
