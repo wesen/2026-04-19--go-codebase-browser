@@ -1,0 +1,23 @@
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Overview" />
+
+# @codebase-browser/ui
+
+Themable React widgets for the Codebase Browser. Every widget:
+
+1. Puts `data-widget="codebase-browser"` on (or inside of) a widget root.
+2. Uses `data-part="…"` for styling hooks (see `parts.ts`).
+3. Uses `data-role` / `data-state` for secondary variants (symbol kinds, loading/error, active).
+4. Has zero hard-coded visuals — all spacing and color flow through CSS variables in `theme/base.css`.
+
+## Theming
+
+Three ways to theme:
+
+1. **Default**: import `theme/base.css` once and you get the default visuals.
+2. **Dark**: set `data-theme="dark"` on the widget root (or anywhere above it). `theme/dark.css` overrides color tokens only.
+3. **Custom**: author a small CSS file that overrides the CSS variables. You only need to override the tokens you want to change.
+4. **Unstyled**: don't import `theme/base.css` at all. Components still render with correct semantics.
+
+Use the Theme toolbar at the top of Storybook to toggle between Light, Dark, and Unstyled.

@@ -40,9 +40,9 @@
 
 ## Phase 4 — Themable widget package + Storybook
 
-- [ ] Extract widgets into `ui/src/packages/ui` (`@codebase-browser/ui`)
-- [ ] `parts.ts`, `theme/base.css`, optional theme presets
-- [ ] Storybook for TreeNav, SymbolCard, SourceView, Snippet, DocPage, SearchBox
+- [x] Extract widgets into `ui/src/packages/ui` (`@codebase-browser/ui`)
+- [x] `parts.ts`, `theme/base.css`, optional theme presets
+- [x] Storybook for TreeNav, SymbolCard, SourceView, Snippet, DocPage, SearchBox
 - [ ] MSW-based RTK-Query mock decorator in Storybook
 
 ## Phase 5 — Doc renderer with live snippets

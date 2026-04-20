@@ -39,3 +39,8 @@ Phase 2 complete: internal/web + internal/sourcefs + internal/indexfs with //go:
 
 Phase 3 complete: Vite+React+TS+Redux Toolkit frontend. RTK-Query slices indexApi + sourceApi (keepUnusedDataFor=3600 since binary is immutable). Routes: / (overview), /packages/:id, /symbol/:id, /source/*. Widget package @codebase-browser/ui with parts.ts + base.css + dark.css theme. go generate ./internal/web runs vite build + copies dist to embed dir. E2E verified: / returns index.html, /assets/*.js served with correct content-type, client-side-routed paths fall through to index.html via the SPA handler.
 
+
+## 2026-04-20
+
+Phase 4 complete: widgets extracted into ui/src/packages/ui (future @codebase-browser/ui) with parts.ts + theme/base.css + theme/dark.css. Storybook 8 configured with a Theme toolbar (Light/Dark/Unstyled via data-theme on widget root; Unstyled drops base.css). Stories cover SymbolCard (Default/WithSnippet/Method/Struct/Interface/Const/NoDoc/WithNameRenderer/AllKinds), TreeNav, SearchBox, Snippet (incl. JumpLink), SourceView (incl. highlight). Overview.mdx documents the theming contract. build-storybook succeeds.
+

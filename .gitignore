@@ -1,6 +1,7 @@
 bin/
 ui/node_modules/
 ui/dist/
+ui/storybook-static/
 internal/web/embed/public/*
 !internal/web/embed/public/.keep
 internal/sourcefs/embed/source/*
