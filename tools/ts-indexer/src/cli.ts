@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as path from 'path';
 import { extract } from './extract.js';
 
 interface Args {
@@ -58,6 +59,11 @@ function main() {
   if (args.out === '-' || !args.out) {
     process.stdout.write(text + '\n');
   } else {
+    // Dagger runs the CLI inside a container whose /out/ directory is
+    // created implicitly by the Export() sink — it doesn't exist when the
+    // CLI tries to writeFileSync. Create it ourselves so both paths (local
+    // and Dagger) behave the same.
+    fs.mkdirSync(path.dirname(args.out), { recursive: true });
     fs.writeFileSync(args.out, text + '\n');
   }
 }
