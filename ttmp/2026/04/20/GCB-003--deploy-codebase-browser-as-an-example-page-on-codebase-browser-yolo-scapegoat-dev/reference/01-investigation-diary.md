@@ -85,6 +85,8 @@ This reference is useful when implementing the ticket because it captures the co
 9. Adjusted the build plan after confirming the web generator still needed to be aligned with the Dagger-based build path.
 10. Implemented the source-tree snapshot generator, tightened the index build package set, and validated the embedded build path with `make build` and `go test ./...`.
 11. Added the matching GitOps package and Argo CD `Application` in the Hetzner K3s repo so the app can now be bootstrapped into cluster reconciliation.
+12. Pushed both repos, bootstrapped the live `codebase-browser` Argo CD `Application`, and resolved the initial stale-image bootstrap by recreating the Application so it could pick up the published `sha-e5700d9` image.
+13. Validated the live rollout through Argo CD (`Synced Healthy Succeeded`) and a port-forward smoke test against `/api/index` and `/doc/03-meta`.
 
 ## What worked
 
@@ -115,6 +117,8 @@ This reference is useful when implementing the ticket because it captures the co
 - Updated the README and SPA/serve error paths so the build instructions match the new Dagger-first flow.
 - Added the matching GitOps package and Argo CD `Application` in the Hetzner repo.
 - Validated the local build with `make build`, `go test ./...`, and a smoke test against `/api/index` on the embedded server.
+- Pushed both repos, bootstrapped the live Argo CD Application, and fixed the first rollout by deleting/recreating the Application so it could reconcile against the published GHCR image.
+- Confirmed the live cluster ended in `Synced Healthy Succeeded` and the public app serves `/doc/03-meta` as expected.
 
 ## Code review instructions
 
