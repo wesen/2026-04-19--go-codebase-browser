@@ -4,6 +4,7 @@ import { useGetSourceQuery, useGetSourceRefsQuery } from '../../api/sourceApi';
 import { useGetIndexQuery } from '../../api/indexApi';
 import { SourceView } from '../../packages/ui/src/SourceView';
 import { BuildTagBanner } from '../../packages/ui/src/BuildTagBanner';
+import { FileXrefPanel } from './FileXrefPanel';
 
 export function SourcePage() {
   const location = useLocation();
@@ -39,6 +40,7 @@ export function SourcePage() {
           </Link>
         )}
       />
+      <FileXrefPanel path={path} />
     </div>
   );
 }

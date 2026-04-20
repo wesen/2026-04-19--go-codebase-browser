@@ -16,6 +16,27 @@ export interface SourceRefView {
   length: number;
 }
 
+export interface FileXrefRef {
+  fromSymbolId: string;
+  toSymbolId: string;
+  kind: string;
+  fileId: string;
+  range: { startLine: number; startCol: number; endLine: number; endCol: number; startOffset: number; endOffset: number };
+}
+
+export interface FileXrefUseTarget {
+  toSymbolId: string;
+  kind: string;
+  count: number;
+  occurrences: FileXrefRef[];
+}
+
+export interface FileXrefResponse {
+  path: string;
+  usedBy: FileXrefRef[];
+  uses: FileXrefUseTarget[];
+}
+
 export const sourceApi = createApi({
   reducerPath: 'sourceApi',
   // Default query returns text; endpoints that need JSON override responseHandler.
@@ -41,6 +62,12 @@ export const sourceApi = createApi({
         responseHandler: 'json',
       }),
     }),
+    getFileXref: b.query<FileXrefResponse, string>({
+      query: (path) => ({
+        url: `/file-xref?path=${encodeURIComponent(path)}`,
+        responseHandler: 'json',
+      }),
+    }),
   }),
 });
 
@@ -49,4 +76,5 @@ export const {
   useGetSnippetQuery,
   useGetSnippetRefsQuery,
   useGetSourceRefsQuery,
+  useGetFileXrefQuery,
 } = sourceApi;

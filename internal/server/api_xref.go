@@ -78,6 +78,80 @@ type SnippetRefView struct {
 	Length       int    `json:"length"`
 }
 
+// fileXrefResponse aggregates /api/xref data across every symbol declared
+// in a single file. It powers the file-level "used by" / "uses" panel on
+// the /source/<path> page. Intra-file refs (both endpoints declared in the
+// same file) are deliberately excluded — they're already visible in the
+// linkified source body and would bloat both lists otherwise.
+type fileXrefResponse struct {
+	Path   string          `json:"path"`
+	UsedBy []indexer.Ref   `json:"usedBy"`
+	Uses   []xrefUseTarget `json:"uses"`
+}
+
+func (s *Server) handleFileXref(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "missing path", http.StatusBadRequest)
+		return
+	}
+	fileID := "file:" + path
+	if _, ok := s.Loaded.File(fileID); !ok {
+		http.Error(w, "file not in index", http.StatusNotFound)
+		return
+	}
+	// Collect the symbol IDs declared in this file once, so the ref walk is
+	// O(|refs|) rather than O(|refs| * |symbols|).
+	inFile := map[string]bool{}
+	for i := range s.Loaded.Index.Symbols {
+		sym := &s.Loaded.Index.Symbols[i]
+		if sym.FileID == fileID {
+			inFile[sym.ID] = true
+		}
+	}
+	resp := fileXrefResponse{
+		Path:   path,
+		UsedBy: []indexer.Ref{},
+		Uses:   []xrefUseTarget{},
+	}
+	byTarget := map[string]*xrefUseTarget{}
+	for i := range s.Loaded.Index.Refs {
+		ref := &s.Loaded.Index.Refs[i]
+		toInFile := inFile[ref.ToSymbolID]
+		fromInFile := inFile[ref.FromSymbolID]
+		// "used by": a ref from outside the file into one of our symbols.
+		if toInFile && !fromInFile {
+			resp.UsedBy = append(resp.UsedBy, *ref)
+			continue
+		}
+		// "uses": a ref from one of our symbols out to a target elsewhere.
+		if fromInFile && !toInFile {
+			if _, known := s.Loaded.Symbol(ref.ToSymbolID); !known {
+				continue
+			}
+			target, ok := byTarget[ref.ToSymbolID]
+			if !ok {
+				target = &xrefUseTarget{
+					ToSymbolID: ref.ToSymbolID,
+					Kind:       ref.Kind,
+				}
+				byTarget[ref.ToSymbolID] = target
+			}
+			target.Count++
+			if len(target.Occurrences) < 5 {
+				target.Occurrences = append(target.Occurrences, *ref)
+			}
+		}
+	}
+	for _, t := range byTarget {
+		resp.Uses = append(resp.Uses, *t)
+	}
+	if len(resp.UsedBy) > 200 {
+		resp.UsedBy = resp.UsedBy[:200]
+	}
+	writeJSON(w, resp)
+}
+
 // SourceRefView is the payload returned by /api/source-refs — one entry per
 // identifier use anywhere in the file, with absolute file-byte offsets. The
 // frontend's <SourceView> uses the same offset-match rule <Code> does,
