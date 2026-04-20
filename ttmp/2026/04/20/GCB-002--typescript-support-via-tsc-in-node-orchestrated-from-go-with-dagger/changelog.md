@@ -24,3 +24,8 @@ Phase 1 landed: Extractor interface in internal/indexer/multi.go (Language, Extr
 
 Phase 2 landed: tools/ts-indexer/ promoted from scripts prototype. src/extract.ts + src/cli.ts + src/ids.ts + src/types.ts (schema mirror). Vitest fixture test (6 tests, all green) covers language stamping, symbol counts, method receiver IDs, byte-offset roundtrip, and determinism. Compiled bin/cli.js runs via 'node bin/cli.js --module-root <path>'.
 
+
+## 2026-04-20
+
+Phase 3 landed: cmd/build-ts-index Dagger program with BUILD_TS_LOCAL=1 fallback. Local smoke on ui/ frontend: 12 packages / 38 files / 145 symbols (func/const/iface/alias) extracted from real TypeScript code. Dagger path mounts tools/ts-indexer + ui/ narrowly with CacheVolume for the pnpm store, corepack-activated pnpm, frozen-lockfile install, then runs the compiled bin/cli.js. Local path skips Dagger entirely via 'node tools/ts-indexer/bin/cli.js ...'.
+
