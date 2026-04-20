@@ -34,9 +34,12 @@ describe('extract', () => {
     expect(idx.symbols).toHaveLength(6);
   });
 
-  it('method IDs embed the class as receiver', () => {
+  it('method IDs embed the class as receiver and the file-stem as scope', () => {
     const hello = idx.symbols.find((s) => s.name === 'hello');
-    expect(hello?.id).toBe('sym:fixture/src.method.Greeter.hello');
+    // File-scoped: the `src/greeter` segment disambiguates symbols that would
+    // otherwise collide across files in the same directory (e.g. Storybook's
+    // `const meta` in every *.stories.tsx).
+    expect(hello?.id).toBe('sym:fixture/src/greeter.method.Greeter.hello');
     expect(hello?.receiver).toMatchObject({ typeName: 'Greeter', pointer: false });
   });
 

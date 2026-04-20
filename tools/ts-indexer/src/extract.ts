@@ -88,8 +88,15 @@ export function extract(opts: ExtractOptions): Index {
     idx.files.push(file);
     pkg.fileIds.push(file.id);
 
+    // TypeScript treats each file as its own module, so symbols in different
+    // files inside the same directory (e.g. Storybook's `const meta` in every
+    // *.stories.tsx) need file-scoped IDs to stay unique. We keep `pkg.id`
+    // as the directory grouping for tree-nav, but the ID segment threaded
+    // through symbols uses the relative path minus extension.
+    const symScope = `${moduleName}/${rel.replace(/\.(tsx?|mts|cts)$/, '')}`;
+
     ts.forEachChild(sf, (node) => {
-      collectTopLevel(node, sf, importPath, file.id, pkg!, idx);
+      collectTopLevel(node, sf, symScope, file.id, pkg!, idx);
     });
   }
 
