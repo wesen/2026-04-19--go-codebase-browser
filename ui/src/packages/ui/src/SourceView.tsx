@@ -1,6 +1,7 @@
 // React namespace provided by jsx: react-jsx
 import { PARTS } from './parts';
 import { tokensByLine } from './highlight/go';
+import { annotateComment } from './highlight/annotations';
 
 export interface SourceViewProps {
   source: string;
@@ -25,9 +26,19 @@ export function SourceView({ source, highlightLine, language = 'go' }: SourceVie
           >
             <span data-part={PARTS.sourceGutter}>{n.toString().padStart(4, ' ')}</span>
             <span data-role="content">
-              {tokens.length === 0 ? '\u00a0' : tokens.map((t, k) => (
-                <span key={k} data-tok={t.type}>{t.text}</span>
-              ))}
+              {tokens.length === 0 ? '\u00a0' : tokens.map((t, k) => {
+                if (t.type !== 'com') {
+                  return <span key={k} data-tok={t.type}>{t.text}</span>;
+                }
+                const spans = annotateComment(t.text);
+                return (
+                  <span key={k} data-tok="com">
+                    {spans.map((s, m) => (
+                      <span key={m} data-annotation={s.annotation}>{s.text}</span>
+                    ))}
+                  </span>
+                );
+              })}
             </span>
           </div>
         );

@@ -184,6 +184,78 @@
 [data-widget='codebase-browser'] [data-tok='id']    { color: var(--cb-tok-id); }
 [data-widget='codebase-browser'] [data-tok='punct'] { color: var(--cb-tok-punct); }
 
+/* Godoc-style inline annotations inside comments. Scoped under [data-tok="com"]
+   so they keep the italic/muted comment styling and only re-tint. */
+[data-widget='codebase-browser'] [data-annotation='deprecated'] {
+  color: #dc2626;
+  font-weight: 600;
+  font-style: normal;
+}
+[data-widget='codebase-browser'] [data-annotation='bug'] {
+  color: #dc2626;
+  font-style: normal;
+}
+[data-widget='codebase-browser'] [data-annotation='todo'] {
+  color: #d97706;
+  font-style: normal;
+}
+[data-widget='codebase-browser'] [data-annotation='fixme'] {
+  color: #dc2626;
+  font-style: normal;
+}
+[data-widget='codebase-browser'] [data-annotation='note'] {
+  color: #2563eb;
+  font-style: normal;
+}
+[data-widget='codebase-browser'] [data-annotation='hack'] {
+  color: #d97706;
+  font-style: italic;
+}
+[data-widget='codebase-browser'] [data-annotation='xxx'] {
+  color: #dc2626;
+  font-style: normal;
+}
+
+/* Deprecated badge on symbol card headers. */
+[data-widget='codebase-browser'] [data-part='deprecated-badge'] {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  padding: 2px 6px;
+  border-radius: var(--cb-radius-1);
+  font-size: calc(var(--cb-font-size) - 3px);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Build-tag banner for source views. */
+[data-widget='codebase-browser'] [data-part='build-tag-banner'] {
+  display: flex;
+  align-items: center;
+  gap: var(--cb-space-2);
+  padding: var(--cb-space-2) var(--cb-space-3);
+  margin-bottom: var(--cb-space-3);
+  background: color-mix(in srgb, var(--cb-color-accent) 6%, transparent);
+  border: 1px solid var(--cb-color-border);
+  border-radius: var(--cb-radius-1);
+  font-size: calc(var(--cb-font-size) - 1px);
+  color: var(--cb-color-muted);
+}
+[data-widget='codebase-browser'] [data-part='build-tag-banner'] strong {
+  color: var(--cb-color-text);
+  text-transform: uppercase;
+  font-size: calc(var(--cb-font-size) - 3px);
+  letter-spacing: 0.03em;
+}
+[data-widget='codebase-browser'] [data-part='build-tag-chip'] {
+  font-family: var(--cb-font-mono);
+  padding: 1px 6px;
+  background: var(--cb-color-surface);
+  border: 1px solid var(--cb-color-border);
+  border-radius: var(--cb-radius-1);
+  font-size: calc(var(--cb-font-size) - 2px);
+}
+
 /* Inline toggle button for expanding symbol snippets on index pages. */
 [data-widget='codebase-browser'] [data-part='symbol-toggle'] {
   background: transparent;

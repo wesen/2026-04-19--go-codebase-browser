@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 import { PARTS } from './parts';
 import { Code } from './Code';
+import { detectLeadingAnnotation } from './highlight/annotations';
 import type { Symbol } from '../../../api/types';
 
 export interface SymbolCardProps {
@@ -14,10 +15,12 @@ export interface SymbolCardProps {
 }
 
 export function SymbolCard({ symbol, snippet, renderName, actions }: SymbolCardProps) {
+  const annotation = symbol.doc ? detectLeadingAnnotation(symbol.doc) : undefined;
   return (
     <article
       data-part={PARTS.symbolCard}
       data-state={snippet ? 'with-snippet' : 'no-snippet'}
+      data-annotation={annotation}
     >
       <header data-part={PARTS.symbolHeader}>
         <span data-part={PARTS.symbolKind} data-role={symbol.kind}>
@@ -30,6 +33,9 @@ export function SymbolCard({ symbol, snippet, renderName, actions }: SymbolCardP
           <code data-part={PARTS.symbolSignature}>
             {truncate(symbol.signature, 160)}
           </code>
+        )}
+        {annotation === 'deprecated' && (
+          <span data-part={PARTS.deprecatedBadge} data-role="deprecated">deprecated</span>
         )}
         {actions && <span data-role="actions" style={{ marginLeft: 'auto' }}>{actions}</span>}
       </header>
