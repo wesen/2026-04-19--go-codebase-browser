@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -15,7 +16,12 @@ func LoadCatalogFromDirs(dirs ...string) (*Catalog, error) {
 		if strings.TrimSpace(dir) == "" {
 			continue
 		}
-		roots = append(roots, SourceRoot{Name: filepath.Base(dir), RootDir: dir})
+		clean := filepath.Clean(dir)
+		roots = append(roots, SourceRoot{
+			Name:    filepath.Base(clean),
+			FS:      os.DirFS(clean),
+			RootDir: ".",
+		})
 	}
 	return LoadCatalog(roots)
 }
@@ -27,41 +33,45 @@ func LoadCatalog(roots []SourceRoot) (*Catalog, error) {
 		ByName:   map[string]*Concept{},
 	}
 	for _, root := range roots {
-		rootDir := root.RootDir
+		rootFS := root.FS
+		if rootFS == nil {
+			continue
+		}
+		rootDir := strings.TrimSpace(root.RootDir)
 		if rootDir == "" {
 			rootDir = "."
 		}
-		if _, err := os.Stat(rootDir); err != nil {
+		if _, err := fs.Stat(rootFS, rootDir); err != nil {
 			if os.IsNotExist(err) {
 				continue
 			}
-			return nil, fmt.Errorf("stat concept root %s: %w", rootDir, err)
+			return nil, fmt.Errorf("stat concept root %s:%s: %w", root.Name, rootDir, err)
 		}
-		if err := filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
+		if err := fs.WalkDir(rootFS, rootDir, func(filePath string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
-			if d.IsDir() || !strings.HasSuffix(strings.ToLower(path), ".sql") {
+			if d.IsDir() || !strings.HasSuffix(strings.ToLower(filePath), ".sql") {
 				return nil
 			}
-			data, err := os.ReadFile(path)
+			data, err := fs.ReadFile(rootFS, filePath)
 			if err != nil {
 				return err
 			}
 			if !LooksLikeConceptSQL(data) {
 				return nil
 			}
-			spec, err := ParseSQLConcept(path, data)
+			spec, err := ParseSQLConcept(filePath, data)
 			if err != nil {
 				return err
 			}
-			rel, err := filepath.Rel(rootDir, path)
-			if err != nil {
-				return err
+			rel := strings.TrimPrefix(path.Clean(filePath), "./")
+			if rootDir != "." {
+				rel = strings.TrimPrefix(strings.TrimPrefix(rel, strings.TrimPrefix(path.Clean(rootDir), "./")), "/")
 			}
-			concept := Compile(spec, rel, path)
+			concept := Compile(spec, rel, sourcePath(root.Name, rel), root.Name)
 			if _, exists := catalog.ByPath[concept.Path]; exists {
-				return fmt.Errorf("duplicate concept path %q", concept.Path)
+				return nil
 			}
 			catalog.ByPath[concept.Path] = concept
 			if _, exists := catalog.ByName[concept.Name]; !exists {
@@ -70,7 +80,7 @@ func LoadCatalog(roots []SourceRoot) (*Catalog, error) {
 			catalog.Concepts = append(catalog.Concepts, concept)
 			return nil
 		}); err != nil {
-			return nil, fmt.Errorf("load concept root %s: %w", rootDir, err)
+			return nil, fmt.Errorf("load concept root %s: %w", root.Name, err)
 		}
 	}
 	sort.Slice(catalog.Concepts, func(i, j int) bool {
@@ -79,7 +89,7 @@ func LoadCatalog(roots []SourceRoot) (*Catalog, error) {
 	return catalog, nil
 }
 
-func Compile(spec *ConceptSpec, relPath, sourcePath string) *Concept {
+func Compile(spec *ConceptSpec, relPath, sourcePath, sourceRoot string) *Concept {
 	relPath = filepath.ToSlash(relPath)
 	folder := filepath.ToSlash(filepath.Dir(relPath))
 	if folder == "." {
@@ -94,6 +104,7 @@ func Compile(spec *ConceptSpec, relPath, sourcePath string) *Concept {
 		Tags:       append([]string(nil), spec.Tags...),
 		Params:     append([]Param(nil), spec.Params...),
 		Query:      strings.TrimSpace(spec.Query),
+		SourceRoot: strings.TrimSpace(sourceRoot),
 		SourcePath: sourcePath,
 	}
 }
@@ -105,4 +116,13 @@ func conceptPath(folder, name string) string {
 		return name
 	}
 	return folder + "/" + name
+}
+
+func sourcePath(rootName, rel string) string {
+	rootName = strings.TrimSpace(rootName)
+	rel = strings.TrimPrefix(path.Clean(rel), "./")
+	if rootName == "" {
+		return rel
+	}
+	return rootName + ":" + rel
 }

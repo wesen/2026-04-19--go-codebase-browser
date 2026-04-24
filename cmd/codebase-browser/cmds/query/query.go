@@ -21,7 +21,7 @@ type options struct {
 }
 
 // Register adds the top-level `query` command.
-func Register(root *cobra.Command) error {
+func Register(root *cobra.Command, conceptRepositoryFlags []string) error {
 	opts := &options{}
 	cmd := &cobra.Command{
 		Use:   "query [sql]",
@@ -59,7 +59,7 @@ Examples:
 	cmd.PersistentFlags().StringVar(&opts.dbPath, "db", "internal/sqlite/embed/codebase.db", "Path to codebase.db")
 	cmd.PersistentFlags().StringVar(&opts.format, "format", "table", "Output format: table or json")
 	cmd.Flags().StringVarP(&opts.file, "file", "f", "", "Read SQL from a file")
-	if err := addConceptCommands(cmd, opts); err != nil {
+	if err := addConceptCommands(cmd, opts, conceptRepositoryFlags); err != nil {
 		return err
 	}
 	root.AddCommand(cmd)

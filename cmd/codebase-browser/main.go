@@ -12,6 +12,7 @@ import (
 	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/index"
 	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/query"
 	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/symbol"
+	"github.com/wesen/codebase-browser/internal/concepts"
 )
 
 var version = "dev"
@@ -33,7 +34,8 @@ func main() {
 
 	cobra.CheckErr(index.Register(rootCmd))
 	cobra.CheckErr(symbol.Register(rootCmd))
-	cobra.CheckErr(query.Register(rootCmd))
+	conceptRepositoryFlags := concepts.ExtractRepositoryFlagValuesFromArgs(os.Args[1:])
+	cobra.CheckErr(query.Register(rootCmd, conceptRepositoryFlags))
 	cobra.CheckErr(doc.Register(rootCmd))
 	registerServe(rootCmd)
 

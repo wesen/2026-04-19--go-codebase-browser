@@ -3,9 +3,9 @@ package concepts
 import "testing"
 
 func TestLoadRepositoryConcepts(t *testing.T) {
-	catalog, err := LoadCatalogFromDirs("../../concepts")
+	catalog, err := LoadEmbeddedCatalog()
 	if err != nil {
-		t.Fatalf("LoadCatalogFromDirs() error = %v", err)
+		t.Fatalf("LoadEmbeddedCatalog() error = %v", err)
 	}
 	for _, path := range []string{
 		"packages/package-counts",

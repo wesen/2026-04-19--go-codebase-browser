@@ -71,7 +71,7 @@ func TestRenderConcept(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	concept := Compile(spec, "symbols/exported-functions.sql", "symbols/exported-functions.sql")
+	concept := Compile(spec, "symbols/exported-functions.sql", "symbols/exported-functions.sql", "test")
 	sql, err := RenderConcept(concept, map[string]any{"package": "internal/server", "limit": "10"})
 	if err != nil {
 		t.Fatalf("RenderConcept() error = %v", err)

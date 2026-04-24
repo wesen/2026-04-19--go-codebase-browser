@@ -2,6 +2,7 @@ package concepts
 
 import (
 	"fmt"
+	"io/fs"
 	"strings"
 )
 
@@ -46,11 +47,13 @@ type Concept struct {
 	Tags       []string
 	Params     []Param
 	Query      string
+	SourceRoot string
 	SourcePath string
 }
 
 type SourceRoot struct {
 	Name    string
+	FS      fs.FS
 	RootDir string
 }
 

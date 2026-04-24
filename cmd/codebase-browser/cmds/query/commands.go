@@ -12,20 +12,34 @@ import (
 	cbsqlite "github.com/wesen/codebase-browser/internal/sqlite"
 )
 
-func addConceptCommands(queryRoot *cobra.Command, opts *options) error {
-	catalog, err := concepts.LoadCatalogFromDirs("concepts")
+func addConceptCommands(queryRoot *cobra.Command, opts *options, flagPaths []string) error {
+	catalog, err := concepts.LoadConfiguredCatalog(flagPaths)
 	if err != nil {
 		return err
 	}
 
 	commandsRoot := &cobra.Command{
 		Use:   "commands",
-		Short: "Run named structured SQL query concepts",
-		Long: `Run named structured SQL query concepts loaded from the concepts/ catalog.
+		Short: "Run repository-backed structured SQL concepts",
+		Long: `Run repository-backed structured SQL concepts loaded from the embedded
+catalog plus any configured external concept repositories.
 
-Each concept is a SQL template with typed parameters. Use --render-only on a
-leaf command to preview the rendered SQL without executing it.`,
+Subdirectories in a repository are exposed as nested CLI groups. SQL concept
+files map directly to leaf commands, so a file like symbols/exported-functions.sql
+becomes:
+  codebase-browser query commands symbols exported-functions
+
+Additional repositories can be provided through:
+  - environment: ` + concepts.ConceptRepositoriesEnvVar + `
+  - repeated CLI flags: --` + concepts.ConceptRepositoryFlagName + ` ./my-concepts
+
+Higher-precedence repositories are mounted first so they can override embedded
+built-ins without changing loader behavior.
+
+Use --render-only on a leaf command to preview the rendered SQL without
+executing it.`,
 	}
+	commandsRoot.PersistentFlags().StringSlice(concepts.ConceptRepositoryFlagName, flagPaths, "Repeatable directory flag for additional structured SQL concept repository roots")
 	groups := map[string]*cobra.Command{}
 	for _, concept := range catalog.Concepts {
 		parent := ensureGroup(commandsRoot, groups, concept.Folder)
