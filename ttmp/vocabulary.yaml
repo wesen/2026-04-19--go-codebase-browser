@@ -61,6 +61,16 @@ topics:
       description: Search functionality, FTS5, query
     - slug: sqlite
       description: SQLite database storage and querying
+    - slug: git
+      description: Git integration, commit history, and branch-aware indexing
+    - slug: diff
+      description: Per-symbol and per-file diff computation across commits
+    - slug: history
+      description: Tracking symbol and file changes over time
+    - slug: concepts
+      description: Structured query concepts and the concept catalog system
+    - slug: symbols
+      description: Symbol extraction, lookup, and analysis
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
