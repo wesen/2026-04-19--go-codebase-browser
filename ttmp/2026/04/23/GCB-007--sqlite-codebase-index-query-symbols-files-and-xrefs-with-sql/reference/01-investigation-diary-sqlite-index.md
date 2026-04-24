@@ -1,0 +1,42 @@
+---
+Title: Investigation Diary SQLite Index
+Ticket: GCB-007
+Status: active
+Topics:
+    - sqlite
+    - wasm
+    - go
+    - search
+    - indexing
+DocType: reference
+Intent: long-term
+Owners: []
+RelatedFiles: []
+ExternalSources: []
+Summary: ""
+LastUpdated: 2026-04-23T23:07:05.676309051-04:00
+WhatFor: ""
+WhenToUse: ""
+---
+
+# Investigation Diary SQLite Index
+
+## Goal
+
+<!-- What is the purpose of this reference document? -->
+
+## Context
+
+<!-- Provide background context needed to use this reference -->
+
+## Quick Reference
+
+<!-- Provide copy/paste-ready content, API contracts, or quick-look tables -->
+
+## Usage Examples
+
+<!-- Show how to use this reference in practice -->
+
+## Related
+
+<!-- Link to related documents or resources -->

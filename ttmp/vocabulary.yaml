@@ -55,6 +55,12 @@ topics:
       description: Static file/HTML generation and bundling for zero-server deployment
     - slug: go
       description: 'Go language tooling: go/ast, go/packages, go/types, standard library'
+    - slug: indexing
+      description: Source code indexing and extraction
+    - slug: search
+      description: Search functionality, FTS5, query
+    - slug: sqlite
+      description: SQLite database storage and querying
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
