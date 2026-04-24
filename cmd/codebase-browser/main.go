@@ -10,6 +10,7 @@ import (
 
 	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/doc"
 	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/index"
+	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/query"
 	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/symbol"
 )
 
@@ -32,6 +33,7 @@ func main() {
 
 	cobra.CheckErr(index.Register(rootCmd))
 	cobra.CheckErr(symbol.Register(rootCmd))
+	cobra.CheckErr(query.Register(rootCmd))
 	cobra.CheckErr(doc.Register(rootCmd))
 	registerServe(rootCmd)
 

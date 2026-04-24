@@ -63,8 +63,8 @@ CREATE TABLE symbols (
 
 CREATE TABLE refs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    from_symbol_id TEXT NOT NULL REFERENCES symbols(id) ON DELETE CASCADE,
-    to_symbol_id TEXT NOT NULL REFERENCES symbols(id) ON DELETE CASCADE,
+    from_symbol_id TEXT NOT NULL,
+    to_symbol_id TEXT NOT NULL,
     kind TEXT NOT NULL,
     file_id TEXT NOT NULL REFERENCES files(id) ON DELETE CASCADE,
     start_line INTEGER NOT NULL DEFAULT 0,

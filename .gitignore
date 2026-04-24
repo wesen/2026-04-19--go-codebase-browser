@@ -8,6 +8,7 @@ internal/sourcefs/embed/source/*
 !internal/sourcefs/embed/source/.keep
 internal/indexfs/embed/index.json
 internal/indexfs/embed/index-ts.json
+internal/sqlite/embed/codebase.db
 
 # Go artefacts
 *.test
