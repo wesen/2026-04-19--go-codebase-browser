@@ -22,11 +22,11 @@ Add SQL-only structured query concepts to `codebase-browser`: named SQL template
 
 ## Phase 3 — First concept files
 
-- [ ] Create `concepts/` as the user-facing structured query catalog.
-- [ ] Convert `package-counts` into a concept.
-- [ ] Convert `exported-functions` into a concept.
-- [ ] Convert `most-referenced` into a concept.
-- [ ] Convert `refs-for-symbol` into a parameterized concept.
+- [x] Create `concepts/` as the user-facing structured query catalog.
+- [x] Convert `package-counts` into a concept.
+- [x] Convert `exported-functions` into a concept.
+- [x] Convert `most-referenced` into a concept.
+- [x] Convert `refs-for-symbol` into a parameterized concept.
 
 ## Phase 4 — Dynamic CLI verbs
 

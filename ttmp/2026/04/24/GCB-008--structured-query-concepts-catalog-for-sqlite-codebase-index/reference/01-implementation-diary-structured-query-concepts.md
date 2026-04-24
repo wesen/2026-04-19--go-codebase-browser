@@ -185,3 +185,73 @@ Validate with:
 go test ./internal/concepts -count=1
 go test ./... -count=1
 ```
+
+## Step 3: Add the first structured concept files
+
+This step created the first user-facing `concepts/` catalog. The files are no longer plain SQL snippets; each one now has a `codebase-browser concept` preamble with name, help text, tags, and typed parameters.
+
+These files are the bridge between raw SQL exploration and generated CLI/web interfaces. They can be loaded by `internal/concepts` today and will become dynamic CLI verbs in the next step.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue implementing GCB-008 by adding concrete query concepts after the parser/catalog package.
+
+**Inferred user intent:** Turn the useful SQL examples into durable named analyses that can be invoked and validated consistently.
+
+**Commit (code):** 17272ea3f0b4d2fdf59bc6f7ef3f5495d548269d — "Add initial SQL concept files"
+
+### What I did
+
+- Created `concepts/packages/package-counts.sql`.
+- Created `concepts/symbols/exported-functions.sql`.
+- Created `concepts/symbols/most-referenced.sql`.
+- Created `concepts/refs/refs-for-symbol.sql`.
+- Added `internal/concepts/catalog_files_test.go` to verify the repo catalog loads those files.
+
+### Why
+
+The catalog package needs real source files before the CLI can expose useful verbs. These concepts cover the first practical navigation and inspection questions: package size, exported API, central symbols, and symbol refs.
+
+### What worked
+
+```bash
+gofmt -w internal/concepts/catalog_files_test.go
+go test ./internal/concepts -count=1
+```
+
+### What didn't work
+
+N/A
+
+### What I learned
+
+The concept file format is readable enough for manual editing. The `value` helper keeps parameter access explicit, especially for names like `symbol-id`.
+
+### What was tricky to build
+
+The `refs-for-symbol` concept needed `LEFT JOIN` for source/target symbols because refs can point to external symbols that are not local rows in `symbols`.
+
+### What warrants a second pair of eyes
+
+- Whether `refs-for-symbol` should show raw external symbol IDs more prominently when the target/source name is null.
+- Whether `kind` in `most-referenced` should be a `choice` instead of free string.
+
+### What should be done in the future
+
+- Add more concepts for undocumented exported symbols, largest files, and package dependency edges.
+- Add aliases once alias support exists.
+
+### Code review instructions
+
+Review:
+
+- `concepts/`
+- `internal/concepts/catalog_files_test.go`
+
+Validate with:
+
+```bash
+go test ./internal/concepts -count=1
+```
