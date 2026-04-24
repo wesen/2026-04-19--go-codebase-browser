@@ -6,19 +6,19 @@ Add SQL-only structured query concepts to `codebase-browser`: named SQL template
 
 ## Phase 1 — Concept catalog package
 
-- [ ] Create `internal/concepts/`.
-- [ ] Define `Concept`, `ConceptSpec`, `Param`, `Catalog`, and source-root types.
-- [ ] Detect structured SQL concept files by preamble marker.
-- [ ] Parse SQL concept files into specs.
-- [ ] Compile specs into catalog entries indexed by path and name.
-- [ ] Add tests for parsing, validation, duplicate detection, and catalog loading.
+- [x] Create `internal/concepts/`.
+- [x] Define `Concept`, `ConceptSpec`, `Param`, `Catalog`, and source-root types.
+- [x] Detect structured SQL concept files by preamble marker.
+- [x] Parse SQL concept files into specs.
+- [x] Compile specs into catalog entries indexed by path and name.
+- [x] Add tests for parsing, validation, and catalog loading. _(Duplicate detection exists in code; add a dedicated test later if needed.)_
 
 ## Phase 2 — SQL rendering
 
-- [ ] Add `RenderConcept(concept, values)`.
-- [ ] Add template helpers: `value`, `sqlString`, `sqlLike`, `sqlStringIn`, `sqlIntIn`.
-- [ ] Add typed default hydration for concept parameters.
-- [ ] Add render-only tests with parameterized SQL.
+- [x] Add `RenderConcept(concept, values)`.
+- [x] Add template helpers: `value`, `sqlString`, `sqlLike`, `sqlStringIn`, `sqlIntIn`.
+- [x] Add typed default hydration for concept parameters.
+- [x] Add render-only tests with parameterized SQL.
 
 ## Phase 3 — First concept files
 

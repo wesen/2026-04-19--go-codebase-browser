@@ -92,3 +92,96 @@ The planned command shape is:
 codebase-browser query commands symbols exported-functions --package internal/server --limit 50
 codebase-browser query commands symbols exported-functions --package internal/server --limit 50 --render-only
 ```
+
+## Step 2: Add the SQL concept catalog package
+
+This step added the first code for GCB-008: an `internal/concepts` package that can parse metadata-bearing SQL files, compile them into catalog entries, hydrate typed parameter values, and render SQL templates with safe-ish helper functions.
+
+The implementation is SQL-only by design. It establishes the catalog layer that dynamic CLI verbs will use in later steps.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Begin implementing the structured query concepts feature in focused code slices.
+
+**Inferred user intent:** Build the reusable concept abstraction before wiring it into the CLI or website.
+
+**Commit (code):** 7cb3b381a8169be97df80865be9eca99296d51bc — "Add SQL concept catalog package"
+
+### What I did
+
+- Created `internal/concepts/`.
+- Added concept types: `Param`, `ConceptSpec`, `Concept`, `SourceRoot`, and `Catalog`.
+- Added validation for required concept metadata and supported parameter types.
+- Added SQL concept preamble detection for `/* codebase-browser concept ... */`.
+- Added SQL concept parsing with YAML metadata and SQL body splitting.
+- Added catalog loading from filesystem directories.
+- Added concept compilation into `ByPath` and `ByName` indexes.
+- Added value hydration and type coercion for string, int, bool, choice, stringList, and intList params.
+- Added SQL template rendering with `value`, `sqlString`, `sqlLike`, `sqlStringIn`, and `sqlIntIn` helpers.
+- Added tests for parsing, loading, rendering, and required parameter validation.
+
+### Why
+
+The concept catalog needs to exist independently of the CLI so it can later be reused by server APIs and static-browser metadata generation. This slice gives us the core model without coupling it to Cobra or SQLite execution.
+
+### What worked
+
+The following commands passed:
+
+```bash
+gofmt -w internal/concepts
+go test ./internal/concepts -count=1
+go test ./internal/concepts ./internal/sqlite -count=1
+go test ./... -count=1
+```
+
+### What didn't work
+
+The first focused test run failed because `sqlIntIn` returned only a string in the empty-list case even though the function signature returns `(string, error)`:
+
+```text
+internal/concepts/render.go:216:10: not enough return values
+	have (string)
+	want (string, error)
+```
+
+I fixed it by returning `"0", nil`.
+
+### What I learned
+
+Keeping concepts SQL-only makes the implementation small and portable. The package currently has no dependency on SQLite or Cobra, which is good for later reuse in the web path.
+
+### What was tricky to build
+
+The template API needed a stable way to access parameter names like `symbol-id`, which are not convenient as Go template dot fields. The package therefore exposes a `value` helper, so templates can write `{{ value "symbol-id" }}` rather than relying on dot syntax.
+
+### What warrants a second pair of eyes
+
+- The SQL quoting helpers are intentionally simple. They are appropriate for generated templates, but they should be reviewed before exposing concept execution broadly through a web API.
+- The `Default any` YAML handling should be reviewed with more parameter types and real concept files.
+- The catalog currently loads from OS directories only; embedding can be added later.
+
+### What should be done in the future
+
+- Add concept files under `concepts/`.
+- Wire concepts into `codebase-browser query commands`.
+- Add dedicated duplicate path tests.
+
+### Code review instructions
+
+Start with:
+
+- `internal/concepts/types.go`
+- `internal/concepts/parse_sql.go`
+- `internal/concepts/catalog.go`
+- `internal/concepts/render.go`
+- `internal/concepts/concepts_test.go`
+
+Validate with:
+
+```bash
+go test ./internal/concepts -count=1
+go test ./... -count=1
+```
