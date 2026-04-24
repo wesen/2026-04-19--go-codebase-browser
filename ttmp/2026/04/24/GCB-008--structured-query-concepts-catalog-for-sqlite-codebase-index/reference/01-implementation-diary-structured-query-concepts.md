@@ -255,3 +255,103 @@ Validate with:
 ```bash
 go test ./internal/concepts -count=1
 ```
+
+## Step 4: Add dynamic concept CLI commands
+
+This step connected the concept catalog to the application CLI. `codebase-browser query` still supports raw SQL, but it now also has a `commands` subtree generated from the `concepts/` catalog.
+
+The important result is that reusable SQL concepts are now executable as typed commands. They also support `--render-only`, which gives us the same validation loop that made the go-minitrace system useful before web UI forms existed.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Finish the initial implementation by exposing concepts as CLI verbs and validating them against the generated SQLite DB.
+
+**Inferred user intent:** Make parameterized SQL concepts usable from the command line now, so later website work can consume the same abstraction.
+
+**Commit (code):** 620002d8cf26ac7a52f0cc37e968915c4c3513c6 — "Add concept query CLI commands"
+
+### What I did
+
+- Added `cmd/codebase-browser/cmds/query/commands.go`.
+- Added `codebase-browser query commands`.
+- Loaded the `concepts/` catalog at CLI registration time.
+- Generated nested Cobra command groups from concept folders.
+- Added one leaf command per concept.
+- Mapped concept params to CLI flags.
+- Added `--render-only` per concept command.
+- Reused the existing SQLite DB opening and SQL result rendering path.
+- Changed `--db` and `--format` to persistent query flags so concept subcommands inherit them.
+- Preserved existing raw SQL behavior.
+
+### Why
+
+The CLI is the fastest place to validate concept metadata and SQL templates. Once these commands are stable, the website can expose the same concepts as generated forms instead of hand-writing each query UI.
+
+### What worked
+
+The following commands succeeded:
+
+```bash
+gofmt -w cmd/codebase-browser/cmds/query
+go test ./cmd/codebase-browser/cmds/query ./cmd/codebase-browser ./internal/concepts -count=1
+go generate ./internal/sqlite
+go run ./cmd/codebase-browser query commands packages package-counts --render-only | head -30
+go run ./cmd/codebase-browser query commands packages package-counts | head -8
+go run ./cmd/codebase-browser query commands symbols exported-functions --package internal/server --limit 5
+go run ./cmd/codebase-browser query commands symbols most-referenced --limit 5
+go run ./cmd/codebase-browser query commands refs refs-for-symbol --symbol-id 'sym:github.com/wesen/codebase-browser/internal/indexer.func.SymbolID' --limit 5 --render-only | head -30
+go run ./cmd/codebase-browser query commands refs refs-for-symbol --symbol-id 'sym:github.com/wesen/codebase-browser/internal/indexer.func.SymbolID' --limit 5
+go test ./... -count=1
+go run ./cmd/codebase-browser query "SELECT COUNT(*) AS symbols FROM symbols"
+```
+
+### What didn't work
+
+The first implementation attempt used `StringVar`, `IntVar`, and related pflag helpers with custom map-backed value types. That was the wrong API because those helpers require pointers to concrete Go primitives, not custom `pflag.Value` implementations. I rewrote the flag registration to use `flags.Var` / `flags.VarP` with explicit `pflag.Value` implementations.
+
+One smoke command used `head` to truncate output and produced an expected broken-pipe signal after the consumer closed the pipe:
+
+```text
+signal: broken pipe
+```
+
+The command itself worked; the signal was from truncating output for display.
+
+### What I learned
+
+Cobra/pflag supports dynamic typed flags well, but custom storage should use the `pflag.Value` interface directly. That makes it easy to hydrate a `map[string]any` for concept rendering.
+
+### What was tricky to build
+
+The biggest sharp edge was preserving raw SQL behavior while adding a subcommand tree. `codebase-browser query "SELECT ..."` still works, while `codebase-browser query commands ...` dispatches to the generated subtree. Shared flags such as `--db` and `--format` had to become persistent query flags so subcommands inherit them.
+
+### What warrants a second pair of eyes
+
+- The dynamic flag implementation is intentionally simple and should be reviewed for edge cases around required ints and lists.
+- The catalog currently loads from the working-tree `concepts/` directory, not embedded assets. That is fine for the CLI implementation slice but should be revisited for released binaries.
+- Choice validation happens during concept render hydration rather than at Cobra flag parse time.
+
+### What should be done in the future
+
+- Add embedded concept assets for released binaries.
+- Add alias support after the SQL-only path is stable.
+- Add API endpoints and browser-generated forms after the website work resumes.
+
+### Code review instructions
+
+Review:
+
+- `cmd/codebase-browser/cmds/query/query.go`
+- `cmd/codebase-browser/cmds/query/commands.go`
+
+Validate with:
+
+```bash
+go generate ./internal/sqlite
+go run ./cmd/codebase-browser query commands symbols exported-functions --package internal/server --limit 5
+go run ./cmd/codebase-browser query commands symbols exported-functions --package internal/server --limit 5 --render-only
+go run ./cmd/codebase-browser query "SELECT COUNT(*) AS symbols FROM symbols"
+go test ./... -count=1
+```

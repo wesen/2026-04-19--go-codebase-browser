@@ -30,20 +30,20 @@ Add SQL-only structured query concepts to `codebase-browser`: named SQL template
 
 ## Phase 4 — Dynamic CLI verbs
 
-- [ ] Add `codebase-browser query commands`.
-- [ ] Generate nested Cobra commands from concept folders and names.
-- [ ] Map concept parameters to typed CLI flags.
-- [ ] Add `--render-only` to print rendered SQL without executing.
-- [ ] Execute rendered SQL against `codebase.db`.
-- [ ] Preserve the existing raw SQL `codebase-browser query ...` behavior.
+- [x] Add `codebase-browser query commands`.
+- [x] Generate nested Cobra commands from concept folders and names.
+- [x] Map concept parameters to typed CLI flags.
+- [x] Add `--render-only` to print rendered SQL without executing.
+- [x] Execute rendered SQL against `codebase.db`.
+- [x] Preserve the existing raw SQL `codebase-browser query ...` behavior.
 
 ## Phase 5 — Validation and docs
 
-- [ ] Run `go generate ./internal/sqlite`.
-- [ ] Validate concept commands against the generated DB.
-- [ ] Run `go test ./internal/concepts ./cmd/codebase-browser/cmds/query ./...`.
-- [ ] Update implementation diary and changelog after each slice.
-- [ ] Commit code and docs at appropriate intervals.
+- [x] Run `go generate ./internal/sqlite`.
+- [x] Validate concept commands against the generated DB.
+- [x] Run `go test ./internal/concepts ./cmd/codebase-browser/cmds/query ./...`.
+- [x] Update implementation diary and changelog after each slice.
+- [x] Commit code and docs at appropriate intervals.
 
 ## Future phases, explicitly out of scope for this ticket
 
