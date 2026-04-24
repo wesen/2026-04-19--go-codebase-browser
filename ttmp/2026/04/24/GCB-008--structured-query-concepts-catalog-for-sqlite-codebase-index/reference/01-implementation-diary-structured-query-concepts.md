@@ -355,3 +355,133 @@ go run ./cmd/codebase-browser query commands symbols exported-functions --packag
 go run ./cmd/codebase-browser query "SELECT COUNT(*) AS symbols FROM symbols"
 go test ./... -count=1
 ```
+
+## Step 5: Embed built-in concepts and add external concept repositories
+
+This step made the concept system usable outside the repository checkout and aligned its repository loading behavior with the go-minitrace pattern. Built-in SQL concepts are now embedded into the binary, while external concept repositories can be layered on top through a repeated CLI flag or an environment variable.
+
+The important behavior change is precedence: external repositories are mounted first, embedded concepts are mounted last, and the first concept path wins. That lets a team override a built-in concept by shipping a file with the same relative path in its own repository.
+
+### Prompt Context
+
+**User prompt (verbatim):** "do embedded and external concept repositories. no goja." and "look at how loupedeck/go-minitrace/jsverbs does it"
+
+**Assistant interpretation:** Follow go-minitrace’s repository-mounting pattern for SQL concepts only: add embedded built-ins, external repository roots, env/flag discovery, and override precedence, but do not add any JavaScript runtime.
+
+**Inferred user intent:** Make concept commands shippable in released binaries and extensible by teams/projects without reopening the Goja scope.
+
+**Commit (code):** 2ad27ddb0aabbef9699cdec337d375c41427ad29 — "Add embedded and external concept repositories"
+
+### What I did
+
+- Added `concepts/embed.go` so the checked-in built-in SQL concept files are compiled into the binary with `go:embed`.
+- Added `internal/concepts/assets.go` with `EmbeddedSourceRoot()` and `LoadEmbeddedCatalog()`.
+- Added `internal/concepts/repositories.go`.
+- Added repository discovery constants:
+  - `CODEBASE_BROWSER_CONCEPT_REPOSITORIES`
+  - `--concept-repository`
+- Added repository path normalization, env loading, CLI flag extraction from raw `os.Args`, and source-root construction.
+- Mounted external repositories before the embedded catalog.
+- Changed catalog loading so duplicate concept paths no longer fail; the first repository wins and later duplicates are ignored.
+- Generalized `SourceRoot` to work with `fs.FS` so both embedded and on-disk repositories use the same loader.
+- Recorded `SourceRoot` on compiled concepts for debugging and tests.
+- Updated the query CLI to load concepts through `LoadConfiguredCatalog(...)` instead of directly reading `./concepts`.
+- Updated `cmd/codebase-browser/main.go` to pre-extract `--concept-repository` values from raw args before building the dynamic command tree, mirroring go-minitrace’s pattern.
+- Added tests for:
+  - embedded catalog loading
+  - repository root ordering
+  - repository flag parsing
+  - env repository discovery
+  - override precedence
+
+### Why
+
+Without embedding, released binaries would only work when run beside a checked-out `concepts/` directory. Without external repositories, teams would have to patch the main repo just to add or override concepts. This step removes both limitations while keeping the system SQL-only.
+
+### What worked
+
+The following commands succeeded:
+
+```bash
+gofmt -w concepts/embed.go internal/concepts/*.go cmd/codebase-browser/main.go cmd/codebase-browser/cmds/query/*.go
+go test ./internal/concepts ./cmd/codebase-browser/cmds/query ./cmd/codebase-browser -count=1
+go test ./... -count=1
+go generate ./internal/sqlite
+```
+
+Embedded built-ins rendered correctly:
+
+```bash
+go run ./cmd/codebase-browser query commands symbols exported-functions --package internal/server --limit 2 --render-only
+```
+
+An external repository overrode the built-in `symbols/exported-functions` concept:
+
+```bash
+go run ./cmd/codebase-browser --concept-repository "$tmp_repo" query commands symbols exported-functions --limit 2 --render-only
+```
+
+Environment-based repository discovery also worked:
+
+```bash
+CODEBASE_BROWSER_CONCEPT_REPOSITORIES="$tmp_repo" \
+  go run ./cmd/codebase-browser query commands team team-check --render-only
+```
+
+### What didn't work
+
+Nothing failed in the final implementation slice, but one design point changed while coding: the existing catalog loader treated duplicate concept paths as hard errors. That would prevent the override model used by go-minitrace. I changed the loader so the first mounted repository wins and later duplicates are ignored.
+
+### What I learned
+
+The repository behavior from go-minitrace ports cleanly even without any JS runtime. The important parts are not the JavaScript engine; they are the mounting order, embedded defaults, and the early extraction of repository flags before Cobra builds the command tree.
+
+### What was tricky to build
+
+The subtle part was timing. Dynamic command trees are built before Cobra finishes parsing flags, so the query CLI cannot wait until normal flag parsing to discover `--concept-repository`. The fix is the same pattern go-minitrace uses: scan `os.Args[1:]` early, then build the command tree with those paths already known.
+
+### What warrants a second pair of eyes
+
+- Whether `CODEBASE_BROWSER_CONCEPT_REPOSITORIES` and `--concept-repository` are the final names we want long term.
+- Whether later duplicate concepts should emit debug logs when they are ignored.
+- Whether we eventually want app-config support in addition to flags and env, as go-minitrace does.
+
+### What should be done in the future
+
+- Add alias repositories on top of this same loading model.
+- Reuse the same repository loader for future HTTP/API exposure of concepts.
+- Keep JS/Goja out unless SQL concepts prove insufficient.
+
+### Code review instructions
+
+Review:
+
+- `concepts/embed.go`
+- `internal/concepts/assets.go`
+- `internal/concepts/repositories.go`
+- `internal/concepts/catalog.go`
+- `internal/concepts/repositories_test.go`
+- `cmd/codebase-browser/main.go`
+- `cmd/codebase-browser/cmds/query/commands.go`
+- `cmd/codebase-browser/cmds/query/query.go`
+
+Validate with:
+
+```bash
+go test ./internal/concepts -count=1
+go test ./... -count=1
+go run ./cmd/codebase-browser query commands symbols exported-functions --package internal/server --limit 2 --render-only
+
+TMP_REPO=$(mktemp -d)
+mkdir -p "$TMP_REPO/symbols"
+cat > "$TMP_REPO/symbols/exported-functions.sql" <<'EOSQL'
+/* codebase-browser concept
+name: exported-functions
+short: Override exported functions
+*/
+SELECT 'override' AS source;
+EOSQL
+
+go run ./cmd/codebase-browser --concept-repository "$TMP_REPO" query commands symbols exported-functions --render-only
+CODEBASE_BROWSER_CONCEPT_REPOSITORIES="$TMP_REPO" go run ./cmd/codebase-browser query commands symbols exported-functions --render-only
+```

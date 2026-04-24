@@ -37,7 +37,15 @@ Add SQL-only structured query concepts to `codebase-browser`: named SQL template
 - [x] Execute rendered SQL against `codebase.db`.
 - [x] Preserve the existing raw SQL `codebase-browser query ...` behavior.
 
-## Phase 5 — Validation and docs
+## Phase 5 — Embedded and external repositories
+
+- [x] Embed the built-in concept catalog into released binaries.
+- [x] Add external concept repositories via `--concept-repository`.
+- [x] Add external concept repositories via `CODEBASE_BROWSER_CONCEPT_REPOSITORIES`.
+- [x] Mount external repositories before embedded built-ins so overrides work by precedence.
+- [x] Add tests for repository flag parsing, env loading, embedded loading, and override behavior.
+
+## Phase 6 — Validation and docs
 
 - [x] Run `go generate ./internal/sqlite`.
 - [x] Validate concept commands against the generated DB.
