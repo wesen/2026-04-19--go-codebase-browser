@@ -73,12 +73,37 @@ func TestLoadFromIndex(t *testing.T) {
 	assertCount(t, store.DB(), "symbols", len(idx.Symbols))
 	assertCount(t, store.DB(), "refs", len(idx.Refs))
 
-	rows, err := store.FindSymbols(context.Background(), ByKind("func"), NameLike("main"), IsExported(), Limit(10))
+	ctx := context.Background()
+	rows, err := store.FindSymbols(ctx, ByKind("func"), NameLike("main"), IsExported(), Limit(10))
 	if err != nil {
 		t.Fatalf("FindSymbols() error = %v", err)
 	}
 	if len(rows) != 1 || rows[0].Name != "Main" {
 		t.Fatalf("FindSymbols() = %#v, want exported Main", rows)
+	}
+
+	packages, err := store.FindPackages(ctx, PackageImportPathLike("project"), PackageLimit(10))
+	if err != nil {
+		t.Fatalf("FindPackages() error = %v", err)
+	}
+	if len(packages) != 1 || packages[0].Name != "project" {
+		t.Fatalf("FindPackages() = %#v, want project", packages)
+	}
+
+	files, err := store.FindFiles(ctx, FilePathLike("main"), FileLimit(10))
+	if err != nil {
+		t.Fatalf("FindFiles() error = %v", err)
+	}
+	if len(files) != 1 || files[0].Path != "main.go" {
+		t.Fatalf("FindFiles() = %#v, want main.go", files)
+	}
+
+	refs, err := store.FindRefs(ctx, RefFrom("sym:example.com/project.func.Main"), RefKind("call"), RefLimit(10))
+	if err != nil {
+		t.Fatalf("FindRefs() error = %v", err)
+	}
+	if len(refs) != 1 || refs[0].ToSymbolID != "sym:example.com/project.func.helper" {
+		t.Fatalf("FindRefs() = %#v, want call to helper", refs)
 	}
 }
 
