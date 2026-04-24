@@ -32,7 +32,7 @@ Add SQLite support to the Go side of `codebase-browser` first, so the CLI can qu
 
 - [x] Add integration tests for loading an index into SQLite.
 - [x] Verify symbol counts and ref counts match the generated index during `go generate ./internal/sqlite` smoke testing.
-- [ ] Verify FTS5 search works when the build tag is enabled.
+- [x] Verify FTS5 search works when the build tag is enabled.
 - [x] Verify the CLI can run representative queries from `.sql` files.
 
 ## Suggested first implementation slice
