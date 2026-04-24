@@ -1,4 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { wasmBaseQuery, getPrecomputed } from './wasmClient';
 
 export type SnippetKind = 'declaration' | 'body' | 'signature';
 
@@ -37,36 +38,71 @@ export interface FileXrefResponse {
   uses: FileXrefUseTarget[];
 }
 
+// Source files are served as static assets
+const staticBaseQuery = fetchBaseQuery({ baseUrl: '' });
+
+// Snippets come from WASM (precomputed.json loaded into WASM memory)
+const snippetBaseQuery: typeof wasmBaseQuery = async (arg) => {
+  if (!window.codebaseBrowser) {
+    return { error: { status: 'WASM_ERROR', data: 'WASM not initialized' } };
+  }
+  try {
+    const [sym, kind] = (arg as string).slice(8).split('|');
+    const result = window.codebaseBrowser.getSnippet(sym, kind || 'declaration');
+    return { data: JSON.parse(result) };
+  } catch (err) {
+    return { error: { status: 'WASM_ERROR', data: String(err) } };
+  }
+};
+
 export const sourceApi = createApi({
   reducerPath: 'sourceApi',
-  // Default query returns text; endpoints that need JSON override responseHandler.
-  baseQuery: fetchBaseQuery({ baseUrl: '/api', responseHandler: 'text' }),
+  baseQuery: staticBaseQuery,
   keepUnusedDataFor: 3600,
   endpoints: (b) => ({
+    // Static source file serving
     getSource: b.query<string, string>({
-      query: (path) => `/source?path=${encodeURIComponent(path)}`,
+      query: (path) => `/source/${path}`,
     }),
+
+    // Snippet from WASM
     getSnippet: b.query<string, { sym: string; kind?: SnippetKind }>({
-      query: ({ sym, kind = 'declaration' }) =>
-        `/snippet?sym=${encodeURIComponent(sym)}&kind=${kind}`,
+      queryFn: async ({ sym, kind = 'declaration' }) => {
+        const result = await snippetBaseQuery(`snippet:${sym}|${kind}`, undefined as any, undefined as any);
+        if ('error' in result) return result as any;
+        const obj = result.data as { text: string };
+        return { data: obj.text };
+      },
     }),
+
+    // Snippet refs from precomputed.json
     getSnippetRefs: b.query<SnippetRefView[], string>({
-      query: (sym) => ({
-        url: `/snippet-refs?sym=${encodeURIComponent(sym)}`,
-        responseHandler: 'json',
-      }),
+      queryFn: async (sym) => {
+        const pc = await getPrecomputed();
+        const refs = (pc.snippetRefs as Record<string, SnippetRefView[]> | undefined)?.[sym] ?? [];
+        return { data: refs };
+      },
     }),
+
+    // Source refs from precomputed.json
     getSourceRefs: b.query<SourceRefView[], string>({
-      query: (path) => ({
-        url: `/source-refs?path=${encodeURIComponent(path)}`,
-        responseHandler: 'json',
-      }),
+      queryFn: async (path) => {
+        const pc = await getPrecomputed();
+        const refs = (pc.sourceRefs as Record<string, SourceRefView[]> | undefined)?.[path] ?? [];
+        return { data: refs };
+      },
     }),
+
+    // File xref from precomputed.json
     getFileXref: b.query<FileXrefResponse, string>({
-      query: (path) => ({
-        url: `/file-xref?path=${encodeURIComponent(path)}`,
-        responseHandler: 'json',
-      }),
+      queryFn: async (path) => {
+        const pc = await getPrecomputed();
+        const data = (pc.fileXrefIndex as Record<string, FileXrefResponse> | undefined)?.[path];
+        if (!data) {
+          return { data: { path, usedBy: [], uses: [] } };
+        }
+        return { data };
+      },
     }),
   }),
 });

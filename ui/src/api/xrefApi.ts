@@ -1,5 +1,6 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { createApi } from '@reduxjs/toolkit/query/react';
 import type { Range } from './types';
+import { wasmBaseQuery } from './wasmClient';
 
 export interface RefRecord {
   fromSymbolId: string;
@@ -24,11 +25,11 @@ export interface XrefResponse {
 
 export const xrefApi = createApi({
   reducerPath: 'xrefApi',
-  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
+  baseQuery: wasmBaseQuery,
   keepUnusedDataFor: 3600,
   endpoints: (b) => ({
     getXref: b.query<XrefResponse, string>({
-      query: (id) => `/xref/${encodeURIComponent(id)}`,
+      query: (id) => `xref:${id}`,
     }),
   }),
 });

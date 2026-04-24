@@ -1,4 +1,5 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { wasmBaseQuery } from './wasmClient';
 
 export interface SnippetRef {
   stubId: string;
@@ -28,11 +29,11 @@ export interface PageMeta {
 
 export const docApi = createApi({
   reducerPath: 'docApi',
-  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
+  baseQuery: wasmBaseQuery,
   keepUnusedDataFor: 3600,
   endpoints: (b) => ({
-    listDocs: b.query<PageMeta[], void>({ query: () => '/doc' }),
-    getDoc: b.query<DocPage, string>({ query: (slug) => `/doc/${encodeURIComponent(slug)}` }),
+    listDocs: b.query<PageMeta[], void>({ query: () => 'docPages' }),
+    getDoc: b.query<DocPage, string>({ query: (slug) => `docPage:${slug}` }),
   }),
 });
 
