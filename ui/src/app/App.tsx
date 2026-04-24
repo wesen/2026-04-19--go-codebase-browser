@@ -9,6 +9,7 @@ import { SymbolPage } from '../features/symbol/SymbolPage';
 import { SourcePage } from '../features/source/SourcePage';
 import { SearchPanel } from '../features/tree/SearchPanel';
 import { DocPage, DocList } from '../features/doc/DocPage';
+import { QueryConceptsPage } from '../features/query/QueryConceptsPage';
 import { useGetIndexQuery } from '../api/indexApi';
 
 export function App() {
@@ -20,6 +21,11 @@ export function App() {
           <aside data-part="sidebar">
             <Header onToggleTheme={() => setDark((d) => !d)} dark={dark} />
             <SearchPanel />
+            <div style={{ marginBottom: 12 }}>
+              <Link to="/queries" style={{ fontWeight: 600, color: 'var(--cb-color-accent)', textDecoration: 'none' }}>
+                Structured queries
+              </Link>
+            </div>
             <details open style={{ marginBottom: 12 }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600, padding: '4px 0' }}>Docs</summary>
               <DocList />
@@ -33,6 +39,8 @@ export function App() {
               <Route path="/symbol/:id" element={<SymbolPage />} />
               <Route path="/source/*" element={<SourcePage />} />
               <Route path="/doc/:slug" element={<DocPage />} />
+              <Route path="/queries" element={<QueryConceptsPage />} />
+              <Route path="/queries/*" element={<QueryConceptsPage />} />
             </Routes>
           </main>
         </div>

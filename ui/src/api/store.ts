@@ -4,6 +4,7 @@ import { indexApi } from './indexApi';
 import { sourceApi } from './sourceApi';
 import { docApi } from './docApi';
 import { xrefApi } from './xrefApi';
+import { conceptsApi } from './conceptsApi';
 
 export const store = configureStore({
   reducer: {
@@ -11,6 +12,7 @@ export const store = configureStore({
     [sourceApi.reducerPath]: sourceApi.reducer,
     [docApi.reducerPath]: docApi.reducer,
     [xrefApi.reducerPath]: xrefApi.reducer,
+    [conceptsApi.reducerPath]: conceptsApi.reducer,
   },
   middleware: (getDefault) =>
     getDefault().concat(
@@ -18,6 +20,7 @@ export const store = configureStore({
       sourceApi.middleware,
       docApi.middleware,
       xrefApi.middleware,
+      conceptsApi.middleware,
     ),
 });
 

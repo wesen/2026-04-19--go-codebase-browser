@@ -67,6 +67,7 @@ func copyFilteredTree(srcRoot, dstRoot string) error {
 			"/.idea/",
 			"/.playwright-mcp/",
 			"/bin/",
+			"/dist/",
 			"/node_modules/",
 			"/ttmp/",
 			"/ui/dist/",

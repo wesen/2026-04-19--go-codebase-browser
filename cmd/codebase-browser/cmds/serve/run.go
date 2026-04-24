@@ -16,9 +16,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/wesen/codebase-browser/internal/browser"
+	"github.com/wesen/codebase-browser/internal/concepts"
 	"github.com/wesen/codebase-browser/internal/indexfs"
 	"github.com/wesen/codebase-browser/internal/server"
 	"github.com/wesen/codebase-browser/internal/sourcefs"
+	cbsqlite "github.com/wesen/codebase-browser/internal/sqlite"
 	"github.com/wesen/codebase-browser/internal/web"
 )
 
@@ -27,7 +29,8 @@ type ServeCommand struct {
 }
 
 type ServeSettings struct {
-	Addr string `glazed:"addr"`
+	Addr   string `glazed:"addr"`
+	DBPath string `glazed:"db"`
 }
 
 func NewServeCommand() (*ServeCommand, error) {
@@ -48,6 +51,9 @@ Examples:
 			fields.New("addr", fields.TypeString,
 				fields.WithDefault(":3001"),
 				fields.WithHelp("Bind address")),
+			fields.New("db", fields.TypeString,
+				fields.WithDefault("internal/sqlite/embed/codebase.db"),
+				fields.WithHelp("Path to codebase.db for structured query concepts")),
 		),
 		cmds.WithSections(cmdSettingsSection),
 	)
@@ -68,7 +74,27 @@ func (c *ServeCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return fmt.Errorf("load index: %w", err)
 	}
-	srv := server.New(loaded, sourcefs.FS(), web.FS())
+
+	catalog, err := concepts.LoadConfiguredCatalog(nil)
+	if err != nil {
+		log.Warn().Err(err).Msg("could not load configured concept repositories; falling back to embedded concepts")
+		catalog, err = concepts.LoadEmbeddedCatalog()
+		if err != nil {
+			return fmt.Errorf("load embedded concepts: %w", err)
+		}
+	}
+
+	sqliteStore, err := cbsqlite.Open(s.DBPath)
+	if err != nil {
+		log.Warn().Err(err).Str("db", s.DBPath).Msg("structured query SQLite DB unavailable; concept execution API will be disabled")
+	}
+	defer func() {
+		if sqliteStore != nil {
+			_ = sqliteStore.Close()
+		}
+	}()
+
+	srv := server.New(loaded, sourcefs.FS(), web.FS(), sqliteStore, catalog)
 	h := srv.Handler()
 
 	log.Info().Str("addr", s.Addr).

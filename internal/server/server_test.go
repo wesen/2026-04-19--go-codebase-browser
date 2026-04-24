@@ -57,7 +57,7 @@ func buildFixtureLoaded(t *testing.T) (*browser.Loaded, fstest.MapFS) {
 func TestHandleIndex(t *testing.T) {
 	loaded, srcFS := buildFixtureLoaded(t)
 	spa := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<html></html>")}}
-	h := New(loaded, srcFS, spa).Handler()
+	h := New(loaded, srcFS, spa, nil, nil).Handler()
 	req := httptest.NewRequest(http.MethodGet, "/api/index", nil)
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
@@ -72,7 +72,7 @@ func TestHandleIndex(t *testing.T) {
 func TestHandleSource_Whitelist(t *testing.T) {
 	loaded, srcFS := buildFixtureLoaded(t)
 	spa := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<html></html>")}}
-	h := New(loaded, srcFS, spa).Handler()
+	h := New(loaded, srcFS, spa, nil, nil).Handler()
 
 	t.Run("happy path", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/source?path=foo.go", nil)
@@ -111,7 +111,7 @@ func TestHandleSource_Whitelist(t *testing.T) {
 func TestHandleSnippet(t *testing.T) {
 	loaded, srcFS := buildFixtureLoaded(t)
 	spa := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<html></html>")}}
-	h := New(loaded, srcFS, spa).Handler()
+	h := New(loaded, srcFS, spa, nil, nil).Handler()
 	symID := indexer.SymbolID("example.com/foo", "func", "Bar", "")
 	req := httptest.NewRequest(http.MethodGet, "/api/snippet?sym="+symID, nil)
 	w := httptest.NewRecorder()
@@ -131,7 +131,7 @@ func TestHandleSnippet(t *testing.T) {
 func TestSPAFallback(t *testing.T) {
 	loaded, srcFS := buildFixtureLoaded(t)
 	spa := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<html>hi</html>")}}
-	h := New(loaded, srcFS, spa).Handler()
+	h := New(loaded, srcFS, spa, nil, nil).Handler()
 	// Arbitrary client-side route -> serves index.html.
 	req := httptest.NewRequest(http.MethodGet, "/symbols/pkg.func.X", nil)
 	w := httptest.NewRecorder()
@@ -147,7 +147,7 @@ func TestSPAFallback(t *testing.T) {
 func TestAPIPathNotShadowedBySPA(t *testing.T) {
 	loaded, srcFS := buildFixtureLoaded(t)
 	spa := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<html></html>")}}
-	h := New(loaded, srcFS, spa).Handler()
+	h := New(loaded, srcFS, spa, nil, nil).Handler()
 	// Non-existent /api route should 404, not fall through to index.html.
 	req := httptest.NewRequest(http.MethodGet, "/api/nope", nil)
 	w := httptest.NewRecorder()

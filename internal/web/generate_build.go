@@ -95,6 +95,9 @@ func runDagger(ctx context.Context, root string) error {
 	if err := copyTree(tmpSrc, dst); err != nil {
 		return err
 	}
+	if err := copyServeAssets(root, dst); err != nil {
+		return err
+	}
 	fmt.Println("generate_build: copied", tmpSrc, "->", dst)
 	return nil
 }
@@ -109,6 +112,9 @@ func runLocal(root string) error {
 		return err
 	}
 	if err := copyTree(src, dst); err != nil {
+		return err
+	}
+	if err := copyServeAssets(root, dst); err != nil {
 		return err
 	}
 	fmt.Println("generate_build: copied", src, "->", dst)
@@ -182,6 +188,38 @@ func recreate(dir string) error {
 	return os.MkdirAll(dir, 0o755)
 }
 
+func copyServeAssets(root, dst string) error {
+	if err := copyFile(filepath.Join(root, "internal", "wasm", "embed", "search.wasm"), filepath.Join(dst, "search.wasm")); err != nil {
+		return fmt.Errorf("copy search.wasm: %w", err)
+	}
+	if err := copyFile(filepath.Join(root, "internal", "static", "embed", "precomputed.json"), filepath.Join(dst, "precomputed.json")); err != nil {
+		return fmt.Errorf("copy precomputed.json: %w", err)
+	}
+
+	wasmExecSrc := ""
+	for _, candidate := range []string{
+		filepath.Join(root, "ui", "public", "wasm_exec.js"),
+		filepath.Join(root, "internal", "wasm", "embed", "wasm_exec.js"),
+		filepath.Join(os.Getenv("GOROOT"), "lib", "wasm", "wasm_exec.js"),
+		"/usr/local/go/lib/wasm/wasm_exec.js",
+	} {
+		if _, err := os.Stat(candidate); err == nil {
+			wasmExecSrc = candidate
+			break
+		}
+	}
+	if wasmExecSrc == "" {
+		return fmt.Errorf("wasm_exec.js not found")
+	}
+	if err := copyFile(wasmExecSrc, filepath.Join(dst, "wasm_exec.js")); err != nil {
+		return fmt.Errorf("copy wasm_exec.js: %w", err)
+	}
+	if err := injectWasmExec(filepath.Join(dst, "index.html")); err != nil {
+		return fmt.Errorf("inject wasm_exec.js: %w", err)
+	}
+	return nil
+}
+
 func copyTree(src, dst string) error {
 	return filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -208,4 +246,41 @@ func copyTree(src, dst string) error {
 		_, err = io.Copy(out, in)
 		return err
 	})
+}
+
+func copyFile(src, dst string) error {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
+}
+
+func injectWasmExec(indexPath string) error {
+	data, err := os.ReadFile(indexPath)
+	if err != nil {
+		return err
+	}
+	html := string(data)
+	inject := `<script src="/wasm_exec.js"></script>`
+	if strings.Contains(html, `<script type="module"`) {
+		html = strings.Replace(html, `<script type="module"`, inject+`
+  <script type="module"`, 1)
+	} else if strings.Contains(html, `<script`) {
+		html = strings.Replace(html, `<script`, inject+`
+  <script`, 1)
+	} else {
+		html = strings.Replace(html, "</body>", inject+"\n</body>", 1)
+	}
+	return os.WriteFile(indexPath, []byte(html), 0o644)
 }

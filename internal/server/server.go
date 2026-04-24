@@ -8,18 +8,22 @@ import (
 	"net/http"
 
 	"github.com/wesen/codebase-browser/internal/browser"
+	"github.com/wesen/codebase-browser/internal/concepts"
+	cbsqlite "github.com/wesen/codebase-browser/internal/sqlite"
 )
 
 // Server holds shared state for HTTP handlers.
 type Server struct {
-	Loaded   *browser.Loaded
-	SourceFS fs.FS
-	SPAFS    fs.FS
+	Loaded         *browser.Loaded
+	SourceFS       fs.FS
+	SPAFS          fs.FS
+	SQLite         *cbsqlite.Store
+	ConceptCatalog *concepts.Catalog
 }
 
 // New constructs a Server.
-func New(l *browser.Loaded, srcFS, spaFS fs.FS) *Server {
-	return &Server{Loaded: l, SourceFS: srcFS, SPAFS: spaFS}
+func New(l *browser.Loaded, srcFS, spaFS fs.FS, sqliteStore *cbsqlite.Store, conceptCatalog *concepts.Catalog) *Server {
+	return &Server{Loaded: l, SourceFS: srcFS, SPAFS: spaFS, SQLite: sqliteStore, ConceptCatalog: conceptCatalog}
 }
 
 // Handler returns an http.Handler with all routes mounted. API routes are
@@ -40,6 +44,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/snippet-refs", s.handleSnippetRefs)
 	mux.HandleFunc("/api/source-refs", s.handleSourceRefs)
 	mux.HandleFunc("/api/file-xref", s.handleFileXref)
+	mux.HandleFunc("/api/query-concepts", s.handleConceptList)
+	mux.HandleFunc("/api/query-concepts/", s.handleConceptSubtree)
 
 	mux.Handle("/", s.spaHandler())
 	return withCommonHeaders(mux)
