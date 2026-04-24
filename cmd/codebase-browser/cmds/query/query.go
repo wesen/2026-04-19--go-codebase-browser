@@ -56,9 +56,12 @@ Examples:
 			return runSQL(ctx, store.DB(), cmd.OutOrStdout(), sqlText, opts.format)
 		},
 	}
-	cmd.Flags().StringVar(&opts.dbPath, "db", "internal/sqlite/embed/codebase.db", "Path to codebase.db")
+	cmd.PersistentFlags().StringVar(&opts.dbPath, "db", "internal/sqlite/embed/codebase.db", "Path to codebase.db")
+	cmd.PersistentFlags().StringVar(&opts.format, "format", "table", "Output format: table or json")
 	cmd.Flags().StringVarP(&opts.file, "file", "f", "", "Read SQL from a file")
-	cmd.Flags().StringVar(&opts.format, "format", "table", "Output format: table or json")
+	if err := addConceptCommands(cmd, opts); err != nil {
+		return err
+	}
 	root.AddCommand(cmd)
 	return nil
 }
