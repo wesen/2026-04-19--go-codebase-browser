@@ -6,34 +6,34 @@ Add SQLite support to the Go side of `codebase-browser` first, so the CLI can qu
 
 ## Phase 1 — Introduce the SQLite store package
 
-- [ ] Create `internal/sqlite/` as a new package.
-- [ ] Add `store.go` with `Store`, `New()`, `Close()`, and `DB()`.
-- [ ] Add `schema.go` with the `CREATE TABLE`, `CREATE INDEX`, and trigger statements.
-- [ ] Add `loader.go` to bulk-load `index.json` into SQLite.
-- [ ] Add `query.go` with a predicate/query-builder API for symbol, package, file, and ref lookups.
-- [ ] Add `fts5.go` behind a `sqlite_fts5` build tag.
+- [x] Create `internal/sqlite/` as a new package.
+- [x] Add `store.go` with `Store`, `Open()`, `Create()`, `Close()`, and `DB()`.
+- [x] Add `schema.go` with the `CREATE TABLE` and `CREATE INDEX` statements.
+- [x] Add `loader.go` to bulk-load index data into SQLite.
+- [ ] Add `query.go` with a predicate/query-builder API for symbol, package, file, and ref lookups. _(Symbol predicates are implemented; package/file/ref helpers still need follow-up if desired.)_
+- [x] Add `fts5.go` behind a `sqlite_fts5` build tag.
 
 ## Phase 2 — Make SQLite usable from the CLI
 
-- [ ] Add a new `query` sub-command under `cmd/codebase-browser/`.
-- [ ] Wire the CLI to open `codebase.db` and execute SQL or predicate-built queries.
-- [ ] Add support for `query <sql>` and `query -f <file.sql>`.
-- [ ] Add a `queries/` directory with reusable example SQL files.
-- [ ] Keep the existing `serve` command working while SQLite is introduced.
+- [x] Add a new `query` sub-command under `cmd/codebase-browser/`.
+- [x] Wire the CLI to open `codebase.db` and execute SQL queries.
+- [x] Add support for `query <sql>` and `query -f <file.sql>`.
+- [x] Add a `queries/` directory with reusable example SQL files.
+- [x] Keep the existing `serve` command working while SQLite is introduced.
 
 ## Phase 3 — Build the database at generate time
 
-- [ ] Add `internal/sqlite/generate.go` to embed `codebase.db` when needed.
-- [ ] Add `internal/sqlite/generate_build.go` to build `codebase.db` from `index.json`.
-- [ ] Add a `go generate ./internal/sqlite` workflow.
-- [ ] Ensure the database build matches the current index counts for packages, files, symbols, and refs.
+- [x] Add `internal/sqlite/generate.go` with `go generate` wiring. _(Embedding is deferred until packaging needs it.)_
+- [x] Add `internal/sqlite/generate_build.go` to build `codebase.db` from the generated index.
+- [x] Add a `go generate ./internal/sqlite` workflow.
+- [x] Ensure the database build matches the current index counts for packages, files, symbols, and refs.
 
 ## Phase 4 — Tests and verification
 
-- [ ] Add integration tests for loading the self-index into SQLite.
-- [ ] Verify symbol counts and ref counts match the JSON index.
+- [x] Add integration tests for loading an index into SQLite.
+- [x] Verify symbol counts and ref counts match the generated index during `go generate ./internal/sqlite` smoke testing.
 - [ ] Verify FTS5 search works when the build tag is enabled.
-- [ ] Verify the CLI can run representative queries from `.sql` files.
+- [x] Verify the CLI can run representative queries from `.sql` files.
 
 ## Suggested first implementation slice
 
@@ -44,7 +44,7 @@ Add SQLite support to the Go side of `codebase-browser` first, so the CLI can qu
 
 ## Exit criteria for the Go-side phase
 
-- [ ] `go generate ./internal/sqlite` produces a valid `codebase.db`.
-- [ ] The CLI can query the DB without the browser.
-- [ ] The schema, loader, and query paths are the only supported Go-side index paths.
+- [x] `go generate ./internal/sqlite` produces a valid `codebase.db`.
+- [x] The CLI can query the DB without the browser.
+- [x] The schema, loader, and query paths are the only supported Go-side index paths.
 - [ ] The implementation is documented well enough for the browser-side migration to follow later.

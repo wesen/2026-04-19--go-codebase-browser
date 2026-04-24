@@ -128,3 +128,131 @@ codebase-browser query "SELECT COUNT(*) FROM symbols"
 ```
 
 That command does not exist yet; it is the next implementation slice.
+
+## Step 2: Add the SQLite query CLI
+
+This step made the SQLite database useful from the base app. The new top-level `codebase-browser query` command opens `codebase.db`, executes ad-hoc SQL from either an argument or a `.sql` file, and prints either tab-separated table output or JSON.
+
+The important architectural result is that we can now interact with the codebase index through SQLite without touching the browser. This gives us a fast validation loop for the Go-side schema before any frontend migration work begins.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue the GCB-007 implementation task-by-task, adding the next practical slice after the store package.
+
+**Inferred user intent:** Make SQLite observable and useful through the CLI so the base app can query the codebase before browser integration.
+
+**Commit (code):** dc5718614ccfe97b1213317ff73eef930756dc66 — "Add SQLite query CLI"
+
+### What I did
+
+- Added `cmd/codebase-browser/cmds/query/query.go`.
+- Registered the new `query` command in `cmd/codebase-browser/main.go`.
+- Added `--db`, `--file/-f`, and `--format` flags.
+- Supported raw SQL via `codebase-browser query "..."`.
+- Supported file-based SQL via `codebase-browser query -f path/to/file.sql`.
+- Added JSON output via `--format json`.
+- Added reusable query files:
+  - `queries/packages/package-counts.sql`
+  - `queries/symbols/exported-functions.sql`
+  - `queries/symbols/most-referenced.sql`
+  - `queries/refs/refs-for-symbol.sql`
+- Updated `.gitignore` so generated `internal/sqlite/embed/codebase.db` is not accidentally committed.
+- Adjusted the `refs` table schema so `from_symbol_id` and `to_symbol_id` are indexed text columns rather than strict foreign keys.
+
+### Why
+
+The CLI is the safest first consumer for the SQLite backend. It lets us inspect the database, test queries, and evolve the schema before the browser depends on it.
+
+The `refs` schema change was necessary because the real index contains references to external symbols, such as standard-library symbols, that are not present as local rows in `symbols`.
+
+### What worked
+
+The following commands succeeded:
+
+```bash
+gofmt -w cmd/codebase-browser/main.go cmd/codebase-browser/cmds/query/query.go
+go test ./cmd/codebase-browser ./cmd/codebase-browser/cmds/query ./internal/sqlite -count=1
+go generate ./internal/sqlite
+go run ./cmd/codebase-browser query "SELECT COUNT(*) AS symbols FROM symbols"
+go run ./cmd/codebase-browser query -f queries/packages/package-counts.sql | head -10
+go run ./cmd/codebase-browser query --format json "SELECT name, kind FROM symbols ORDER BY name LIMIT 3"
+go test ./... -count=1
+```
+
+`go generate ./internal/sqlite` produced:
+
+```text
+generate_build: wrote /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/sqlite/embed/codebase.db (27 packages, 76 files, 329 symbols, 1005 refs)
+```
+
+The count smoke test returned:
+
+```text
+symbols
+329
+```
+
+### What didn't work
+
+The first real `go generate ./internal/sqlite` run failed with:
+
+```text
+2026/04/24 13:09:22 load index into sqlite: insert ref sym:github.com/wesen/codebase-browser/cmd/build-ts-index.func.envDefault -> sym:os.func.Getenv: FOREIGN KEY constraint failed
+exit status 1
+internal/sqlite/generate.go:3: running "go": exit status 1
+```
+
+The failure was correct: the real index includes references to external symbols that are not defined in the local codebase index. The schema had incorrectly assumed that every ref endpoint would be a local symbol row.
+
+### What I learned
+
+Cross-reference tables must represent both local and external targets. Strict foreign keys on `refs.from_symbol_id` and `refs.to_symbol_id` are too narrow for a codebase index unless we also introduce an `external_symbols` table or synthesize placeholder symbol rows. For this implementation slice, indexed text columns are the simplest correct representation.
+
+### What was tricky to build
+
+The dynamic SQL output path had to handle unknown result columns because the command accepts arbitrary SQL. The CLI scans rows into `[]any`, normalizes `[]byte` to strings for readability, and renders either tab-separated output or JSON.
+
+The schema issue was trickier because it only appears with real index data, not with the small unit-test fixture. The test fixture used only local refs, while the generated self-index included standard-library targets.
+
+### What warrants a second pair of eyes
+
+- Whether arbitrary SQL should continue using plain tab-separated output or should use Glazed rows for integration with the rest of the CLI output stack.
+- Whether external refs should remain plain strings or become explicit rows in a future `external_symbols` table.
+- Whether the CLI should treat non-SELECT statements as supported behavior long-term. It currently falls back from `QueryContext` to `ExecContext`.
+
+### What should be done in the future
+
+- Add tests around the CLI command itself, ideally with a temporary database and captured output.
+- Verify FTS5 with `go test -tags sqlite_fts5 ./internal/sqlite -count=1` and a real search query.
+- Decide whether to expose higher-level commands such as `query symbols --name X` or keep raw SQL as the main CLI interface.
+
+### Code review instructions
+
+Start with:
+
+- `cmd/codebase-browser/cmds/query/query.go`
+- `cmd/codebase-browser/main.go`
+- `internal/sqlite/schema.go`
+- `queries/`
+
+Validate with:
+
+```bash
+go generate ./internal/sqlite
+go run ./cmd/codebase-browser query "SELECT COUNT(*) AS symbols FROM symbols"
+go run ./cmd/codebase-browser query -f queries/packages/package-counts.sql | head -10
+go run ./cmd/codebase-browser query --format json "SELECT name, kind FROM symbols ORDER BY name LIMIT 3"
+go test ./... -count=1
+```
+
+### Technical details
+
+The CLI defaults to:
+
+```text
+internal/sqlite/embed/codebase.db
+```
+
+That file is generated by `go generate ./internal/sqlite` and intentionally ignored by Git for now.
