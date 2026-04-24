@@ -351,3 +351,96 @@ FROM symbol_fts
 WHERE symbol_fts MATCH ?
 LIMIT 1;
 ```
+
+## Step 4: Complete package, file, and ref query helpers
+
+This step rounded out the internal query API so the SQLite package is not symbol-only. The CLI can already run arbitrary SQL, but Go-side callers also need typed helpers for common package, file, and ref lookups.
+
+The result is a small set of predicate APIs that mirror the symbol query style and make the SQLite store usable by future server or CLI commands without hand-writing SQL everywhere.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue completing the GCB-007 Go-side task checklist after CLI and FTS5 support.
+
+**Inferred user intent:** Finish the base SQLite package tasks so the Go side has a coherent API for all primary index entity types.
+
+**Commit (code):** 71995295cab28970b521b4222ae0d7c3f823ea3a — "Add SQLite package file and ref queries"
+
+### What I did
+
+- Added `internal/sqlite/query_more.go`.
+- Added `PackageRow`, `PackagePredicate`, and `FindPackages`.
+- Added package predicates for import path, name, language, and limit.
+- Added `FileRow`, `FilePredicate`, and `FindFiles`.
+- Added file predicates for path, package, language, and limit.
+- Added `RefRow`, `RefPredicate`, and `FindRefs`.
+- Added ref predicates for source symbol, target symbol, kind, file, and limit.
+- Extended `store_test.go` to verify package, file, and ref helpers.
+
+### Why
+
+The design called for a predicate/query-builder API across the index entities, not just symbols. Completing these helpers makes the store package useful as a general Go-side access layer.
+
+### What worked
+
+The following validation commands passed:
+
+```bash
+gofmt -w internal/sqlite/query_more.go internal/sqlite/store_test.go
+go test ./internal/sqlite -count=1
+go test -tags sqlite_fts5 ./internal/sqlite -count=1
+go test ./... -count=1
+```
+
+### What didn't work
+
+The code/test work had no failures. While updating the changelog I repeated the earlier Python quoting mistake:
+
+```text
+  File "<stdin>", line 4
+    s=s.replace('- Step 3: Added build-tagged FTS5 verification for `EnableFTS5` and `MATCH` queries. Code commit: `2c5e7525e06ea91a6c78d9254b4d86dc9b355f83`.
+                ^
+SyntaxError: unterminated string literal (detected at line 4)
+```
+
+I fixed the changelog with a targeted edit instead.
+
+### What I learned
+
+The predicate pattern is simple but repetitive. It works well for the current access layer, but if the query surface grows significantly we may want to factor out common builder code for `WHERE`, `ORDER BY`, and `LIMIT` handling.
+
+### What was tricky to build
+
+The tricky part was avoiding over-generalization. A generic query builder would reduce repetition, but it would also hide the concrete SQL at the moment when the schema is still settling. I kept the helpers explicit so the generated SQL remains easy to inspect.
+
+### What warrants a second pair of eyes
+
+- Whether these helpers should remain in one package or be grouped by entity type later.
+- Whether file and package predicates should accept import paths in more places, similar to `ByPackage` for symbols.
+- Whether refs should grow join helpers that return symbol names and file paths rather than raw IDs.
+
+### What should be done in the future
+
+- Add higher-level CLI commands if raw SQL is too low-level for common tasks.
+- Consider join-oriented query helpers once server integration starts.
+
+### Code review instructions
+
+Review:
+
+- `internal/sqlite/query_more.go`
+- `internal/sqlite/store_test.go`
+
+Validate with:
+
+```bash
+go test ./internal/sqlite -count=1
+go test -tags sqlite_fts5 ./internal/sqlite -count=1
+go test ./... -count=1
+```
+
+### Technical details
+
+The helpers deliberately return raw database IDs for now. Human-friendly joins are left to SQL files or future higher-level methods.

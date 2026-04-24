@@ -15,4 +15,5 @@ Created design document for SQLite codebase index. 47KB doc covering schema, Go 
 - Updated `tasks.md` to remove the backwards-compatibility migration phase and reflect SQLite as the sole Go-side index path.
 - Step 2: Added `codebase-browser query`, reusable `.sql` files, generated/smoke-tested `codebase.db`, and adjusted refs to allow external symbol IDs. Code commit: `dc5718614ccfe97b1213317ff73eef930756dc66`.
 - Step 3: Added build-tagged FTS5 verification for `EnableFTS5` and `MATCH` queries. Code commit: `2c5e7525e06ea91a6c78d9254b4d86dc9b355f83`.
+- Step 4: Completed package, file, and ref query helper APIs. Code commit: `71995295cab28970b521b4222ae0d7c3f823ea3a`.
 

@@ -10,7 +10,7 @@ Add SQLite support to the Go side of `codebase-browser` first, so the CLI can qu
 - [x] Add `store.go` with `Store`, `Open()`, `Create()`, `Close()`, and `DB()`.
 - [x] Add `schema.go` with the `CREATE TABLE` and `CREATE INDEX` statements.
 - [x] Add `loader.go` to bulk-load index data into SQLite.
-- [ ] Add `query.go` with a predicate/query-builder API for symbol, package, file, and ref lookups. _(Symbol predicates are implemented; package/file/ref helpers still need follow-up if desired.)_
+- [x] Add query helpers with predicate/query-builder APIs for symbol, package, file, and ref lookups.
 - [x] Add `fts5.go` behind a `sqlite_fts5` build tag.
 
 ## Phase 2 — Make SQLite usable from the CLI
@@ -47,4 +47,4 @@ Add SQLite support to the Go side of `codebase-browser` first, so the CLI can qu
 - [x] `go generate ./internal/sqlite` produces a valid `codebase.db`.
 - [x] The CLI can query the DB without the browser.
 - [x] The schema, loader, and query paths are the only supported Go-side index paths.
-- [ ] The implementation is documented well enough for the browser-side migration to follow later.
+- [x] The implementation is documented well enough for the browser-side migration to follow later.
