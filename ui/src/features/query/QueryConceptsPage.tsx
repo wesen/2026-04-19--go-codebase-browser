@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   useExecuteQueryConceptMutation,
   useListQueryConceptsQuery,
@@ -115,14 +115,17 @@ export function QueryConceptsPage() {
 }
 
 function QueryConceptDetail({ concept }: { concept: QueryConcept }) {
-  const [values, setValues] = React.useState<Record<string, unknown>>(() => initialValues(concept));
+  const location = useLocation();
+  const navigate = useNavigate();
+  const searchParams = React.useMemo(() => new URLSearchParams(location.search), [location.search]);
   const [result, setResult] = React.useState<ExecuteQueryConceptResponse | null>(null);
   const [executeQueryConcept, executeState] = useExecuteQueryConceptMutation();
+  const values = React.useMemo(() => valuesFromSearchParams(concept, searchParams), [concept, searchParams]);
+  const paramsKey = searchParams.toString();
 
   React.useEffect(() => {
-    setValues(initialValues(concept));
     setResult(null);
-  }, [concept]);
+  }, [concept.path, paramsKey]);
 
   async function run(renderOnly: boolean) {
     const params = buildExecutionParams(concept.params, values);
@@ -182,7 +185,7 @@ function QueryConceptDetail({ concept }: { concept: QueryConcept }) {
                 key={param.name}
                 param={param}
                 value={values[param.name]}
-                onChange={(value) => setValues((prev) => ({ ...prev, [param.name]: value }))}
+                onChange={(value) => updateSearchParam(location, navigate, searchParams, concept, param, value)}
               />
             ))
           )}
@@ -422,6 +425,62 @@ function initialValues(concept: QueryConcept): Record<string, unknown> {
     values[param.name] = param.default ?? '';
   }
   return values;
+}
+
+function valuesFromSearchParams(concept: QueryConcept, searchParams: URLSearchParams): Record<string, unknown> {
+  const values = initialValues(concept);
+  for (const param of concept.params) {
+    const raw = searchParams.get(paramSearchKey(param.name));
+    if (raw === null) {
+      continue;
+    }
+    switch (param.type) {
+      case 'bool':
+        values[param.name] = raw === 'true' || raw === '1';
+        break;
+      default:
+        values[param.name] = raw;
+        break;
+    }
+  }
+  return values;
+}
+
+function updateSearchParam(
+  location: { pathname: string; search: string },
+  navigate: (to: { pathname: string; search?: string }, options?: { replace?: boolean }) => void,
+  searchParams: URLSearchParams,
+  concept: QueryConcept,
+  param: QueryConceptParam,
+  value: unknown,
+) {
+  const next = new URLSearchParams(searchParams);
+  const key = paramSearchKey(param.name);
+  const defaults = initialValues(concept);
+  const defaultValue = defaults[param.name];
+  const normalized = normalizeParamValue(param, value);
+  const normalizedDefault = normalizeParamValue(param, defaultValue);
+
+  if (normalized === '' || normalized === normalizedDefault) {
+    next.delete(key);
+  } else {
+    next.set(key, normalized);
+  }
+  const search = next.toString();
+  navigate({ pathname: location.pathname, search: search ? `?${search}` : '' }, { replace: true });
+}
+
+function paramSearchKey(name: string): string {
+  return `p.${name}`;
+}
+
+function normalizeParamValue(param: QueryConceptParam, value: unknown): string {
+  switch (param.type) {
+    case 'bool':
+      return Boolean(value) ? 'true' : '';
+    default:
+      return String(value ?? '').trim();
+  }
 }
 
 function buildExecutionParams(params: QueryConceptParam[], values: Record<string, unknown>): Record<string, unknown> {
