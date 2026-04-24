@@ -142,7 +142,244 @@ This is a large Go program that runs at build time. It should be well-tested.
 - **Build-time performance**: the static generator walks the entire source tree and renders all doc pages. On large codebases this could take 30s+. Consider incremental builds (only re-process changed files).
 - **Precomputed JSON size**: for a 100k-symbol codebase, the `xrefIndex` alone could be tens of MB. Verify gzip compression in the browser helps, and consider streaming the WASM initialization.
 
-### What should be done in the future
-- Add incremental build support to the static generator
-- Profile WASM search performance with the existing codebase (run `FindSymbols` in a loop, measure time)
-- Consider the single-HTML-file variant (all assets inlined as base64) as an alternative to the directory-of-files approach
+---
+
+## Step 3: Implement Phase 1a — WASM search module
+
+**User prompt (verbatim):** "Add tasks for implementing the static version of this package, and then implement them one by one, committing at appropriate intervals, keeping a diary as you go. Use tinygo."
+
+**Assistant interpretation:** User wants me to implement the static WASM build phase by phase, commit after each phase, keep a diary, and use TinyGo for WASM compilation.
+
+**Inferred user intent:** Produce working code for the static WASM build, not just design docs.
+
+### What I did
+- Added 6 implementation tasks to ticket GCB-006
+- Created `internal/wasm/` package:
+  - `index_types.go`: Lightweight index types (copied from `internal/indexer/types.go` to avoid importing heavy dependencies into TinyGo)
+  - `search.go`: `SearchCtx` struct with `FindSymbols`, `GetSymbol`, `GetXref`, `GetSnippet`, `GetPackages`, `GetIndexSummary`, `GetDocPages`, `GetDocPage`
+  - `exports.go`: `syscall/js` interop with `RegisterExports()` — registers all functions on `window.codebaseBrowser`
+  - `generate_build.go`: Build script (initially for TinyGo, then switched to standard Go)
+  - `search_test.go`: Unit tests for search logic
+- Created `cmd/wasm/main.go`: WASM entry point with `//go:build wasm`
+- Attempted TinyGo compilation but TinyGo 0.28.1 doesn't support Go 1.22
+- Switched to standard Go WASM: `GOOS=js GOARCH=wasm go build`
+- Built `search.wasm` (3.1MB, 0.9MB gzipped)
+
+### Why
+TinyGo was the preferred target (smaller binaries) but Go 1.22 incompatibility forced a fallback to standard Go WASM. The standard Go approach works but produces larger binaries.
+
+### What worked
+- `go test ./internal/wasm/...` passes
+- `GOOS=js GOARCH=wasm go build ./cmd/wasm` produces a valid WASM binary
+- The `syscall/js` API works identically between TinyGo and standard Go for our use case
+
+### What didn't work
+- **TinyGo compilation failed**: `error: requires go version 1.18 through 1.20, got go1.22`
+- **Initial package structure failed**: Putting `package main` (main.go) and `package wasm` (exports.go) in the same directory caused `found packages wasm and main` error. Fixed by moving main.go to `cmd/wasm/main.go`.
+
+### What I learned
+Standard Go WASM is straightforward: compile with `GOOS=js GOARCH=wasm`, include `wasm_exec.js` from `$GOROOT/lib/wasm/`, create a `Go` object, instantiate the WASM, and call `go.run()`. The exported functions appear on `window.codebaseBrowser` after the Go runtime initializes.
+
+### What was tricky to build
+The `exports.go` file needs to keep `js.Func` references alive to prevent GC. Used a `keepAlive []js.Func` slice. Also, the Go WASM runtime sets exports asynchronously, so the JS loader needs to poll for `window.codebaseBrowser` to appear.
+
+### What warrants a second pair of eyes
+- **WASM binary size**: 3.1MB is large. Consider Binaryen `wasm-opt` or upgrading TinyGo when it supports Go 1.22+.
+- **Go WASM runtime dependency**: `wasm_exec.js` is 16KB but tightly coupled to the Go version. Any Go upgrade may require regenerating it.
+
+### Code review instructions
+- Start with `internal/wasm/search.go` — verify the SearchCtx API matches the design doc
+- Run `go test ./internal/wasm/...` — should pass
+- Verify `cmd/wasm/main.go` has the `//go:build wasm` tag
+- Check `internal/wasm/generate_build.go` uses `GOOS=js GOARCH=wasm`
+
+### Technical details
+```bash
+# Build WASM
+GOOS=js GOARCH=wasm go build -o internal/wasm/embed/search.wasm ./cmd/wasm
+
+# Size check
+ls -lh internal/wasm/embed/search.wasm
+gzip -c internal/wasm/embed/search.wasm | wc -c
+```
+
+---
+
+## Step 4: Implement Phase 2 — Build-time pre-computation
+
+### What I did
+- Created `internal/static/` package:
+  - `search_index.go`: `BuildSearchIndexFast()` creates inverted index (full names + prefixes up to 4 chars)
+  - `xref_index.go`: `BuildXrefIndex()` pre-computes usedBy/uses per symbol; `BuildFileXrefIndex()` for file-level xref
+  - `snippet_extractor.go`: `ExtractSnippets()` reads source files and extracts declaration/body/signature text; `ExtractSnippetRefs()` and `ExtractSourceRefs()` for ref linkification
+  - `doc_renderer.go`: `DocRenderer.RenderAll()` pre-renders all doc pages using `docs.Render()`
+  - `generate_build.go`: Main generator script that loads index, runs all pre-computation, writes `precomputed.json`
+  - `static_test.go`: Unit tests for search index and xref index builders
+- Ran generator: produced `precomputed.json` (1.2MB for 329 symbols, 1005 refs, 3 doc pages)
+
+### Why
+All runtime computation is moved to build time. The `precomputed.json` file contains everything the WASM module needs: search index, xref data, snippets, doc HTML.
+
+### What worked
+- `go test ./internal/static/...` passes
+- `go run internal/static/generate_build.go` completes in ~1 second
+- `precomputed.json` is 1.2MB — reasonable size for the current codebase
+
+### What didn't work
+- **Unexported field access**: `loaded.bySymbolID` is unexported. Fixed by iterating over `loaded.Index.Symbols` instead.
+- **Unused import**: `indexer.XrefData` doesn't exist (I defined my own types in the static package). Removed the import.
+
+### What I learned
+The `browser.Loaded` struct is the central abstraction for index access. Its public methods (`Symbol()`, `File()`, `Package()`) should be used instead of accessing internal maps directly.
+
+### What was tricky to build
+The `BuildXrefIndex` function needs to handle three cases per ref:
+1. `usedBy`: ref TO this symbol (from outside)
+2. `uses`: ref FROM this symbol (to outside)
+3. Neither: refs within the same file/symbol (ignored for file xref)
+
+The deduplication logic for `uses` (grouping by `toSymbolId`) is subtle and needs careful testing.
+
+### Code review instructions
+- Run `go test ./internal/static/...` — should pass
+- Run `go run internal/static/generate_build.go` — should produce `internal/static/embed/precomputed.json`
+- Verify the JSON contains: `searchIndex`, `xrefIndex`, `snippets`, `snippetRefs`, `sourceRefs`, `fileXrefIndex`, `docManifest`, `docHTML`
+
+### Technical details
+```bash
+# Run pre-computation generator
+go run internal/static/generate_build.go
+
+# Check output
+ls -lh internal/static/embed/precomputed.json
+jq '.searchIndex | keys | length' internal/static/embed/precomputed.json
+jq '.xrefIndex | keys | length' internal/static/embed/precomputed.json
+jq '.snippets | keys | length' internal/static/embed/precomputed.json
+```
+
+---
+
+## Step 5: Implement Phase 3 — Frontend WASM integration
+
+### What I did
+- Created `ui/src/api/wasmClient.ts`:
+  - `initWasm()`: Loads wasm_exec.js, instantiates WASM, calls `initWasm` with precomputed JSON data
+  - `wasmBaseQuery`: RTK-Query baseQuery that routes to WASM functions instead of HTTP
+  - `getPrecomputed()`: Caches precomputed.json for direct lookups (snippetRefs, sourceRefs, fileXref)
+- Updated `ui/src/api/indexApi.ts`: Swapped `fetchBaseQuery` for `wasmBaseQuery`
+- Updated `ui/src/api/sourceApi.ts`: Static file serving for source files, WASM for snippets, precomputed cache for refs/xref
+- Updated `ui/src/api/docApi.ts`: `wasmBaseQuery` for doc pages
+- Updated `ui/src/api/xrefApi.ts`: `wasmBaseQuery` for xref lookups
+- Fixed TypeScript compilation errors (unused params, return type mismatches)
+
+### Why
+The frontend's RTK-Query API surface stays identical — only the transport layer changes. This minimizes React component changes.
+
+### What worked
+- `pnpm run typecheck` passes cleanly
+- The `wasmBaseQuery` correctly maps endpoint strings to WASM function calls:
+  - `'index'` → `getIndexSummary()`
+  - `'packages'` → `getPackages()`
+  - `'symbol:<id>'` → `getSymbol(id)`
+  - `'search:<q>|<kind>'` → `findSymbols(q, kind)`
+  - `'xref:<id>'` → `getXref(id)`
+  - `'docPages'` → `getDocPages()`
+  - `'docPage:<slug>'` → `getDocPage(slug)`
+
+### What didn't work
+- **TypeScript errors**:
+  1. `/// <reference types="../wasm-types" />` — non-existent reference file. Removed.
+  2. Unused `api` and `extraOptions` params in `wasmBaseQuery`. Removed.
+  3. `getSnippet` return type mismatch — WASM returns `{ text: string }` but component expects `string`. Fixed by extracting `.text` in the queryFn.
+
+### What I learned
+Standard Go WASM requires `wasm_exec.js` to be loaded before the WASM binary. The `Go` class is provided by this script. The WASM instantiation pattern is:
+```javascript
+const go = new Go();
+const result = await WebAssembly.instantiateStreaming(fetch('search.wasm'), go.importObject);
+go.run(result.instance);
+```
+
+### What was tricky to build
+The `sourceApi.ts` needs three different data sources:
+1. **Source files**: Static fetch (`./source/<path>`)
+2. **Snippets**: WASM function call
+3. **Refs/Xref**: Precomputed JSON cache
+
+Using `queryFn` instead of `query` in RTK-Query allows custom logic per endpoint. This is cleaner than trying to shoehorn everything into a single baseQuery.
+
+### Code review instructions
+- Run `pnpm -C ui run typecheck` — should pass with 0 errors
+- Verify `wasmClient.ts` exports: `initWasm`, `wasmBaseQuery`, `getPrecomputed`, `isWasmReady`
+- Check that all four API files (`indexApi.ts`, `sourceApi.ts`, `docApi.ts`, `xrefApi.ts`) import from `wasmClient.ts`
+
+### Technical details
+```bash
+# TypeScript check
+cd ui && pnpm run typecheck
+
+# SPA build
+cd ui && pnpm run build
+```
+
+---
+
+## Step 6: Implement Phase 4 — Static artifact bundler
+
+### What I did
+- Created `internal/bundle/generate_build.go`:
+  1. Builds SPA (`pnpm -C ui run build`)
+  2. Copies SPA assets to `dist/`
+  3. Copies `search.wasm`, `precomputed.json`, `source/` tree, `wasm_exec.js` to `dist/`
+  4. Injects `wasm_exec.js` into `index.html`
+- Switched `App.tsx` from `BrowserRouter` to `HashRouter` (required for `file://` protocol)
+- Changed `sourceApi.ts` to use relative paths (`./source/<path>`) instead of absolute (`/source/<path>`)
+- Added Makefile targets: `generate-static`, `build-static`
+- Added `dist/` to `.gitignore`
+- Ran bundler: produced `dist/` artifact (5MB total)
+- Verified artifact via HTTP server: index.html, WASM, precomputed.json, source files all accessible
+
+### Why
+`BrowserRouter` requires server-side routing (serves index.html for all paths). `HashRouter` uses URL hashes (`/#/symbol/...`) which work with `file://`. Relative paths are required because `file://` doesn't have a concept of "root" like HTTP does.
+
+### What worked
+- `make build-static` (via `go run internal/bundle/generate_build.go`) completes successfully
+- `dist/` contains all required files: index.html, assets/, search.wasm, precomputed.json, source/, wasm_exec.js
+- HTTP server test confirms all files are accessible
+
+### What didn't work
+- **Makefile sed command failed**: Using `sed` with tabs in Makefiles is tricky. Used Python instead for the modification.
+- **dist/ accidentally staged**: The bundler output was initially included in the git commit. Added `dist/` to `.gitignore` and unstaged.
+
+### What I learned
+Vite's production build outputs to `ui/dist/public/`. The bundler copies this directory to `dist/` and adds the WASM-specific files. The `crossorigin` attribute on script tags in Vite's output is fine for `file://` — browsers ignore it for local files.
+
+### What was tricky to build
+The `injectWasmExec` function needs to insert `<script src="/wasm_exec.js"></script>` before the first `<script type="module">` tag. The Vite output has exactly one module script, so a simple string replacement works.
+
+### Code review instructions
+- Run `make build-static` — should produce `dist/` directory
+- Verify `dist/index.html` contains `<script src="/wasm_exec.js">` before the module script
+- Start a server in `dist/` and verify: `python3 -m http.server 8767`
+- Open `http://localhost:8767/` — SPA should load (WASM initialization happens in background)
+
+### Technical details
+```bash
+# Build static artifact
+make build-static
+
+# Serve and verify
+cd dist && python3 -m http.server 8767
+curl http://localhost:8767/index.html | head -5
+curl http://localhost:8767/search.wasm | wc -c
+curl http://localhost:8767/precomputed.json | wc -c
+```
+
+### Artifact sizes
+- `search.wasm`: 3.1 MB (0.9 MB gzipped)
+- `precomputed.json`: 1.2 MB
+- SPA JS: 263 KB
+- SPA CSS: 10 KB
+- `wasm_exec.js`: 17 KB
+- Source tree: ~2 MB
+- **Total**: ~5 MB

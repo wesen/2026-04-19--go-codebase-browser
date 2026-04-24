@@ -17,6 +17,8 @@ RelatedFiles:
       Note: Build targets (generate
     - Path: cmd/codebase-browser/main.go
       Note: main entry point
+    - Path: cmd/wasm/main.go
+      Note: WASM entry point — registers JS exports and blocks forever
     - Path: internal/browser/index.go
       Note: Loaded struct
     - Path: internal/docs/pages.go
@@ -43,6 +45,18 @@ RelatedFiles:
       Note: Handler() registers all HTTP routes — these are the endpoints being replaced by WASM and static files
     - Path: internal/sourcefs/generate_build.go
       Note: Mirrors source tree → embed/source/. Source files served as static assets in the static build
+    - Path: internal/static/search_index.go
+      Note: BuildSearchIndexFast() — inverted index for symbol name lookup
+    - Path: internal/static/snippet_extractor.go
+      Note: ExtractSnippets() — pre-extracts declaration/body/signature text
+    - Path: internal/static/static_test.go
+      Note: Unit tests for pre-computation logic
+    - Path: internal/static/xref_index.go
+      Note: BuildXrefIndex() — pre-computes usedBy/uses per symbol
+    - Path: internal/wasm/exports.go
+      Note: JS interop layer using syscall/js — registers functions on window.codebaseBrowser
+    - Path: internal/wasm/search_test.go
+      Note: Unit tests for WASM search logic
     - Path: internal/web/generate_build.go
       Note: Dagger Vite SPA build → embed/public/. This build produces the SPA shell that gets served alongside WASM
     - Path: ui/src/api/indexApi.ts
@@ -50,7 +64,9 @@ RelatedFiles:
     - Path: ui/src/api/sourceApi.ts
       Note: 'RTK-Query endpoints for source/snippet/ref/xref. baseQuery changes: source from HTTP'
     - Path: ui/src/app/App.tsx
-      Note: BrowserRouter
+      Note: |-
+        BrowserRouter
+        Switched from BrowserRouter to HashRouter for file:// compatibility
     - Path: ui/src/features/doc/DocSnippet.tsx
       Note: React hydration of codebase-* stubs in pre-rendered HTML. Uses useGetSymbolQuery
 ExternalSources: []
@@ -59,6 +75,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # WASM + Static HTML Architecture: A Complete Design & Implementation Guide
