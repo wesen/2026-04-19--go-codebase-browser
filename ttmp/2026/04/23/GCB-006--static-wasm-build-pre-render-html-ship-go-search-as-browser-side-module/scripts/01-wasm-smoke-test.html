@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>WASM Smoke Test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 4px; overflow-x: auto; }
+    .pass { color: green; }
+    .fail { color: red; }
+  </style>
+</head>
+<body>
+  <h1>WASM Smoke Test</h1>
+  <div id="status">Loading WASM...</div>
+  <pre id="output"></pre>
+
+  <script src="wasm_exec.js"></script>
+  <script>
+    const go = new Go();
+    const status = document.getElementById('status');
+    const output = document.getElementById('output');
+
+    function log(msg) {
+      output.textContent += msg + '\n';
+    }
+
+    async function run() {
+      try {
+        // Load WASM
+        const wasmPath = '../../../../../../../internal/wasm/embed/search.wasm';
+        const result = await WebAssembly.instantiateStreaming(fetch(wasmPath), go.importObject);
+        go.run(result.instance);
+
+        status.innerHTML = '<span class="pass">WASM loaded</span>';
+        log('WASM module loaded successfully');
+
+        // Build test data
+        const index = {
+          version: "1",
+          generatedAt: "2026-04-23T00:00:00Z",
+          module: "test",
+          packages: [{ id: "pkg1", importPath: "a/b", name: "b", fileIds: ["file:a/b.go"], symbolIds: ["sym:pkg1.func.Merge", "sym:pkg1.func.Extract"] }],
+          files: [{ id: "file:a/b.go", path: "a/b.go", packageId: "pkg1", size: 100, lineCount: 10, sha256: "abc" }],
+          symbols: [
+            { id: "sym:pkg1.func.Merge", kind: "func", name: "Merge", packageId: "pkg1", fileId: "file:a/b.go", range: { startLine: 1, startCol: 1, endLine: 5, endCol: 2, startOffset: 0, endOffset: 50 }, exported: true },
+            { id: "sym:pkg1.func.Extract", kind: "func", name: "Extract", packageId: "pkg1", fileId: "file:a/b.go", range: { startLine: 7, startCol: 1, endLine: 10, endCol: 2, startOffset: 60, endOffset: 120 }, exported: true },
+            { id: "sym:pkg1.type.Loaded", kind: "type", name: "Loaded", packageId: "pkg1", fileId: "file:a/b.go", range: { startLine: 12, startCol: 1, endLine: 15, endCol: 2, startOffset: 130, endOffset: 180 }, exported: true }
+          ],
+          refs: []
+        };
+
+        const searchIndex = {
+          "merge": ["sym:pkg1.func.Merge"],
+          "extract": ["sym:pkg1.func.Extract"],
+          "loaded": ["sym:pkg1.type.Loaded"]
+        };
+
+        const xrefIndex = {};
+        const snippets = {
+          "sym:pkg1.func.Merge:declaration": "func Merge() {}",
+          "sym:pkg1.func.Extract:declaration": "func Extract() {}",
+          "sym:pkg1.type.Loaded:declaration": "type Loaded struct {}"
+        };
+
+        const docManifest = [{ slug: "intro", title: "Introduction", path: "intro.md" }];
+        const docHTML = { "intro": "<h1>Introduction</h1>" };
+
+        // Init WASM with data
+        const initResult = window.codebaseBrowser.initWasm(
+          JSON.stringify(index),
+          JSON.stringify(searchIndex),
+          JSON.stringify(xrefIndex),
+          JSON.stringify(snippets),
+          JSON.stringify(docManifest),
+          JSON.stringify(docHTML)
+        );
+        log('initWasm result: ' + initResult);
+
+        if (initResult !== 'ok') {
+          throw new Error('initWasm failed: ' + initResult);
+        }
+
+        // Test 1: findSymbols
+        const all = JSON.parse(window.codebaseBrowser.findSymbols("", ""));
+        log('findSymbols("") → ' + all.length + ' symbols');
+        if (all.length !== 3) throw new Error('Expected 3 symbols');
+
+        // Test 2: findSymbols with query
+        const merge = JSON.parse(window.codebaseBrowser.findSymbols("Merge", ""));
+        log('findSymbols("Merge") → ' + merge[0].name);
+        if (merge.length !== 1 || merge[0].name !== 'Merge') throw new Error('Expected Merge');
+
+        // Test 3: getSymbol
+        const sym = JSON.parse(window.codebaseBrowser.getSymbol("sym:pkg1.func.Merge"));
+        log('getSymbol("sym:pkg1.func.Merge") → ' + sym.name);
+        if (sym.name !== 'Merge') throw new Error('Expected Merge');
+
+        // Test 4: getPackages
+        const pkgs = JSON.parse(window.codebaseBrowser.getPackages());
+        log('getPackages() → ' + pkgs.length + ' packages');
+        if (pkgs.length !== 1) throw new Error('Expected 1 package');
+
+        // Test 5: getIndexSummary
+        const summary = JSON.parse(window.codebaseBrowser.getIndexSummary());
+        log('getIndexSummary() → ' + summary.symbols + ' symbols');
+        if (summary.symbols !== 3) throw new Error('Expected 3 symbols in summary');
+
+        // Test 6: getDocPage
+        const page = JSON.parse(window.codebaseBrowser.getDocPage("intro"));
+        log('getDocPage("intro") → ' + page.title);
+        if (page.title !== 'Introduction') throw new Error('Expected Introduction');
+
+        status.innerHTML = '<span class="pass">All tests passed!</span>';
+        log('\n✅ All smoke tests passed!');
+
+      } catch (err) {
+        status.innerHTML = '<span class="fail">Test failed</span>';
+        log('\n❌ Error: ' + err.message);
+        console.error(err);
+      }
+    }
+
+    run();
+  </script>
+</body>
+</html>

@@ -49,6 +49,12 @@ topics:
       description: Git history/blame integration in tooling
     - slug: ui-design
       description: UI affordance and wireframe exploration
+    - slug: wasm
+      description: WebAssembly compilation of Go search/index logic for browser-side execution
+    - slug: static-build
+      description: Static file/HTML generation and bundling for zero-server deployment
+    - slug: go
+      description: 'Go language tooling: go/ast, go/packages, go/types, standard library'
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
