@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GCB-007 SQLite + TinyGo WASM Demo</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #1a1a2e; color: #e0e0e0; }
+  h1 { color: #64ffda; }
+  h2 { color: #82aaff; margin-top: 2em; }
+  .status { padding: 8px 12px; border-radius: 4px; margin: 8px 0; }
+  .ok { background: #1b3a1b; color: #64ffda; }
+  .err { background: #3a1b1b; color: #ff6b6b; }
+  .loading { background: #2a2a1b; color: #ffd700; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .panel { background: #16213e; padding: 16px; border-radius: 8px; }
+  .panel h3 { margin-top: 0; color: #82aaff; }
+  table { border-collapse: collapse; width: 100%; margin-top: 8px; font-size: 13px; }
+  th { background: #0f3460; padding: 6px 10px; text-align: left; }
+  td { padding: 6px 10px; border-bottom: 1px solid #1a1a3e; }
+  tr:hover td { background: #1a2a4e; }
+  .sql-input { width: 100%; min-height: 80px; background: #0a0a1a; color: #64ffda; border: 1px solid #0f3460;
+    border-radius: 4px; padding: 10px; font-family: monospace; font-size: 13px; resize: vertical; }
+  button { background: #0f3460; color: #64ffda; border: none; padding: 8px 16px; border-radius: 4px;
+    cursor: pointer; font-size: 14px; margin: 4px; }
+  button:hover { background: #1a4a80; }
+  .suggested { display: inline-block; background: #1a2a4e; padding: 4px 10px; border-radius: 12px;
+    font-size: 12px; cursor: pointer; margin: 2px; }
+  .suggested:hover { background: #0f3460; }
+  #results { max-height: 400px; overflow: auto; }
+  .info { font-size: 12px; color: #888; margin-top: 4px; }
+  .mono { font-family: monospace; }
+  #search-input { width: 100%; padding: 8px 12px; background: #0a0a1a; color: #64ffda;
+    border: 1px solid #0f3460; border-radius: 4px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<h1>🗄️ GCB-007: SQLite + TinyGo WASM Demo</h1>
+<p>A standalone prototype proving that SQLite (via sql.js) and Go (via TinyGo WASM) can
+work together in the browser to query a codebase index. No server needed — open this file
+directly from <code>file://</code> or any static server.</p>
+
+<div id="status-fts" class="status loading">⏳ Loading sql.js (SQLite WASM)…</div>
+<div id="status-go" class="status loading">⏳ Loading TinyGo WASM…</div>
+<div id="status-db" class="status loading">⏳ Waiting for both…</div>
+
+<h2>🔍 Full-Text Search (FTS5)</h2>
+<input id="search-input" placeholder="Search symbols (try: handle, server, extract)…" autofocus>
+<div id="search-results"></div>
+
+<h2>📊 Stats</h2>
+<div class="grid">
+  <div class="panel">
+    <h3>Database Summary</h3>
+    <div id="stats"></div>
+  </div>
+  <div class="panel">
+    <h3>Suggested Queries (click to run)</h3>
+    <div id="suggested"></div>
+  </div>
+</div>
+
+<h2>💻 Raw SQL Query</h2>
+<textarea id="sql-input" class="sql-input" placeholder="SELECT name, kind FROM symbols WHERE exported=1 LIMIT 10"></textarea>
+<br>
+<button onclick="runSQL()">▶ Run Query</button>
+<button onclick="runSQL('SELECT name, sql FROM sqlite_master WHERE type=\"table\"')">📋 Show Schema</button>
+<div id="results" class="mono"></div>
+
+<div class="info" style="margin-top:2em">
+  <p><strong>How this works:</strong></p>
+  <ul>
+    <li><b>sql.js</b> — SQLite compiled to WASM, loaded from CDN. Provides the database engine.</li>
+    <li><b>TinyGo WASM</b> — Go code compiled to WASM. Provides schema SQL, sample data, result formatting, and query suggestions.</li>
+    <li><b>FTS5</b> — SQLite's full-text search extension. Tokenizes symbol names, docs, and signatures. Ranked with BM25.</li>
+    <li>Open browser DevTools console to see <code>window.goQuery</code> exports and <code>window.db</code>.</li>
+  </ul>
+</div>
+
+<!-- sql.js from CDN -->
+<script src="sql-wasm.js"></script>
+<!-- Also download sql-wasm.wasm locally for file:// / restricted network -->
+<!-- TinyGo wasm_exec.js — must match the version used to compile -->
+<script src="wasm_exec.js"></script>
+
+<script>
+let db = null;
+
+// --- Initialize sql.js ---
+async function initSqlite() {
+  const statusEl = document.getElementById('status-fts');
+  try {
+    const SQL = await initSqlJs({ locateFile: f => f });
+    db = new SQL.Database();
+    statusEl.className = 'status ok';
+    statusEl.textContent = '✅ sql.js loaded (SQLite ' + db.exec("SELECT sqlite_version()")[0].values[0][0] + ')';
+    window.db = db; // expose for console experimentation
+    onBothReady();
+  } catch(e) {
+    statusEl.className = 'status err';
+    statusEl.textContent = '❌ sql.js failed: ' + e.message;
+  }
+}
+
+// --- Initialize TinyGo WASM ---
+async function initGoWasm() {
+  const statusEl = document.getElementById('status-go');
+  try {
+    const go = new Go();
+    const response = await fetch('query.wasm');
+    const buffer = await response.arrayBuffer();
+    const result = await WebAssembly.instantiate(buffer, go.importObject);
+    go.run(result.instance);
+    // Wait for exports to appear
+    let tries = 0;
+    while (!window.goQuery && tries < 50) {
+      await new Promise(r => setTimeout(r, 50));
+      tries++;
+    }
+    if (!window.goQuery) throw new Error('goQuery not exported');
+    const hello = window.goQuery.hello();
+    statusEl.className = 'status ok';
+    statusEl.textContent = '✅ TinyGo WASM loaded: ' + hello;
+    onBothReady();
+  } catch(e) {
+    statusEl.className = 'status err';
+    statusEl.textContent = '⚠️ TinyGo WASM failed: ' + e.message + ' (demo still works with sample data only)';
+    // Continue without Go WASM — use fallback
+    window.goQuery = null;
+    onBothReady();
+  }
+}
+
+// --- Once both are ready, populate the database ---
+let ready = false;
+function onBothReady() {
+  if (ready || !db) return;
+  ready = true;
+
+  const statusEl = document.getElementById('status-db');
+
+  // Get schema and data from Go WASM (or fallback)
+  let schema, inserts;
+  if (window.goQuery) {
+    schema = window.goQuery.getSchemaSQL();
+    inserts = window.goQuery.getInsertSQL();
+  } else {
+    // Fallback: embedded SQL (same data as Go WASM would provide)
+    schema = fallbackSchema;
+    inserts = fallbackInserts;
+  }
+
+  try {
+    db.run(schema);
+    // Try FTS5 — not all sql.js builds include it
+    let hasFTS5 = false;
+    try { db.run(fts5Schema); hasFTS5 = true; } catch(e) {
+      console.warn('FTS5 not available, using LIKE fallback for search');
+    }
+    db.run(inserts);
+    const symCount = db.exec("SELECT COUNT(*) FROM symbols")[0].values[0][0];
+    statusEl.className = 'status ok';
+    statusEl.textContent = '✅ Database populated: ' + symCount + ' symbols loaded';
+    showStats();
+    showSuggested();
+    // Wire search
+    document.getElementById('search-input').addEventListener('input', doSearch);
+    doSearch(); // initial empty search shows all
+  } catch(e) {
+    statusEl.className = 'status err';
+    statusEl.textContent = '❌ DB setup failed: ' + e.message;
+  }
+}
+
+function showStats() {
+  const tables = ['packages','files','symbols','refs'];
+  let html = '<table>';
+  for (const t of tables) {
+    const count = db.exec("SELECT COUNT(*) FROM " + t)[0].values[0][0];
+    html += '<tr><td>' + t + '</td><td>' + count + '</td></tr>';
+  }
+  html += '</table>';
+  document.getElementById('stats').innerHTML = html;
+}
+
+function showSuggested() {
+  let queries;
+  if (window.goQuery) {
+    queries = JSON.parse(window.goQuery.suggestQueries());
+  } else {
+    queries = fallbackQueries;
+  }
+  let html = '';
+  for (const q of queries) {
+    html += '<div class="suggested" onclick="document.getElementById(\'sql-input\').value=atob(\'' +
+      btoa(q.SQL) + '\');runSQL(atob(\'' + btoa(q.SQL) + '\'))">' + q.title + '</div>';
+  }
+  document.getElementById('suggested').innerHTML = html;
+}
+
+function doSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  const el = document.getElementById('search-results');
+  if (!q) {
+    // Show all symbols
+    const results = queryToObjects("SELECT s.name, s.kind, p.import_path, s.exported FROM symbols s JOIN packages p ON p.id=s.package_id ORDER BY s.name LIMIT 50");
+    el.innerHTML = objectsToTable(results);
+    return;
+  }
+  try {
+    // Try FTS5 first, fall back to LIKE
+    try {
+      const results = queryToObjects(
+        "SELECT s.name, s.kind, s.signature, p.import_path, bm25(symbols_fts) as rank " +
+        "FROM symbols_fts fts JOIN symbols s ON s.rowid=fts.rowid JOIN packages p ON p.id=s.package_id " +
+        "WHERE symbols_fts MATCH ? ORDER BY rank LIMIT 20", [q]
+      );
+      el.innerHTML = objectsToTable(results);
+    } catch(e2) {
+      // FTS5 not available — use LIKE fallback
+      const results = queryToObjects(
+        "SELECT name, kind, signature, (SELECT import_path FROM packages WHERE id=package_id) as import_path " +
+        "FROM symbols WHERE name LIKE ? OR doc LIKE ? ORDER BY name LIMIT 20",
+        ['%'+q+'%', '%'+q+'%']
+      );
+      el.innerHTML = objectsToTable(results);
+    }
+  } catch(e) {
+    el.innerHTML = '<p class="err">Search error: ' + e.message + '</p>';
+  }
+}
+
+function runSQL(sql) {
+  sql = sql || document.getElementById('sql-input').value.trim();
+  if (!sql) return;
+  const el = document.getElementById('results');
+  try {
+    const results = queryToObjects(sql);
+    if (window.goQuery) {
+      el.innerHTML = window.goQuery.formatResults(JSON.stringify(results));
+    } else {
+      el.innerHTML = objectsToTable(results);
+    }
+  } catch(e) {
+    el.innerHTML = '<p class="err">Error: ' + e.message + '</p>';
+  }
+}
+
+// --- Helpers ---
+
+function queryToObjects(sql, params) {
+  const stmt = db.prepare(sql);
+  if (params) stmt.bind(params);
+  const cols = stmt.getColumnNames();
+  const rows = [];
+  while (stmt.step()) {
+    const obj = {};
+    const vals = stmt.get();
+    for (let i = 0; i < cols.length; i++) {
+      obj[cols[i]] = vals[i];
+    }
+    rows.push(obj);
+  }
+  stmt.free();
+  return rows;
+}
+
+function objectsToTable(rows) {
+  if (!rows.length) return '<p>No results</p>';
+  let html = '<table><thead><tr>';
+  for (const k of Object.keys(rows[0])) html += '<th>' + k + '</th>';
+  html += '</tr></thead><tbody>';
+  for (const row of rows) {
+    html += '<tr>';
+    for (const v of Object.values(row)) html += '<td>' + (v === null ? '<i>NULL</i>' : v) + '</td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  return html;
+}
+
+// --- Fallback data if TinyGo WASM fails to load ---
+const fallbackSchema = `
+CREATE TABLE IF NOT EXISTS packages (
+    id TEXT PRIMARY KEY, import_path TEXT NOT NULL, name TEXT NOT NULL, doc TEXT DEFAULT '', language TEXT DEFAULT 'go'
+);
+CREATE TABLE IF NOT EXISTS files (
+    id TEXT PRIMARY KEY, path TEXT NOT NULL, package_id TEXT NOT NULL REFERENCES packages(id),
+    language TEXT DEFAULT 'go', size INTEGER DEFAULT 0, line_count INTEGER DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS symbols (
+    id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL,
+    package_id TEXT NOT NULL REFERENCES packages(id), file_id TEXT NOT NULL REFERENCES files(id),
+    start_line INTEGER NOT NULL, end_line INTEGER DEFAULT 0,
+    signature TEXT DEFAULT '', doc TEXT DEFAULT '', receiver TEXT DEFAULT NULL,
+    exported BOOLEAN DEFAULT FALSE, language TEXT DEFAULT 'go'
+);
+CREATE TABLE IF NOT EXISTS refs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, from_id TEXT NOT NULL, to_id TEXT NOT NULL,
+    kind TEXT DEFAULT '', file_id TEXT NOT NULL, start_line INTEGER NOT NULL, end_line INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_symbols_name ON symbols(name);
+CREATE INDEX IF NOT EXISTS idx_symbols_kind ON symbols(kind);`;
+const fts5Schema = `
+CREATE VIRTUAL TABLE IF NOT EXISTS symbols_fts USING fts5(
+    name, signature, doc, kind, import_path, content='symbols', content_rowid='rowid'
+);
+CREATE TRIGGER IF NOT EXISTS symbols_fts_ins AFTER INSERT ON symbols BEGIN
+    INSERT INTO symbols_fts(rowid,name,signature,doc,kind,import_path)
+    SELECT new.rowid,new.name,new.signature,new.doc,new.kind,p.import_path FROM packages p WHERE p.id=new.package_id;
+END;`;
+
+const fallbackInserts = `
+INSERT INTO packages VALUES ('pkg:main','demo/main','main','','go');
+INSERT INTO packages VALUES ('pkg:server','demo/server','server','HTTP server package.','go');
+INSERT INTO packages VALUES ('pkg:indexer','demo/indexer','indexer','Symbol extraction.','go');
+INSERT INTO files VALUES ('f:main.go','main.go','pkg:main','go',1200,45);
+INSERT INTO files VALUES ('f:server.go','server/server.go','pkg:server','go',3400,98);
+INSERT INTO files VALUES ('f:handler.go','server/handler.go','pkg:server','go',2100,67);
+INSERT INTO files VALUES ('f:indexer.go','indexer/indexer.go','pkg:indexer','go',5600,180);
+INSERT INTO symbols VALUES ('s:main','func','main','pkg:main','f:main.go',12,25,'func()','',NULL,1,'go');
+INSERT INTO symbols VALUES ('s:New','func','New','pkg:server','f:server.go',18,35,'func(cfg Config) *Server','Creates a new server.',NULL,1,'go');
+INSERT INTO symbols VALUES ('s:Start','func','Start','pkg:server','f:server.go',37,80,'func(s *Server) Start(addr string) error','Start listening.','Server',0,'go');
+INSERT INTO symbols VALUES ('s:Shutdown','func','Shutdown','pkg:server','f:server.go',82,95,'func(s *Server) Shutdown(ctx context.Context) error','Graceful shutdown.','Server',0,'go');
+INSERT INTO symbols VALUES ('s:handleSearch','func','handleSearch','pkg:server','f:handler.go',10,45,'func(s *Server, w ResponseWriter, r *Request)','Search handler.','Server',0,'go');
+INSERT INTO symbols VALUES ('s:handleSymbol','func','handleSymbol','pkg:server','f:handler.go',47,72,'func(s *Server, w ResponseWriter, r *Request)','Symbol detail handler.','Server',0,'go');
+INSERT INTO symbols VALUES ('s:Server','type','Server','pkg:server','f:server.go',5,16,'struct{...}','Main HTTP server.',NULL,1,'go');
+INSERT INTO symbols VALUES ('s:Config','type','Config','pkg:server','f:server.go',1,4,'struct{Addr string}','Config.',NULL,1,'go');
+INSERT INTO symbols VALUES ('s:Extract','func','Extract','pkg:indexer','f:indexer.go',15,120,'func(dir string) (*Index, error)','Walk source tree.',NULL,1,'go');
+INSERT INTO symbols VALUES ('s:Index','type','Index','pkg:indexer','f:indexer.go',1,14,'struct{...}','Symbol index.',NULL,1,'go');
+INSERT INTO refs VALUES (null,'s:main','s:New','call','f:main.go',15,17);
+INSERT INTO refs VALUES (null,'s:main','s:Start','call','f:main.go',20,22);
+INSERT INTO refs VALUES (null,'s:Start','s:handleSearch','call','f:server.go',50,52);
+INSERT INTO refs VALUES (null,'s:Extract','s:Index','use','f:indexer.go',16,18);
+`;
+
+const fallbackQueries = [
+  {title: "All packages", SQL: "SELECT name, import_path FROM packages"},
+  {title: "Symbol count by kind", SQL: "SELECT kind, COUNT(*) as count FROM symbols GROUP BY kind ORDER BY count DESC"},
+  {title: "FTS: 'handle'", SQL: "SELECT s.name, s.kind, p.import_path, bm25(symbols_fts) as rank FROM symbols_fts fts JOIN symbols s ON s.rowid=fts.rowid JOIN packages p ON p.id=s.package_id WHERE symbols_fts MATCH 'handle' ORDER BY rank"},
+  {title: "Most referenced", SQL: "SELECT s.name, s.kind, COUNT(*) as refs FROM refs r JOIN symbols s ON s.id=r.to_id GROUP BY s.id ORDER BY refs DESC"},
+  {title: "Exported symbols", SQL: "SELECT name, kind, signature FROM symbols WHERE exported=1"},
+];
+
+// --- Start ---
+initSqlite();
+initGoWasm();
+</script>
+</body>
+</html>
