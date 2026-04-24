@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Link, Route, Routes, useNavigate } from 'react-router-dom';
+import { HashRouter, Link, Route, Routes, useNavigate } from 'react-router-dom';
 import { widgetRootAttrs } from '../packages/ui/src/parts';
 import '../packages/ui/src/theme/base.css';
 import '../packages/ui/src/theme/dark.css';
@@ -14,7 +14,7 @@ import { useGetIndexQuery } from '../api/indexApi';
 export function App() {
   const [dark, setDark] = React.useState(false);
   return (
-    <BrowserRouter>
+    <HashRouter>
       <div {...widgetRootAttrs} data-theme={dark ? 'dark' : 'light'}>
         <div data-part="layout">
           <aside data-part="sidebar">
@@ -37,7 +37,7 @@ export function App() {
           </main>
         </div>
       </div>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

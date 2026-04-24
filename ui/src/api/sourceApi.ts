@@ -62,7 +62,7 @@ export const sourceApi = createApi({
   endpoints: (b) => ({
     // Static source file serving
     getSource: b.query<string, string>({
-      query: (path) => `/source/${path}`,
+      query: (path) => `./source/${path}`,
     }),
 
     // Snippet from WASM
