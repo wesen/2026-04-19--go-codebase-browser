@@ -36,3 +36,4 @@ pnpm-debug.log*
 .vscode/
 dist/
 .tools/
+.playwright-mcp/

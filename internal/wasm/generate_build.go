@@ -93,7 +93,6 @@ func runDagger(ctx context.Context, root, outPath string) error {
 		WithExec([]string{
 			"tinygo", "build",
 			"-target", "wasm",
-			"-scheduler", "none",
 			"-o", "/tmp/" + wasmOut,
 			wasmPkg,
 		})
@@ -159,7 +158,7 @@ func tryTinyGo(pkgPath, outPath, root string) bool {
 		}
 	}
 
-	cmd := exec.Command(tinygo, "build", "-target", "wasm", "-scheduler", "none", "-o", outPath, pkgPath)
+	cmd := exec.Command(tinygo, "build", "-target", "wasm", "-o", outPath, pkgPath)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	// Set TINYGOROOT for locally-extracted .tools layout

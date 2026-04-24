@@ -75,7 +75,7 @@ export async function initWasm(wasmPath = '/search.wasm'): Promise<void> {
   const precomputed = await fetch('/precomputed.json').then((r) => r.json());
 
   const result = window.codebaseBrowser.initWasm(
-    JSON.stringify(precomputed),
+    JSON.stringify(precomputed.indexJSON || {}),
     JSON.stringify(precomputed.searchIndex || {}),
     JSON.stringify(precomputed.xrefIndex || {}),
     JSON.stringify(precomputed.snippets || {}),

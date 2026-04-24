@@ -10,6 +10,7 @@ import (
 // Allocated in WASM linear memory; JS glue reads/writes via memory.buffer.
 type SearchCtx struct {
 	Index        *Index
+	RawIndex     []byte               // original index.json bytes
 	byPackageID  map[string]*Package
 	byFileID     map[string]*File
 	bySymbolID   map[string]*Symbol
@@ -90,6 +91,7 @@ func Init(jsonIndex, jsonSearchIdx, jsonXrefIdx, jsonSnippets, jsonDocManifest, 
 
 	ctx := &SearchCtx{
 		Index:       &idx,
+		RawIndex:    jsonIndex,
 		byPackageID: make(map[string]*Package, len(idx.Packages)),
 		byFileID:    make(map[string]*File, len(idx.Files)),
 		bySymbolID:  make(map[string]*Symbol, len(idx.Symbols)),
@@ -192,21 +194,10 @@ func (s *SearchCtx) GetPackages() []byte {
 	return data
 }
 
-// GetIndexSummary returns a lightweight summary of the index.
+// GetIndexSummary returns the full index JSON (matching the server's /api/index response).
+// The frontend expects {version, generatedAt, module, goVersion, packages: [], ...}
 func (s *SearchCtx) GetIndexSummary() []byte {
-	type summary struct {
-		Module   string `json:"module"`
-		Packages int    `json:"packages"`
-		Symbols  int    `json:"symbols"`
-		Files    int    `json:"files"`
-	}
-	data, _ := json.Marshal(summary{
-		Module:   s.Index.Module,
-		Packages: len(s.Index.Packages),
-		Symbols:  len(s.Index.Symbols),
-		Files:    len(s.Index.Files),
-	})
-	return data
+	return s.RawIndex
 }
 
 // GetDocPages returns the doc page manifest.

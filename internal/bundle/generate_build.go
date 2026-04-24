@@ -68,17 +68,29 @@ func main() {
 	}
 	fmt.Println("Copied source tree")
 
-	// 6. Copy wasm_exec.js
-	wasmExecSrc := filepath.Join(os.Getenv("GOROOT"), "lib", "wasm", "wasm_exec.js")
-	if _, err := os.Stat(wasmExecSrc); err != nil {
-		// Fallback: try common locations
-		wasmExecSrc = "/usr/local/go/lib/wasm/wasm_exec.js"
-	}
+	// 6. Copy wasm_exec.js (TinyGo version, NOT Go's)
+	// TinyGo's wasm_exec.js lives in the project at ui/public/wasm_exec.js
+	// (downloaded from TinyGo release). Fallback to Go's version.
 	wasmExecDst := filepath.Join(distDir, "wasm_exec.js")
+	wasmExecSrc := "" // will be set below
+	for _, candidate := range []string{
+		filepath.Join(root, "ui", "public", "wasm_exec.js"),
+		filepath.Join(root, "internal", "wasm", "embed", "wasm_exec.js"),
+		filepath.Join(os.Getenv("GOROOT"), "lib", "wasm", "wasm_exec.js"),
+		"/usr/local/go/lib/wasm/wasm_exec.js",
+	} {
+		if _, err := os.Stat(candidate); err == nil {
+			wasmExecSrc = candidate
+			break
+		}
+	}
+	if wasmExecSrc == "" {
+		log.Fatal("wasm_exec.js not found")
+	}
 	if err := copyFile(wasmExecSrc, wasmExecDst); err != nil {
 		log.Fatal("copy wasm_exec.js:", err)
 	}
-	fmt.Println("Copied wasm_exec.js")
+	fmt.Println("Copied wasm_exec.js from", wasmExecSrc)
 
 	// 7. Inject wasm_exec.js into index.html
 	indexPath := filepath.Join(distDir, "index.html")

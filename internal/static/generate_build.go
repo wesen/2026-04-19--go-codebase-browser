@@ -78,10 +78,17 @@ func main() {
 	fmt.Printf("Built file xref index: %d files\n", len(fileXrefIdx))
 
 	// 9. Assemble precomputed data
+	// Include raw index JSON so the WASM can serve /api/index responses
+	rawIndex, err := os.ReadFile(idxPath)
+	if err != nil {
+		log.Fatal("read raw index:", err)
+	}
+
 	precomputed := map[string]interface{}{
 		"version":       "1",
 		"module":        loaded.Index.Module,
 		"generatedAt":   loaded.Index.GeneratedAt,
+		"indexJSON":     json.RawMessage(rawIndex),
 		"searchIndex":   searchIdx,
 		"xrefIndex":     xrefIdx,
 		"fileXrefIndex": fileXrefIdx,

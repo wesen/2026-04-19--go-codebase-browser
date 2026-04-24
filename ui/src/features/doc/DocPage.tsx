@@ -1,7 +1,7 @@
 // React namespace provided by jsx: react-jsx
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useGetDocQuery } from '../../api/docApi';
 import { DocSnippet } from './DocSnippet';
 
@@ -72,7 +72,7 @@ export function DocPage() {
         ),
       )}
       <footer data-part="symbol-doc" style={{ marginTop: 32, fontSize: 12 }}>
-        Resolved {data.snippets.length} snippet(s) from the live index.
+        Resolved {(data.snippets ?? []).length} snippet(s) from the live index.
       </footer>
     </article>
   );
@@ -85,9 +85,9 @@ export function DocList() {
     <ul data-part="tree-nav">
       {data.map((d) => (
         <li key={d.slug}>
-          <a data-part="tree-node" href={`/doc/${encodeURIComponent(d.slug)}`}>
+          <Link data-part="tree-node" to={`/doc/${encodeURIComponent(d.slug)}`}>
             {d.title}
-          </a>
+          </Link>
         </li>
       ))}
     </ul>
