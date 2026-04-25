@@ -32,8 +32,27 @@ export const docApi = createApi({
   baseQuery: wasmBaseQuery,
   keepUnusedDataFor: 3600,
   endpoints: (b) => ({
-    listDocs: b.query<PageMeta[], void>({ query: () => 'docPages' }),
-    getDoc: b.query<DocPage, string>({ query: (slug) => `docPage:${slug}` }),
+    listDocs: b.query<PageMeta[], void>({
+      queryFn: async (_arg, api, extraOptions) => {
+        // In server-backed mode, prefer the live /api/doc endpoint so newly
+        // added markdown pages are visible without regenerating the static
+        // WASM precomputed bundle. Fall back to WASM for static deployments.
+        try {
+          const resp = await fetch('/api/doc');
+          if (resp.ok) return { data: await resp.json() };
+        } catch {}
+        return wasmBaseQuery('docPages', api as any, extraOptions as any) as any;
+      },
+    }),
+    getDoc: b.query<DocPage, string>({
+      queryFn: async (slug, api, extraOptions) => {
+        try {
+          const resp = await fetch(`/api/doc/${encodeURIComponent(slug)}`);
+          if (resp.ok) return { data: await resp.json() };
+        } catch {}
+        return wasmBaseQuery(`docPage:${slug}`, api as any, extraOptions as any) as any;
+      },
+    }),
   }),
 });
 
