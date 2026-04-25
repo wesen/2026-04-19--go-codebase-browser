@@ -7,15 +7,15 @@ import (
 
 // BodyDiffResult holds the result of a per-symbol body diff.
 type BodyDiffResult struct {
-	SymbolID    string
-	Name        string
-	OldCommit   string
-	NewCommit   string
-	OldBody     string
-	NewBody     string
-	UnifiedDiff string
-	OldRange    string
-	NewRange    string
+	SymbolID    string `json:"symbolId"`
+	Name        string `json:"name"`
+	OldCommit   string `json:"oldCommit"`
+	NewCommit   string `json:"newCommit"`
+	OldBody     string `json:"oldBody"`
+	NewBody     string `json:"newBody"`
+	UnifiedDiff string `json:"unifiedDiff"`
+	OldRange    string `json:"oldRange"`
+	NewRange    string `json:"newRange"`
 }
 
 // DiffSymbolBody returns the body diff of a symbol between two commits.
