@@ -507,6 +507,7 @@ function SymbolBodyDiffView({ from, to, symbolId }: { from: string; to: string; 
 
       {data.unifiedDiff ? (
         <pre
+          data-role="diff"
           style={{
             whiteSpace: 'pre-wrap',
             fontSize: 13,
@@ -520,15 +521,16 @@ function SymbolBodyDiffView({ from, to, symbolId }: { from: string; to: string; 
             overflow: 'auto',
           }}
         >
-          {data.unifiedDiff.split('\n').map((line: string, i: number) => {
-            if (line.startsWith('- ')) {
-              return <div key={i} style={{ background: 'rgba(244, 67, 54, 0.12)', color: '#c62828' }}>{line}</div>;
-            }
-            if (line.startsWith('+ ')) {
-              return <div key={i} style={{ background: 'rgba(76, 175, 80, 0.12)', color: '#2e7d32' }}>{line}</div>;
-            }
-            return <div key={i} style={{ color: 'var(--cb-color-muted)' }}>{line}</div>;
-          })}
+          <code>
+            {data.unifiedDiff.split('\n').map((line: string, i: number) => {
+              const style = line.startsWith('- ')
+                ? { background: 'rgba(244, 67, 54, 0.16)', color: '#c62828', display: 'block', padding: '0 4px' }
+                : line.startsWith('+ ')
+                  ? { background: 'rgba(76, 175, 80, 0.16)', color: '#2e7d32', display: 'block', padding: '0 4px' }
+                  : { color: 'var(--cb-color-muted)', display: 'block', padding: '0 4px' };
+              return <span key={i} style={style}>{line || ' '}</span>;
+            })}
+          </code>
         </pre>
       ) : data.oldBody === data.newBody ? (
         <div style={{ padding: 16, color: 'var(--cb-color-muted)' }}>No body changes between these commits.</div>

@@ -131,3 +131,12 @@ Slice 4 demo page added at /#/doc/08-slice4-quick-wins-demo.
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/ChangedFilesWidget.tsx — Changed files widget
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/DiffStatsWidget.tsx — Diff stats widget
 
+
+## 2026-04-25
+
+Fixed symbol history body diff colouring by replacing invalid div-inside-pre rendering with pre/code/span block lines, matching the Slice 1 diff widget style. Validated with Playwright computed styles for added/removed lines.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/history/HistoryPage.tsx — Body diff now uses pre/code/span with coloured block lines
+

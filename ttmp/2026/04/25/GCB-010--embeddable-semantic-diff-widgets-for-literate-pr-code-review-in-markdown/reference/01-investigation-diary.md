@@ -722,3 +722,37 @@ Playwright validation:
 
 - Validate `/#/doc/08-slice4-quick-wins-demo`.
 - Review `DocPage.tsx` change carefully: non-symbol widgets now hydrate, so widget components must handle empty `sym` where appropriate.
+
+## Step 13: Fix body diff colouring on symbol history page
+
+The user reported that the body diff on the symbol history page was not coloured. The existing implementation rendered `<div>` elements directly inside a `<pre>`, which is invalid/fragile markup and did not reliably apply visible line styling. Slice 1's inline diff widget already used the safer structure (`<pre><code><span style=display:block>`), so I ported that pattern to the history page.
+
+### What I did
+
+- Updated `ui/src/features/history/HistoryPage.tsx` in `SymbolBodyDiffView`:
+  - Added `data-role="diff"` to the diff `<pre>`.
+  - Wrapped diff lines in a `<code>` element.
+  - Rendered each line as a block `<span>` instead of a `<div>`.
+  - Increased red/green background opacity slightly and added horizontal padding.
+
+### Validation
+
+Commands run:
+
+```bash
+pnpm -C ui run typecheck
+pnpm -C ui build
+go build -tags embed -o codebase-browser ./cmd/codebase-browser/
+```
+
+Playwright validation:
+
+- Loaded `/#/history?symbol=sym:...Server.handleSnippet`
+- Verified `pre[data-role="diff"]` exists
+- Verified added lines have `rgba(76, 175, 80, 0.16)` background and green text
+- Verified removed lines have `rgba(244, 67, 54, 0.16)` background and red text
+- Console errors: 0
+
+### What worked
+
+- Reusing the Slice 1 rendering structure fixed the issue and makes diff rendering more consistent between doc widgets and the history page.
