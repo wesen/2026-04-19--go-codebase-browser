@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useGetSymbolQuery } from '../../api/indexApi';
 import { ExpandableSymbol } from '../symbol/ExpandableSymbol';
 import { XrefPanel } from '../symbol/XrefPanel';
+import { Code } from '../../packages/ui/src/Code';
 
 /**
  * useGetSnippetFromCommit fetches a symbol's snippet at a specific commit
@@ -70,16 +71,19 @@ export interface DocSnippetProps {
   commit?: string;
 }
 
-export function DocSnippet({ sym, directive, commit }: DocSnippetProps) {
-  if (directive === 'codebase-signature') return <DocSignature sym={sym} commit={commit} />;
+export function DocSnippet({ sym, directive, lang, commit }: DocSnippetProps) {
+  if (directive === 'codebase-signature') return <DocSignature sym={sym} commit={commit} language={lang} />;
   if (directive === 'codebase-doc') return <DocGodoc sym={sym} commit={commit} />;
-  return <DocFullSnippet sym={sym} commit={commit} />;
+  return <DocFullSnippet sym={sym} commit={commit} language={lang} />;
 }
 
-function DocSignature({ sym, commit }: { sym: string; commit?: string }) {
+function DocSignature({ sym, commit, language }: { sym: string; commit?: string; language?: string }) {
   const { data } = useGetSymbolQuery(sym);
   const snippet = useGetSnippetFromCommit(sym, 'signature', commit);
   const display = commit ? (snippet ?? data?.signature ?? data?.name ?? sym) : (data?.signature ?? data?.name ?? sym);
+  if (commit) {
+    return <Code text={display} language={language || 'go'} />;
+  }
   return (
     <pre data-part="code-block" data-role="signature">
       <Link to={`/symbol/${encodeURIComponent(sym)}`} data-role="xref">
@@ -106,7 +110,7 @@ function DocGodoc({ sym, commit: _commit }: { sym: string; commit?: string }) {
 // on /symbol/{id} — plus a show/hide toggle so long snippets can collapse
 // once they've been skimmed, and a <details> section for digging into
 // callers and callees without leaving the doc page.
-function DocFullSnippet({ sym, commit }: { sym: string; commit?: string }) {
+function DocFullSnippet({ sym, commit, language }: { sym: string; commit?: string; language?: string }) {
   const { data: symbol } = useGetSymbolQuery(sym);
   const commitSnippet = useGetSnippetFromCommit(sym, 'declaration', commit);
 
@@ -134,9 +138,7 @@ function DocFullSnippet({ sym, commit }: { sym: string; commit?: string }) {
         <div style={{ fontSize: 12, color: 'var(--cb-color-muted)', marginBottom: 8 }}>
           at commit <code>{commit.slice(0, 7)}</code>
         </div>
-        <pre data-part="code-block">
-          <code>{commitSnippet}</code>
-        </pre>
+        <Code text={commitSnippet} language={language || symbol?.language || 'go'} />
       </section>
     );
   }
