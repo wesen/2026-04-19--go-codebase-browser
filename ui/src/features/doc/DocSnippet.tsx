@@ -11,6 +11,7 @@ import { ImpactInlineWidget } from './widgets/ImpactInlineWidget';
 import { AnnotationWidget } from './widgets/AnnotationWidget';
 import { ChangedFilesWidget } from './widgets/ChangedFilesWidget';
 import { DiffStatsWidget } from './widgets/DiffStatsWidget';
+import { CommitWalkWidget } from './widgets/CommitWalkWidget';
 
 /**
  * useGetSnippetFromCommit fetches a symbol's snippet at a specific commit
@@ -114,6 +115,9 @@ export function DocSnippet({ sym, directive, lang, commit, params }: DocSnippetP
         note={params?.note}
       />
     );
+  }
+  if (directive === 'codebase-commit-walk') {
+    return <CommitWalkWidget title={params?.title} stepsJSON={params?.steps} />;
   }
   if (directive === 'codebase-signature') return <DocSignature sym={sym} commit={commit} language={lang} />;
   if (directive === 'codebase-doc') return <DocGodoc sym={sym} commit={commit} />;

@@ -116,8 +116,13 @@ func preprocess(src []byte, loaded *browser.Loaded, sourceFS fs.FS) ([]byte, []S
 		for j < len(lines) && !strings.HasPrefix(lines[j], fence) {
 			j++
 		}
-		// Resolve the directive, ignoring the (empty/noise) body between fences.
-		ref, err := resolveDirective(info, loaded, sourceFS)
+		// Resolve the directive. Most directives ignore the fence body, but richer
+		// widgets such as codebase-commit-walk use it as a small line-oriented DSL.
+		body := []string(nil)
+		if j <= len(lines) {
+			body = lines[i+1 : j]
+		}
+		ref, err := resolveDirective(info, body, loaded, sourceFS)
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("line %d: %s", i+1, err))
 			// Emit a visible marker so authors see the error in the rendered page.
@@ -181,8 +186,8 @@ func stubHTML(ref *SnippetRef) string {
 	)
 }
 
-func resolveDirective(info string, loaded *browser.Loaded, sourceFS fs.FS) (*SnippetRef, error) {
-	parts := strings.Fields(info)
+func resolveDirective(info string, body []string, loaded *browser.Loaded, sourceFS fs.FS) (*SnippetRef, error) {
+	parts := splitFields(info)
 	directive := parts[0]
 	params := map[string]string{}
 	for _, p := range parts[1:] {
@@ -309,6 +314,27 @@ func resolveDirective(info string, loaded *browser.Loaded, sourceFS fs.FS) (*Sni
 		ref.Text = fmt.Sprintf("Annotated snippet for %s", sym.ID)
 		return ref, nil
 
+	case "codebase-commit-walk":
+		steps, err := parseCommitWalkSteps(body, loaded)
+		if err != nil {
+			return nil, err
+		}
+		if len(steps) == 0 {
+			return nil, errors.New("codebase-commit-walk requires at least one step line")
+		}
+		stepsJSON, err := json.Marshal(steps)
+		if err != nil {
+			return nil, fmt.Errorf("marshal commit walk: %w", err)
+		}
+		ref.Kind = "commit-walk"
+		ref.Language = "text"
+		ref.Params = map[string]string{"steps": string(stepsJSON)}
+		if title := params["title"]; title != "" {
+			ref.Params["title"] = title
+		}
+		ref.Text = fmt.Sprintf("Commit walk with %d step(s)", len(steps))
+		return ref, nil
+
 	case "codebase-snippet", "codebase-signature", "codebase-doc":
 		symRef := params["sym"]
 		if symRef == "" {
@@ -387,6 +413,116 @@ func resolveDirective(info string, loaded *browser.Loaded, sourceFS fs.FS) (*Sni
 		return ref, nil
 	}
 	return nil, fmt.Errorf("unknown directive %q", directive)
+}
+
+type commitWalkStep struct {
+	Kind     string            `json:"kind"`
+	Title    string            `json:"title,omitempty"`
+	Body     string            `json:"body,omitempty"`
+	SymbolID string            `json:"symbolId,omitempty"`
+	Language string            `json:"language,omitempty"`
+	Params   map[string]string `json:"params,omitempty"`
+}
+
+func parseCommitWalkSteps(lines []string, loaded *browser.Loaded) ([]commitWalkStep, error) {
+	var steps []commitWalkStep
+	for i, raw := range lines {
+		line := strings.TrimSpace(raw)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := splitFields(line)
+		if len(parts) == 0 {
+			continue
+		}
+		if parts[0] != "step" {
+			return nil, fmt.Errorf("commit walk line %d: expected step, got %q", i+1, parts[0])
+		}
+		params := map[string]string{}
+		for _, p := range parts[1:] {
+			kv := strings.SplitN(p, "=", 2)
+			if len(kv) == 2 {
+				params[kv[0]] = kv[1]
+			}
+		}
+		kind := params["kind"]
+		if kind == "" {
+			return nil, fmt.Errorf("commit walk line %d: missing kind=", i+1)
+		}
+		step := commitWalkStep{
+			Kind:   kind,
+			Title:  params["title"],
+			Body:   params["body"],
+			Params: map[string]string{},
+		}
+		delete(params, "kind")
+		delete(params, "title")
+		delete(params, "body")
+		if symRef := params["sym"]; symRef != "" {
+			sym, err := resolveSymbol(symRef, loaded)
+			if err != nil {
+				return nil, fmt.Errorf("commit walk line %d: %w", i+1, err)
+			}
+			step.SymbolID = sym.ID
+			step.Language = sym.Language
+			delete(params, "sym")
+		}
+		if step.Language == "" {
+			step.Language = "go"
+		}
+		for k, v := range params {
+			step.Params[k] = v
+		}
+		steps = append(steps, step)
+	}
+	return steps, nil
+}
+
+func splitFields(s string) []string {
+	var fields []string
+	var b strings.Builder
+	quote := rune(0)
+	escaped := false
+	flush := func() {
+		if b.Len() == 0 {
+			return
+		}
+		fields = append(fields, b.String())
+		b.Reset()
+	}
+	for _, r := range s {
+		if escaped {
+			b.WriteRune(r)
+			escaped = false
+			continue
+		}
+		if r == '\\' {
+			escaped = true
+			continue
+		}
+		if quote != 0 {
+			if r == quote {
+				quote = 0
+			} else {
+				b.WriteRune(r)
+			}
+			continue
+		}
+		if r == '\'' || r == '"' {
+			quote = r
+			continue
+		}
+		if r == ' ' || r == '\t' {
+			flush()
+			continue
+		}
+		b.WriteRune(r)
+	}
+	if escaped {
+		b.WriteRune('\\')
+	}
+	flush()
+	return fields
 }
 
 // resolveSymbol accepts either a full "sym:..." ID or a short form
