@@ -12,6 +12,9 @@ func Register(root *cobra.Command) error {
 
 	cmd.AddCommand(newScanCmd())
 	cmd.AddCommand(newListCmd())
+	cmd.AddCommand(newDiffCmd())
+	cmd.AddCommand(newSymbolDiffCmd())
+	cmd.AddCommand(newSymbolHistoryCmd())
 
 	root.AddCommand(cmd)
 	return nil

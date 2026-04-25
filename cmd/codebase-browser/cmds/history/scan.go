@@ -8,18 +8,17 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/wesen/codebase-browser/internal/gitutil"
 	"github.com/wesen/codebase-browser/internal/history"
 )
 
 func newScanCmd() *cobra.Command {
 	var (
-		dbPath       string
-		rangeSpec    string
-		branch       string
-		incremental  bool
-		worktrees    bool
-		fileFilters  []string
+		dbPath      string
+		rangeSpec   string
+		branch      string
+		incremental bool
+		worktrees   bool
+		fileFilters []string
 	)
 
 	cmd := &cobra.Command{
@@ -119,19 +118,6 @@ func openOrCreateStore(dbPath string) (*history.Store, error) {
 		return history.Create(dbPath)
 	}
 	return history.Open(dbPath)
-}
-
-func findRepoRoot() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	// Validate it's a git repo by resolving HEAD.
-	_, err = gitutil.ResolveRef(context.Background(), dir, "HEAD")
-	if err != nil {
-		return "", fmt.Errorf("%s is not a git repo: %w", dir, err)
-	}
-	return dir, nil
 }
 
 func defaultPatterns() []string {
