@@ -32,6 +32,7 @@ type conceptView struct {
 	Params     []conceptParamView `json:"params,omitempty"`
 	SourceRoot string             `json:"sourceRoot,omitempty"`
 	SourcePath string             `json:"sourcePath,omitempty"`
+	Query      string             `json:"query,omitempty"`
 }
 
 type executeConceptRequest struct {
@@ -111,8 +112,15 @@ func (s *Server) handleConceptExecute(w http.ResponseWriter, r *http.Request, co
 		http.Error(w, "concept not found", http.StatusNotFound)
 		return
 	}
-	if s.SQLite == nil {
-		http.Error(w, "sqlite query backend unavailable", http.StatusServiceUnavailable)
+
+	// Pick the right database: history/ concepts use the history DB.
+	var db *sql.DB
+	if strings.HasPrefix(conceptPath, "history/") && s.History != nil {
+		db = s.History.DB()
+	} else if s.SQLite != nil {
+		db = s.SQLite.DB()
+	} else {
+		http.Error(w, "query backend unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	var req executeConceptRequest
@@ -138,7 +146,7 @@ func (s *Server) handleConceptExecute(w http.ResponseWriter, r *http.Request, co
 		writeJSON(w, resp)
 		return
 	}
-	columns, rows, err := runQueryRows(r.Context(), s.SQLite.DB(), rendered)
+	columns, rows, err := runQueryRows(r.Context(), db, rendered)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("execute query: %v", err), http.StatusBadRequest)
 		return
@@ -180,6 +188,7 @@ func conceptToView(concept *concepts.Concept) conceptView {
 		Params:     params,
 		SourceRoot: concept.SourceRoot,
 		SourcePath: concept.SourcePath,
+		Query:      concept.Query,
 	}
 }
 

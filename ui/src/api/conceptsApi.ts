@@ -20,6 +20,7 @@ export interface QueryConcept {
   params: QueryConceptParam[];
   sourceRoot?: string;
   sourcePath?: string;
+  query?: string;
 }
 
 export interface ExecuteQueryConceptRequest {

@@ -1,4 +1,11 @@
+import 'prismjs/themes/prism.min.css';
+import 'prismjs';
+import 'prismjs/components/prism-sql';
 import React from 'react';
+
+/* eslint-disable */
+declare const Prism: any;
+
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   useExecuteQueryConceptMutation,
@@ -7,7 +14,6 @@ import {
   type QueryConcept,
   type QueryConceptParam,
 } from '../../api/conceptsApi';
-
 export function QueryConceptsPage() {
   const params = useParams();
   const selectedPath = params['*'] ?? '';
@@ -119,6 +125,7 @@ function QueryConceptDetail({ concept }: { concept: QueryConcept }) {
   const navigate = useNavigate();
   const searchParams = React.useMemo(() => new URLSearchParams(location.search), [location.search]);
   const [result, setResult] = React.useState<ExecuteQueryConceptResponse | null>(null);
+  const [sourceOpen, setSourceOpen] = React.useState(false);
   const [executeQueryConcept, executeState] = useExecuteQueryConceptMutation();
   const values = React.useMemo(() => valuesFromSearchParams(concept, searchParams), [concept, searchParams]);
   const paramsKey = searchParams.toString();
@@ -161,6 +168,44 @@ function QueryConceptDetail({ concept }: { concept: QueryConcept }) {
           </div>
         )}
       </section>
+
+      {concept.query && (
+        <section style={{ border: '1px solid var(--cb-color-border)', borderRadius: 12, padding: 18 }}>
+          <button
+            onClick={() => setSourceOpen(!sourceOpen)}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', padding: 0 }}
+          >
+            <h3 style={{ margin: 0 }}>Concept source</h3>
+            <span style={{ fontSize: 12, color: 'var(--cb-color-muted)' }}>{sourceOpen ? '▼ collapse' : '▶ expand'}</span>
+          </button>
+          {sourceOpen && (
+            <div style={{ marginTop: 12 }}>
+              {concept.query.startsWith('/*') ? (
+                <>
+                  <pre
+                    style={{
+                      whiteSpace: 'pre-wrap',
+                      overflowX: 'auto',
+                      padding: 12,
+                      border: '1px solid var(--cb-color-border)',
+                      borderRadius: 8,
+                      margin: '0 0 8px',
+                      fontSize: 12,
+                      color: 'var(--cb-color-muted)',
+                      background: 'var(--cb-color-surface, #f8f8f8)',
+                    }}
+                  >
+                    {concept.query.slice(0, concept.query.indexOf('*/') + 2)}
+                  </pre>
+                  <SQLHighlight code={concept.query.slice(concept.query.indexOf('*/') + 2).trim()} />
+                </>
+              ) : (
+                <SQLHighlight code={concept.query} />
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       <section style={{ border: '1px solid var(--cb-color-border)', borderRadius: 12, padding: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
@@ -220,18 +265,7 @@ function QueryConceptDetail({ concept }: { concept: QueryConcept }) {
         <>
           <section style={{ border: '1px solid var(--cb-color-border)', borderRadius: 12, padding: 18 }}>
             <h3 style={{ marginTop: 0, marginBottom: 8 }}>Rendered SQL</h3>
-            <pre
-              style={{
-                whiteSpace: 'pre-wrap',
-                overflowX: 'auto',
-                padding: 12,
-                border: '1px solid var(--cb-color-border)',
-                borderRadius: 8,
-                margin: 0,
-              }}
-            >
-              {result.renderedSql}
-            </pre>
+            <SQLHighlight code={result.renderedSql} />
           </section>
 
           <section style={{ border: '1px solid var(--cb-color-border)', borderRadius: 12, padding: 18 }}>
@@ -507,4 +541,34 @@ function formatCell(value: unknown): string {
     return JSON.stringify(value);
   }
   return String(value);
+}
+
+function SQLHighlight({ code, language = 'sql' }: { code: string; language?: string }) {
+  const highlighted = React.useMemo(() => {
+    // Prism is loaded globally via the theme CSS import side-effect
+    // and the language component loaded in the module scope below
+    const grammar = Prism?.languages?.[language];
+    if (grammar) {
+      return Prism.highlight(code, grammar, language);
+    }
+    return code;
+  }, [code, language]);
+
+  return (
+    <pre
+      className="language-sql"
+      style={{
+        whiteSpace: 'pre-wrap',
+        overflowX: 'auto',
+        padding: 12,
+        border: '1px solid var(--cb-color-border)',
+        borderRadius: 8,
+        margin: 0,
+        background: 'var(--cb-color-surface, #f8f8f8)',
+        lineHeight: 1.5,
+        fontSize: 13,
+      }}
+      dangerouslySetInnerHTML={{ __html: highlighted }}
+    />
+  );
 }
