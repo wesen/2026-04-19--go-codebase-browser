@@ -22,25 +22,26 @@ export function DiffsUnifiedDiffRenderer({
   maxHeight,
 }: DiffsUnifiedDiffRendererProps) {
   const [diffStyle, setDiffStyle] = React.useState<'unified' | 'split'>('unified');
+  const shikiLanguage = normalizeDiffLanguage(language);
   const oldFile = React.useMemo<FileContents>(() => ({
     name: oldLabel ? `${name} (${oldLabel})` : name,
     contents: oldText,
-    lang: language,
+    lang: shikiLanguage,
     cacheKey: oldLabel ? `${name}:${oldLabel}` : undefined,
-  }), [language, name, oldLabel, oldText]);
+  }), [name, oldLabel, oldText, shikiLanguage]);
 
   const newFile = React.useMemo<FileContents>(() => ({
     name: newLabel ? `${name} (${newLabel})` : name,
     contents: newText,
-    lang: language,
+    lang: shikiLanguage,
     cacheKey: newLabel ? `${name}:${newLabel}` : undefined,
-  }), [language, name, newLabel, newText]);
+  }), [name, newLabel, newText, shikiLanguage]);
 
   return (
     <div data-role="diffs-unified-diff">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, color: 'var(--cb-color-muted)' }}>
-          Rendered with Diffs · word-level changes enabled
+          Rendered with Diffs · {shikiLanguage} · word-level changes enabled
         </span>
         <div role="group" aria-label="Diff layout" style={{ display: 'inline-flex', border: '1px solid var(--cb-color-border)', borderRadius: 999, overflow: 'hidden' }}>
           <button
@@ -78,6 +79,17 @@ export function DiffsUnifiedDiffRenderer({
       </div>
     </div>
   );
+}
+
+function normalizeDiffLanguage(language: string): 'go' | 'typescript' | 'tsx' | 'text' {
+  const normalized = language.toLowerCase();
+  if (normalized === 'go' || normalized === 'golang') return 'go';
+  if (normalized === 'ts' || normalized === 'typescript') return 'typescript';
+  if (normalized === 'tsx') return 'tsx';
+  // Keep Diffs/Shiki scoped to the languages codebase-browser currently needs.
+  // Unknown or unsupported languages still render safely as plain text instead
+  // of triggering extra Shiki language chunks.
+  return 'text';
 }
 
 function toggleButtonStyle(active: boolean): React.CSSProperties {

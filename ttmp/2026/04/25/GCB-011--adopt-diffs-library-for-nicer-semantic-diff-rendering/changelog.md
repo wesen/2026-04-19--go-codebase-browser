@@ -39,3 +39,13 @@ Phase 4 polish: lazy-loaded the Diffs renderer so @pierre/diffs/Shiki move out o
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/diff/DiffsUnifiedDiff.tsx — Lightweight lazy-loading shell and fallback
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/diff/DiffsUnifiedDiffRenderer.tsx — Lazy-loaded @pierre/diffs renderer
 
+
+## 2026-04-25
+
+Constrained runtime Diffs/Shiki language requests to Go, TypeScript, TSX, or text via normalizeDiffLanguage; documented that Vite still emits Shiki's bundled language chunks because upstream exposes a dynamic import map.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/04/25/GCB-011--adopt-diffs-library-for-nicer-semantic-diff-rendering/reference/01-investigation-diary.md — Documents Shiki language-chunk findings
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/diff/DiffsUnifiedDiffRenderer.tsx — Normalizes supported diff languages to go/typescript/tsx/text
+

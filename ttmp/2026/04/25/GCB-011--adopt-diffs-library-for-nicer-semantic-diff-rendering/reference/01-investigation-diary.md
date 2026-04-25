@@ -324,3 +324,61 @@ Playwright validation:
   - 5 highlighted rows;
   - review-note text is visible.
 - Browser console errors: 0.
+
+## Step 6: Scope Diffs highlighting to Go/TypeScript where possible
+
+The user pointed out that we only need Go and TypeScript. I investigated whether `@pierre/diffs` exposes a direct supported option to restrict bundled Shiki languages globally.
+
+### Findings
+
+- Diffs eventually calls `getHighlighterOptions(lang, options)`, which passes exactly the current file language into Shiki as `langs: [lang ?? "text"]`.
+- Shiki exposes `bundledLanguages` as a dynamic import map containing all bundled languages. Vite sees that map and emits a chunk for every possible language even though runtime only imports the requested language.
+- Because `@pierre/diffs` imports Shiki directly, deeply replacing that import map with only Go/TS would require a custom Shiki alias/build or patching the package internals. That is possible future work, but too risky for this pass because Diffs also imports other Shiki exports (`createHighlighter`, themes, token style helpers, etc.).
+
+### Change made
+
+I added an explicit language gate in `DiffsUnifiedDiffRenderer`:
+
+```ts
+normalizeDiffLanguage(language): 'go' | 'typescript' | 'tsx' | 'text'
+```
+
+Supported syntax-highlighting languages are now:
+
+- `go` / `golang` → `go`
+- `ts` / `typescript` → `typescript`
+- `tsx` → `tsx`
+- anything else → `text`
+
+This means codebase-browser will not accidentally ask Diffs/Shiki to load arbitrary language chunks at runtime. Unknown languages render safely as text.
+
+I also updated the widget label to show the actual language used:
+
+```text
+Rendered with Diffs · go · word-level changes enabled
+```
+
+### Remaining limitation
+
+The build output still lists many Shiki language chunks because of Shiki's bundled-language dynamic import map. The important practical improvement is that the Diffs renderer is lazy-loaded and runtime language requests are now constrained to Go/TS/TSX/text.
+
+A future deeper optimization would be to build or alias a custom Shiki bundle for only Go/TS/TSX and the two selected themes. That should be treated as a separate investigation because it may require patching/aliasing upstream package imports.
+
+### Validation
+
+Ran:
+
+```bash
+pnpm -C ui run typecheck
+pnpm -C ui build
+go build -tags embed -o codebase-browser ./cmd/codebase-browser/
+go test ./internal/docs ./internal/server
+```
+
+Restarted the tmux server and loaded `/#/doc/05-slice1-diff-demo` with Playwright. Verified:
+
+- 2 Diffs wrappers render;
+- no fallback renderer;
+- Diffs Shadow DOM header present;
+- label shows `Rendered with Diffs · go · word-level changes enabled`;
+- console errors: 0.
