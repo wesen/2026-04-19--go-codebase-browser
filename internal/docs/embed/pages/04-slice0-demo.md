@@ -10,13 +10,13 @@ without leaving the doc page.
 The `stubHTML` function in `internal/docs/renderer.go` was modified in this
 PR to support the `data-commit` attribute. Here it is at the old commit:
 
-```codebase-snippet sym=github.com/wesen/codebase-browser/internal/docs.func.stubHTML commit=c913257
+```codebase-snippet sym=sym:github.com/wesen/codebase-browser/internal/docs.func.stubHTML commit=c9132579687ca9b334ff81f9161ba058bffc52c4
 ```
 
 And here it is at the latest commit (HEAD), where it gained the `data-commit`
 attribute support:
 
-```codebase-snippet sym=github.com/wesen/codebase-browser/internal/docs.func.stubHTML commit=e457069
+```codebase-snippet sym=sym:github.com/wesen/codebase-browser/internal/docs.func.stubHTML commit=e457069b75f87ddc0a07a58d5608e96334a7fcf0
 ```
 
 ## `handleSnippet` — before and after
@@ -24,24 +24,24 @@ attribute support:
 The server-side snippet handler was also modified. Here's the signature at
 the old commit:
 
-```codebase-signature sym=github.com/wesen/codebase-browser/internal/server.func.handleSnippet commit=c913257
+```codebase-signature sym=sym:github.com/wesen/codebase-browser/internal/server.method.Server.handleSnippet commit=c9132579687ca9b334ff81f9161ba058bffc52c4
 ```
 
 And the signature at HEAD:
 
-```codebase-signature sym=github.com/wesen/codebase-browser/internal/server.func.handleSnippet commit=e457069
+```codebase-signature sym=sym:github.com/wesen/codebase-browser/internal/server.method.Server.handleSnippet commit=e457069b75f87ddc0a07a58d5608e96334a7fcf0
 ```
 
 The full function body at HEAD (showing the new `commit=` branch):
 
-```codebase-snippet sym=github.com/wesen/codebase-browser/internal/server.func.handleSnippet commit=e457069
+```codebase-snippet sym=sym:github.com/wesen/codebase-browser/internal/server.method.Server.handleSnippet commit=e457069b75f87ddc0a07a58d5608e96334a7fcf0
 ```
 
 ## `resolveDirective` — at the old commit
 
 For comparison, here's `resolveDirective` before the commit= changes:
 
-```codebase-snippet sym=github.com/wesen/codebase-browser/internal/docs.func.resolveDirective commit=c913257
+```codebase-snippet sym=sym:github.com/wesen/codebase-browser/internal/docs.func.resolveDirective commit=c9132579687ca9b334ff81f9161ba058bffc52c4
 ```
 
 ## How this works
