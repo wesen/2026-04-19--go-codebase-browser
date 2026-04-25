@@ -18,6 +18,7 @@ func newScanCmd() *cobra.Command {
 		branch      string
 		incremental bool
 		worktrees   bool
+		parallelism int
 		fileFilters []string
 	)
 
@@ -81,6 +82,7 @@ Examples:
 				Patterns:     defaultPatterns(),
 				IncludeTests: true,
 				Worktrees:    worktrees,
+				Parallelism:  parallelism,
 				OnProgress: func(done, total int, shortHash, message string) {
 					fmt.Fprintf(os.Stderr, "  [%d/%d] %s %s\n", done, total, shortHash, message)
 				},
@@ -108,6 +110,7 @@ Examples:
 	cmd.Flags().StringVar(&branch, "branch", "", "Branch name for metadata")
 	cmd.Flags().BoolVar(&incremental, "incremental", false, "Skip already-indexed commits")
 	cmd.Flags().BoolVar(&worktrees, "worktrees", false, "Use git worktrees for per-commit extraction")
+	cmd.Flags().IntVar(&parallelism, "parallelism", 1, "Max concurrent worktrees for parallel indexing")
 	cmd.Flags().StringArrayVar(&fileFilters, "filter", nil, "Only index commits touching these paths")
 
 	return cmd

@@ -97,7 +97,8 @@ SELECT
     COALESCE(b.sha256, '') AS new_sha
 FROM snapshot_files a
 FULL OUTER JOIN snapshot_files b ON a.id = b.id
-WHERE a.commit_hash = ? AND b.commit_hash = ?`, diff.OldHash, diff.NewHash)
+WHERE a.commit_hash = ? AND b.commit_hash = ?
+  AND (a.id IS NULL OR b.id IS NULL OR a.sha256 != b.sha256)`, diff.OldHash, diff.NewHash)
 	if err != nil {
 		return err
 	}
@@ -148,7 +149,10 @@ SELECT
     COALESCE(b.body_hash, '')
 FROM snapshot_symbols a
 FULL OUTER JOIN snapshot_symbols b ON a.id = b.id
-WHERE a.commit_hash = ? AND b.commit_hash = ?`, diff.OldHash, diff.NewHash)
+WHERE a.commit_hash = ? AND b.commit_hash = ?
+  AND (a.id IS NULL OR b.id IS NULL OR a.body_hash != b.body_hash
+       OR a.signature != b.signature
+       OR a.start_line != b.start_line OR a.end_line != b.end_line)`, diff.OldHash, diff.NewHash)
 	if err != nil {
 		return err
 	}

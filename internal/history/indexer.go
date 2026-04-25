@@ -17,6 +17,7 @@ type IndexOptions struct {
 	Patterns     []string // Go package patterns for extraction
 	IncludeTests bool
 	Worktrees    bool // if false, indexes in-process without worktrees (for testing)
+	Parallelism  int  // max concurrent worktrees (default 1)
 	OnProgress   func(done, total int, shortHash, message string)
 }
 

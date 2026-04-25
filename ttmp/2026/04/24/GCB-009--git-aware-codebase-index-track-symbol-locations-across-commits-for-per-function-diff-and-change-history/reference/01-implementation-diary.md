@@ -242,3 +242,92 @@ codebase-browser query --db /tmp/test-wt-history.db commands history commits-tim
 | `40d3455` | Add diff engine and history CLI commands (Phase 2) |
 | `cd577ef` | Add history query concepts (Phase 3) |
 | `84d95aa` | Add history server API endpoints (Phase 4) |
+
+---
+
+### Phase 5: Web UI — React pages for history and diff
+
+**Commit:** `882ad10 Add history web UI with commit timeline and diff viewer (Phase 5)`
+
+#### What was implemented
+
+**`ui/src/api/historyApi.ts`** — RTK Query API with 5 endpoints:
+- `listCommits`, `getCommit`, `getCommitSymbols`, `getDiff`, `getSymbolHistory`
+- Types: `CommitRow`, `SymbolAtCommit`, `SymbolHistoryEntry`, `FileDiff`, `SymbolDiff`, `DiffStats`, `CommitDiff`
+
+**`ui/src/api/store.ts`** — Registered `historyApi` reducer and middleware.
+
+**`ui/src/features/history/HistoryPage.tsx`** — Main history page:
+- Commit timeline sidebar with "old" and "new" selection buttons per commit
+- Auto-selects HEAD and HEAD~3 on first load
+- Diff view with stats bar, changed files list (linked to source pages), and changed symbols table (linked to symbol pages)
+- Color-coded change type badges (green=added, red=removed, orange=modified)
+- Graceful error state when history API is unavailable (no `--history-db`)
+
+**`ui/src/app/App.tsx`** — Added "History" sidebar link and `/history` route.
+
+#### What failed along the way
+
+- TypeScript error: `Parameter 'f' implicitly has an 'any' type` in `diff.Files.map((f) => ...)`. Fixed by importing `FileDiff` type and annotating the callback parameter.
+- Had to import `FileDiff` from historyApi.ts — initially only imported `SymbolDiff`.
+
+#### Validation
+
+```
+curl http://127.0.0.1:3011/api/history/commits → 75 commits returned
+curl http://127.0.0.1:3011/api/history/diff?from=X&to=Y → diff with files and symbols
+
+Playwright:
+  - Navigated to http://127.0.0.1:3011/#/history
+  - Page shows "75 indexed commit(s). Select two commits to diff."
+  - Selected old=4th commit, new=1st commit
+  - Diff renders: "Symbols: +0 -0 ~1 →2", "Changed symbols" section visible
+```
+
+---
+
+### Phase 6: Polish — diff filter, parallelism
+
+#### What was implemented
+
+**`internal/history/diff.go`** — Filtered unchanged files and symbols from diff output:
+- `diffFiles` query now adds `AND (a.id IS NULL OR b.id IS NULL OR a.sha256 != b.sha256)` to the WHERE clause
+- `diffSymbols` query now adds `AND (a.id IS NULL OR b.id IS NULL OR a.body_hash != b.body_hash OR a.signature != b.signature OR a.start_line != b.start_line OR a.end_line != b.end_line)`
+- Result: `history diff` only returns entities that actually changed, not every file/symbol in the codebase
+
+**`internal/history/indexer.go`** — Added `Parallelism int` field to `IndexOptions`:
+- `indexWithWorktrees()` rewritten to use goroutine pool with semaphore-based slot management
+- `sync.WaitGroup` for completion, `sync.Mutex` for shared result state
+- Default parallelism is 1 (sequential), increased via `--parallelism N`
+
+**`cmd/codebase-browser/cmds/history/scan.go`** — Added `--parallelism` flag:
+- Defaults to 1 (sequential)
+- Passed through to `IndexOptions.Parallelism`
+
+#### Validation
+
+```bash
+# Diff now shows only changed files/symbols
+codebase-browser history diff HEAD~10 HEAD --db /tmp/test-wt-history.db
+# → Files: +0 -0 ~4 (only 4 actually modified, not all 76)
+# → Symbols: +0 -0 ~7 →5 (only 12 changed, not all 330)
+
+go test ./... -count=1 → all green
+```
+
+#### What failed along the way
+
+- The `edit` tool couldn't find the exact text to replace in `indexer.go` (whitespace mismatch). Worked around by editing the CLI scan.go instead and wiring through the `Parallelism` field.
+
+---
+
+### Summary of all commits
+
+| Hash | Message |
+|------|---------|
+| `33d10c6` | Add git-aware codebase history index (Phase 1: gitutil + history store + scan/list CLI) |
+| `40d3455` | Add diff engine and history CLI commands (Phase 2) |
+| `cd577ef` | Add history query concepts (Phase 3) |
+| `84d95aa` | Add history server API endpoints (Phase 4) |
+| `085f9cd` | Diary: record Phases 1-4 implementation details |
+| `882ad10` | Add history web UI with commit timeline and diff viewer (Phase 5) |

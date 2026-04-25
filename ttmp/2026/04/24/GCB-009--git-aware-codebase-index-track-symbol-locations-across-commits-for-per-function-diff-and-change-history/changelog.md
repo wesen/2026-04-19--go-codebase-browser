@@ -1,6 +1,6 @@
 # GCB-009 Changelog
 
-## 2026-04-25 — Phases 1-4 complete, Phase 5 in progress
+## 2026-04-25 — Phases 1-6 complete
 
 ### Phase 1: Foundation — `33d10c6`
 - Added `internal/gitutil/` — git CLI wrapper (log, worktree, show)
@@ -27,8 +27,14 @@
 - Added `--history-db` flag to serve command
 - Added `writeJSONError` helper to api_index.go
 
-### Phase 5: Web UI (in progress)
-- Created `ui/src/api/historyApi.ts` — RTK Query API
-- Created `ui/src/features/history/HistoryPage.tsx` — commit timeline + diff viewer
-- Wired into store.ts and App.tsx
-- Not yet built/tested/committed
+### Phase 5: Web UI — `882ad10`
+- Created `ui/src/api/historyApi.ts` — RTK Query API with 5 endpoints
+- Created `ui/src/features/history/HistoryPage.tsx` — commit timeline with old/new diff selector
+- Registered in store.ts and App.tsx
+- Validated in Playwright: page loads, diff renders with symbol changes
+
+### Phase 6: Polish — (this commit)
+- Filtered unchanged files/symbols from diff output (was returning all 76 files, now only changed ones)
+- Added `--parallelism` flag to scan command for concurrent worktree indexing
+- `--incremental` already implemented in scanner.go
+- Updated diary, tasks, changelog

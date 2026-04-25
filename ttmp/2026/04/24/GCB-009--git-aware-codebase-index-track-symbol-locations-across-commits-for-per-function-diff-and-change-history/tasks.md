@@ -53,14 +53,15 @@
 - [x] 5.2 Create `ui/src/features/history/HistoryPage.tsx` — commit timeline with old/new diff selector
 - [ ] 5.3 Create `ui/src/features/history/SymbolDiffPage.tsx` — per-function diff viewer (deferred — HistoryPage covers the main use case)
 - [ ] 5.4 Add history links to existing package and symbol pages
-- [ ] 5.5 Build frontend, regenerate web assets
-- [ ] 5.6 Validate in browser with Playwright
-- [ ] 5.7 Commit Phase 5
+- [x] 5.5 Build frontend, regenerate web assets
+- [x] 5.6 Validate in browser with Playwright — history page loads, diff view shows "Symbols: +0 -0 ~1 →2", "Changed symbols" section visible
+- [x] 5.7 Commit Phase 5 — `882ad10 Add history web UI with commit timeline and diff viewer (Phase 5)`
 
-## Phase 6: Polish — parallelism, incremental, diary
+## Phase 6: Polish — diff filter, parallelism, diary
 
-- [ ] 6.1 Add `--parallelism` flag to scan command (goroutine pool)
-- [x] 6.2 Add `--incremental` flag (skip already-indexed commits) — already implemented in scanner.go
-- [ ] 6.3 Write implementation diary entries for each phase
-- [ ] 6.4 Update changelog and tasks
-- [ ] 6.5 Final commit
+- [x] 6.1 Filter unchanged files/symbols from diff output
+- [x] 6.2 Add `--parallelism` flag to scan command (goroutine pool)
+- [x] 6.3 Add `--incremental` flag (skip already-indexed commits) — already implemented in scanner.go
+- [ ] 6.4 Write implementation diary entries for Phases 5-6
+- [ ] 6.5 Update changelog and tasks
+- [ ] 6.6 Final commit
