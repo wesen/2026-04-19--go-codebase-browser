@@ -640,3 +640,23 @@ Playwright validation:
 ### What warrants a second pair of eyes
 
 - The copy at the top still says "5 indexed commit(s). Select two commits to diff." In symbol mode the instruction is slightly wrong; we should probably adjust the header copy in a later polish pass.
+
+## Step 11: Fix symbol-mode history header copy
+
+After hiding the redundant commit picker in `/#/history?symbol=...`, the top copy still said "Codebase history" and "Select two commits to diff", which no longer matched the focused symbol-history route. I updated the copy to be mode-aware.
+
+### What I did
+
+- `ui/src/features/history/HistoryPage.tsx`: added `symbolMode` derived from `initialSymbol`.
+- In symbol mode, the page now says:
+  - Heading: `Symbol history`
+  - Description: `<N> indexed commit(s). Review this symbol across commits.`
+- In normal history mode, existing copy remains unchanged.
+
+### Validation
+
+Ran frontend typecheck/build and rebuilt the embedded binary. Playwright loaded `/#/history?symbol=sym:...handleConceptDetail` and confirmed:
+
+- Heading: `Symbol history`
+- Copy: `5 indexed commit(s). Review this symbol across commits.`
+- Console errors: 0

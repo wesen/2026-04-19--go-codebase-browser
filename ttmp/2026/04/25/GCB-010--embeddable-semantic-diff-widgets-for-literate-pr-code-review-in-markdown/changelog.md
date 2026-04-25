@@ -100,3 +100,12 @@ Polished history deep links from impact rows: /history?symbol=... now hides the 
 
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/history/HistoryPage.tsx — Hides commit sidebar when initialSymbol query param is present
 
+
+## 2026-04-25
+
+Polished symbol-mode history header copy: /history?symbol=... now says Symbol history and Review this symbol across commits instead of Select two commits to diff.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/history/HistoryPage.tsx — Mode-aware history header copy
+

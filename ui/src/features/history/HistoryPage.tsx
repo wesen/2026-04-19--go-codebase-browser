@@ -35,11 +35,14 @@ export function HistoryPage() {
   }
 
   const rows = commits ?? [];
+  const symbolMode = initialSymbol !== '';
   return (
     <div>
-      <h1 style={{ marginTop: 0 }}>Codebase history</h1>
+      <h1 style={{ marginTop: 0 }}>{symbolMode ? 'Symbol history' : 'Codebase history'}</h1>
       <p style={{ color: 'var(--cb-color-muted)' }}>
-        {rows.length} indexed commit(s). Select two commits to diff.
+        {symbolMode
+          ? `${rows.length} indexed commit(s). Review this symbol across commits.`
+          : `${rows.length} indexed commit(s). Select two commits to diff.`}
       </p>
       {rows.length === 0 ? (
         <div data-part="empty">No commits indexed yet.</div>
