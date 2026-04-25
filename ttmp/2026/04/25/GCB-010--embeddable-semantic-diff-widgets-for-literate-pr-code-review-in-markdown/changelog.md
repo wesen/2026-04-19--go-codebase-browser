@@ -1,0 +1,50 @@
+# Changelog
+
+## 2026-04-25
+
+- Initial workspace created
+
+
+## 2026-04-25
+
+Created ticket and wrote full design doc (67KB, 10 sections) covering system architecture, widget catalog with ASCII wireframes, API design, implementation plan, and risk analysis.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/04/25/GCB-010--embeddable-semantic-diff-widgets-for-literate-pr-code-review-in-markdown/design-doc/01-embeddable-semantic-diff-widgets-design-affordances-and-architecture-for-literate-pr-review.md — Primary design document
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/04/25/GCB-010--embeddable-semantic-diff-widgets-for-literate-pr-code-review-in-markdown/reference/01-investigation-diary.md — Investigation diary
+
+
+## 2026-04-25
+
+Uploaded design doc + diary bundle to reMarkable at /ai/2026/04/25/GCB-010
+
+
+## 2026-04-25
+
+Added Section 11 (incremental vertical slices) to design doc. Rewrote tasks.md to match 6-slice plan (Slice 0: commit= plumbing, Slice 1: diff widget, Slice 2: history, Slice 3: impact+BFS, Slice 4: quick wins, Slice 5: commit walk). Each slice is a complete demonstrable feature with validation steps and decision gates.
+
+
+## 2026-04-25
+
+Slice 0 implemented: commit= param on existing codebase-snippet/signature directives. 4 commits (server+renderer, frontend, demo page, symbol ID fix). Server running in tmux at :3001 with history.db.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/docs/embed/pages/04-slice0-demo.md — Demo page for slice 0
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/docs/renderer.go — Added CommitHash to SnippetRef
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/server/api_source.go — Extended handleSnippet with commit= param
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/DocPage.tsx — Extract data-commit from DOM stubs
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/DocSnippet.tsx — Added useGetSnippetFromCommit hook
+
+
+## 2026-04-25
+
+Fixed browser validation issues for Slice 0: load wasm_exec.js before app bundle and make docApi prefer live /api/doc endpoints in server-backed mode. Verified with Playwright: 0 console errors and demo page renders at /#/doc/04-slice0-demo.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/index.html — Loads /wasm_exec.js before app bundle
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/public/wasm_exec.js — Go WASM runtime copied into Vite public assets
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/docApi.ts — Prefers live server doc API
+

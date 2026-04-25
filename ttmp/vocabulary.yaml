@@ -71,6 +71,12 @@ topics:
       description: Structured query concepts and the concept catalog system
     - slug: symbols
       description: Symbol extraction, lookup, and analysis
+    - slug: embeddable-widgets
+      description: Embeddable UI widgets rendered inline in markdown doc pages
+    - slug: history-index
+      description: 'Git history indexing subsystem: per-commit symbol snapshots in SQLite'
+    - slug: markdown-directives
+      description: codebase-* fenced code block directives for embedding live widgets in markdown
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
