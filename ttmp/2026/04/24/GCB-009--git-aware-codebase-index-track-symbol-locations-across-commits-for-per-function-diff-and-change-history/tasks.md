@@ -65,3 +65,18 @@
 - [x] 6.4 Write implementation diary entries for Phases 5-6
 - [x] 6.5 Update changelog and tasks
 - [x] 6.6 Final commit — `05c3174 Filter unchanged from diff output, add --parallelism flag`
+
+## Phase 7: Polish — serve-mode fixes, body diff verification, history links
+
+- [x] 7.1 Fix serve-mode source page — `getSource` tries `/api/source?path=...` first, falls back to static file
+- [x] 7.2 Add `--repo-root` flag to serve command
+- [x] 7.3 Add `/api/history/symbol-body-diff` endpoint
+- [x] 7.4 Add `getSymbolBodyDiffQuery` to RTK Query history API
+- [x] 7.5 Rewrite `SymbolHistoryPanel` with from/to selectors per commit row
+- [x] 7.6 Add `SymbolBodyDiffView` component with colored unified diff rendering
+- [x] 7.7 Fix body diff JSON: add camelCase struct tags to `BodyDiffResult`
+- [x] 7.8 Verify body diff end-to-end in Playwright — `Handler` shows 18 green, 11 red lines
+- [x] 7.9 Verify source page in serve mode — 209 lines of build.go rendered
+- [x] 7.10 Add history links to package and symbol pages
+- [x] 7.11 Write diary for session 2
+- [ ] 7.12 Commit and finalize

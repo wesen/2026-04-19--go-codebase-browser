@@ -331,3 +331,145 @@ go test ./... -count=1 → all green
 | `84d95aa` | Add history server API endpoints (Phase 4) |
 | `085f9cd` | Diary: record Phases 1-4 implementation details |
 | `882ad10` | Add history web UI with commit timeline and diff viewer (Phase 5) |
+
+---
+
+## 2026-04-25 — Session 2
+
+**Goal:** Verify and polish the function body diff viewer, fix serve-mode source page, add history links to symbol pages.
+
+Starting state: GCB-009 Phases 1-6 complete. Previous session ended with the body diff endpoint and viewer built but not verified in Playwright. The source page in serve mode was broken (used static file URLs instead of API).
+
+---
+
+### Task 7.1-7.6: Serve-mode source fix, body diff endpoint, function diff viewer (from handoff)
+
+**Already committed in session 1 as `9685146`.**
+
+- `ui/src/api/sourceApi.ts`: `getSource` now tries `/api/source?path=...` first (serve mode), falls back to `./source/${path}` (static bundle mode). Verified: `#/source/cmd/codebase-browser/cmds/index/build.go` renders 209 lines.
+- `cmd/codebase-browser/cmds/serve/run.go`: Added `--repo-root` flag.
+- `internal/server/server.go`: Added `RepoRoot string` field.
+- `internal/server/api_history.go`: Added `handleSymbolBodyDiff` endpoint at `/api/history/symbol-body-diff`.
+- `ui/src/api/historyApi.ts`: Added `BodyDiffResult` type and `getSymbolBodyDiffQuery`.
+- `ui/src/features/history/HistoryPage.tsx`: Rewrote `SymbolHistoryPanel` with from/to selectors per commit row, added `SymbolBodyDiffView` with colored unified diff rendering.
+
+---
+
+### Task 7.7: Fix body diff JSON tags
+
+**Commit:** `5fd8950 Fix body diff JSON: add camelCase tags so React can parse fields`
+
+#### What failed
+
+The body diff endpoint returned JSON with PascalCase keys (`SymbolID`, `OldBody`, `NewBody`, `UnifiedDiff`...) because the `BodyDiffResult` Go struct had no `json` tags. The TypeScript interface expected camelCase (`symbolId`, `oldBody`, `newBody`, `unifiedDiff`), so all fields were `undefined`. This caused `data.oldBody === data.newBody` → `undefined === undefined` → `true` → "No body changes between these commits." always.
+
+#### Fix
+
+Added `json:"camelCase"` tags to all fields in `internal/history/bodydiff.go`:
+
+```go
+type BodyDiffResult struct {
+    SymbolID    string `json:"symbolId"`
+    Name        string `json:"name"`
+    OldBody     string `json:"oldBody"`
+    NewBody     string `json:"newBody"`
+    UnifiedDiff string `json:"unifiedDiff"`
+    // ...
+}
+```
+
+#### Verification
+
+```
+curl .../symbol-body-diff?from=...&to=...&symbol=...
+→ Keys: ['symbolId', 'name', 'oldCommit', 'newCommit', 'oldBody', 'newBody', 'unifiedDiff', ...]
+→ oldBody !== newBody ✓
+
+Playwright:
+  Body diff shows: 18 green lines, 11 red lines ✓
+  Function signature visible ✓
+```
+
+---
+
+### Task 7.8: Body diff shows full function
+
+**Commit:** `108427f Show full function in body diff (signature + body, not just changed region)`
+
+#### Problem
+
+The `simpleUnifiedDiff()` function collapsed unchanged prefix/suffix lines into `( N unchanged line(s) )`, so the diff output only showed the changed region — missing the function signature and closing brace. The user wanted to see the **entire function** with context.
+
+#### Fix
+
+Changed `simpleUnifiedDiff()` to emit every line:
+- `  ` prefix for unchanged (context) lines
+- `- ` prefix for removed lines
+- `+ ` prefix for added lines
+
+Previously it emitted `( N unchanged )` blocks instead of actual lines. Now the diff starts with:
+
+```
+  func (s *Server) Handler() http.Handler {
+    mux := http.NewServeMux()
+- 
+-   mux.HandleFunc("/api/index", s.handleIndex)
+...
++   s.mux = mux
++ 
++   mux.HandleFunc("/api/index", s.handleIndex)
+...
+  }
+```
+
+#### Verification
+
+```
+curl → unifiedDiff shows "  func (s *Server) Handler()" as first line ✓
+Playwright → hasFuncSig=true, hasContext=true ✓
+```
+
+---
+
+### Task 7.9-7.10: History links from symbol pages + standalone symbol history
+
+**Commit:** `c0a9424 Add history link to symbol pages, standalone symbol history view with full-function diff`
+
+#### What was implemented
+
+**`ui/src/features/symbol/SymbolPage.tsx`** — Added "📜 View change history" link below the XrefPanel. Links to `#/history?symbol=<encodedSymbolId>`.
+
+**`ui/src/features/history/HistoryPage.tsx`** — Three changes:
+
+1. **URL param reading**: `useLocation().search` parses `?symbol=...` from the hash URL. `initialSymbol` is threaded through `CommitTimeline` → `DiffView`.
+
+2. **`StandaloneSymbolHistory` component**: When `initialSymbol` is provided, the right panel shows a dedicated view with the symbol name, a "← Back to commit diff" link, and the `SymbolHistoryPanel` with from/to selectors and body diff viewer. No need to first select a commit diff.
+
+3. **Fixed React hooks order**: `useLocation()` was called after early `return` statements (`if (isLoading) return ...`), violating the Rules of Hooks. Moved all hook calls to the top of the component.
+
+#### What failed along the way
+
+- **React error #310**: `useLocation()` was placed after `if (isLoading) return` conditional returns. In React, all hooks must be called unconditionally. Moved `useLocation()` and `useMemo()` above the early returns.
+- **Browser cache served old bundle**: After rebuilding, Playwright kept loading the old JS bundle. Fixed by navigating to `/` first (which loads the new `index.html` referencing the new JS hash), then navigating to the history page.
+- **RTK Query cached old response**: After fixing the Go JSON tags, the browser still showed "No body changes" because RTK Query had cached the old (PascalCase) response. Fixed with `location.reload()`.
+
+#### Verification
+
+```
+Playwright:
+  Symbol page → "View change history" link visible ✓
+  Click link → navigates to #/history?symbol=sym:...Handler ✓
+  Standalone view: "History: Handler" with 50 commits ✓
+  Body diff shows full function signature + changes ✓
+  From/To selectors work (manual selection confirmed) ✓
+```
+
+---
+
+### Summary of session 2 commits
+
+| Hash | Message |
+|------|--------|
+| `5fd8950` | Fix body diff JSON: add camelCase tags so React can parse fields |
+| `108427f` | Show full function in body diff (signature + body, not just changed region) |
+| `c0a9424` | Add history link to symbol pages, standalone symbol history view with full-function diff |
