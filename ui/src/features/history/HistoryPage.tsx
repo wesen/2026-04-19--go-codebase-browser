@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import {
   useListCommitsQuery,
   useGetDiffQuery,
+  useGetSymbolHistoryQuery,
   type CommitRow,
   type SymbolDiff,
+  type SymbolHistoryEntry,
   type FileDiff,
 } from '../../api/historyApi';
 
@@ -145,6 +147,12 @@ function CommitTimeline({ commits }: { commits: CommitRow[] }) {
 function DiffView({ diff }: { diff: ReturnType<typeof useGetDiffQuery>['data'] & {} }) {
   if (!diff) return null;
 
+  const [selectedSymbolId, setSelectedSymbolId] = React.useState('');
+  const historyQuery = useGetSymbolHistoryQuery(
+    { symbolId: selectedSymbolId },
+    { skip: !selectedSymbolId },
+  );
+
   return (
     <div style={{ display: 'grid', gap: 18 }}>
       <section style={{ border: '1px solid var(--cb-color-border)', borderRadius: 12, padding: 16 }}>
@@ -239,12 +247,20 @@ function DiffView({ diff }: { diff: ReturnType<typeof useGetDiffQuery>['data'] &
                       <code>{s.Kind}</code>
                     </td>
                     <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>
-                      <Link
-                        to={`/symbol/${encodeURIComponent(s.SymbolID)}`}
-                        style={{ textDecoration: 'none' }}
+                      <button
+                        onClick={() => setSelectedSymbolId(selectedSymbolId === s.SymbolID ? '' : s.SymbolID)}
+                        style={{
+                          background: selectedSymbolId === s.SymbolID ? 'var(--cb-color-accent)' : 'transparent',
+                          border: 'none',
+                          color: selectedSymbolId === s.SymbolID ? '#fff' : 'inherit',
+                          cursor: 'pointer',
+                          padding: 0,
+                          font: 'inherit',
+                          textDecoration: 'none',
+                        }}
                       >
                         <code>{s.Name}</code>
-                      </Link>
+                      </button>
                     </td>
                     <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px', fontSize: 12, color: 'var(--cb-color-muted)' }}>
                       {s.ChangeType === 'added'
@@ -261,11 +277,83 @@ function DiffView({ diff }: { diff: ReturnType<typeof useGetDiffQuery>['data'] &
         </section>
       )}
 
+      {selectedSymbolId && historyQuery.data && (
+        <section style={{ border: '1px solid var(--cb-color-accent)', borderRadius: 12, padding: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+            <h3 style={{ margin: 0 }}>Function history</h3>
+            <button
+              onClick={() => setSelectedSymbolId('')}
+              style={{ border: '1px solid var(--cb-color-border)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', background: 'transparent', color: 'var(--cb-color-text)' }}
+            >
+              Close
+            </button>
+          </div>
+          <SymbolHistoryPanel entries={historyQuery.data} />
+        </section>
+      )}
+
+      {selectedSymbolId && historyQuery.isLoading && (
+        <div>Loading symbol history…</div>
+      )}
+
       {diff.Symbols && diff.Symbols.length === 0 && (
         <div style={{ border: '1px dashed var(--cb-color-border)', borderRadius: 12, padding: 16 }}>
           No symbol changes between these commits.
         </div>
       )}
+    </div>
+  );
+}
+
+function SymbolHistoryPanel({ entries }: { entries: SymbolHistoryEntry[] }) {
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+        <thead>
+          <tr>
+            <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Date</th>
+            <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Commit</th>
+            <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Lines</th>
+            <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Body</th>
+            <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Message</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((e, i) => {
+            // Detect body hash changes
+            const prevHash = i < entries.length - 1 ? entries[i + 1].bodyHash : '';
+            const changed = e.bodyHash !== prevHash && e.bodyHash !== '';
+            const date = new Date(e.authorTime * 1000);
+            const dateStr = date.toISOString().slice(0, 16).replace('T', ' ');
+            return (
+              <tr key={i} style={{ background: changed ? 'rgba(255, 152, 0, 0.08)' : 'transparent' }}>
+                <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px', fontSize: 12, whiteSpace: 'nowrap' }}>
+                  {dateStr}
+                </td>
+                <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>
+                  <code style={{ fontSize: 12 }}>{e.shortHash}</code>
+                </td>
+                <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px', fontSize: 12 }}>
+                  {e.startLine}-{e.endLine}
+                </td>
+                <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>
+                  {changed ? (
+                    <code style={{ fontSize: 11, color: '#ff9800', fontWeight: 700 }}>{e.bodyHash.slice(0, 7)}</code>
+                  ) : (
+                    <code style={{ fontSize: 11, color: 'var(--cb-color-muted)' }}>{e.bodyHash.slice(0, 7)}</code>
+                  )}
+                </td>
+                <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px', fontSize: 12 }}>
+                  {e.message}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div style={{ fontSize: 12, color: 'var(--cb-color-muted)', marginTop: 8 }}>
+        {entries.length} commit(s). Rows highlighted in orange indicate commits where the function body changed.
+      </div>
     </div>
   );
 }
