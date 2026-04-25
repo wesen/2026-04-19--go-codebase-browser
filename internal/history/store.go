@@ -43,8 +43,13 @@ func Create(path string) (*Store, error) {
 // DB exposes the underlying database for direct queries.
 func (s *Store) DB() *sql.DB { return s.db }
 
-// Close closes the underlying database connection.
-func (s *Store) Close() error { return s.db.Close() }
+// Close checkpoints WAL state before closing so a copied *.db file is
+// self-contained. This matters for published container images that include a
+// generated history.db without copying sidecar -wal/-shm files.
+func (s *Store) Close() error {
+	_, _ = s.db.Exec(`PRAGMA wal_checkpoint(TRUNCATE);`)
+	return s.db.Close()
+}
 
 // ResetSchema drops and recreates the history database schema.
 func (s *Store) ResetSchema(ctx context.Context) error {

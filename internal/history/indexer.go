@@ -109,6 +109,17 @@ func indexWithWorktrees(ctx context.Context, store *Store, opts IndexOptions) *I
 				mu.Unlock()
 				return
 			}
+			if err := CacheFileContents(ctx, store, commit.Hash, wt); err != nil {
+				mu.Lock()
+				result.Errors = append(result.Errors, IndexError{
+					ShortHash: commit.ShortHash,
+					Message:   commit.Message,
+					Err:       fmt.Errorf("cache file contents: %w", err),
+				})
+				result.Failed++
+				mu.Unlock()
+				return
+			}
 
 			mu.Lock()
 			result.Indexed++
@@ -150,6 +161,15 @@ func indexDirect(ctx context.Context, store *Store, opts IndexOptions) *IndexRes
 				ShortHash: commit.ShortHash,
 				Message:   commit.Message,
 				Err:       fmt.Errorf("load: %w", err),
+			})
+			result.Failed++
+			continue
+		}
+		if err := CacheFileContents(ctx, store, commit.Hash, opts.RepoRoot); err != nil {
+			result.Errors = append(result.Errors, IndexError{
+				ShortHash: commit.ShortHash,
+				Message:   commit.Message,
+				Err:       fmt.Errorf("cache file contents: %w", err),
 			})
 			result.Failed++
 			continue

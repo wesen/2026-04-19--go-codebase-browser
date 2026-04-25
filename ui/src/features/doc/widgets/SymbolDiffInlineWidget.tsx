@@ -1,5 +1,6 @@
 import { useGetSymbolBodyDiffQuery } from '../../../api/historyApi';
 import { DiffsUnifiedDiff } from '../../diff/DiffsUnifiedDiff';
+import { HistoryUnavailableNotice, isHistoryUnavailable } from './historyUnavailable';
 
 interface SymbolDiffInlineWidgetProps {
   sym: string;
@@ -21,6 +22,9 @@ export function SymbolDiffInlineWidget({ sym, from, to }: SymbolDiffInlineWidget
     );
   }
   if (error) {
+    if (isHistoryUnavailable(error)) {
+      return <HistoryUnavailableNotice widget="Semantic diff" />;
+    }
     return (
       <section data-part="doc-snippet">
         <div data-part="error">Failed to load diff: {JSON.stringify(error)}</div>

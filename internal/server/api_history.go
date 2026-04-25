@@ -11,10 +11,17 @@ import (
 
 // historyHandlers registers all /api/history/* routes.
 func (s *Server) registerHistoryRoutes() {
+	mux := s.mux
 	if s.History == nil {
+		mux.HandleFunc("GET /api/history/commits", s.handleHistoryUnavailable)
+		mux.HandleFunc("GET /api/history/commits/{hash}", s.handleHistoryUnavailable)
+		mux.HandleFunc("GET /api/history/commits/{hash}/symbols", s.handleHistoryUnavailable)
+		mux.HandleFunc("GET /api/history/diff", s.handleHistoryUnavailable)
+		mux.HandleFunc("GET /api/history/symbol-body-diff", s.handleHistoryUnavailable)
+		mux.HandleFunc("GET /api/history/impact", s.handleHistoryUnavailable)
+		mux.HandleFunc("GET /api/history/symbols/{symbolID}/history", s.handleHistoryUnavailable)
 		return
 	}
-	mux := s.mux
 	mux.HandleFunc("GET /api/history/commits", s.handleHistoryCommits)
 	mux.HandleFunc("GET /api/history/commits/{hash}", s.handleHistoryCommitDetail)
 	mux.HandleFunc("GET /api/history/commits/{hash}/symbols", s.handleHistoryCommitSymbols)
@@ -22,6 +29,10 @@ func (s *Server) registerHistoryRoutes() {
 	mux.HandleFunc("GET /api/history/symbol-body-diff", s.handleSymbolBodyDiff)
 	mux.HandleFunc("GET /api/history/impact", s.handleHistoryImpact)
 	mux.HandleFunc("GET /api/history/symbols/{symbolID}/history", s.handleSymbolHistory)
+}
+
+func (s *Server) handleHistoryUnavailable(w http.ResponseWriter, r *http.Request) {
+	writeJSONError(w, http.StatusServiceUnavailable, "history database is not configured; start the server with --history-db to enable history-backed diff widgets")
 }
 
 func (s *Server) handleHistoryCommits(w http.ResponseWriter, r *http.Request) {

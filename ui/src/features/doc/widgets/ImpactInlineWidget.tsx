@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useGetImpactQuery } from '../../../api/historyApi';
+import { HistoryUnavailableNotice, isHistoryUnavailable } from './historyUnavailable';
 
 interface ImpactInlineWidgetProps {
   sym: string;
@@ -19,6 +20,9 @@ export function ImpactInlineWidget({ sym, dir = 'usedby', depth = 2, commit }: I
     );
   }
   if (error) {
+    if (isHistoryUnavailable(error)) {
+      return <HistoryUnavailableNotice widget="Impact analysis" />;
+    }
     return (
       <section data-part="doc-snippet">
         <div data-part="error">Failed to load impact: {JSON.stringify(error)}</div>

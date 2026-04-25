@@ -1,6 +1,7 @@
 import React from 'react';
 import { useGetSymbolHistoryQuery } from '../../../api/historyApi';
 import { SymbolDiffInlineWidget } from './SymbolDiffInlineWidget';
+import { HistoryUnavailableNotice, isHistoryUnavailable } from './historyUnavailable';
 
 interface SymbolHistoryInlineWidgetProps {
   sym: string;
@@ -19,6 +20,9 @@ export function SymbolHistoryInlineWidget({ sym, limit = 8 }: SymbolHistoryInlin
     );
   }
   if (error) {
+    if (isHistoryUnavailable(error)) {
+      return <HistoryUnavailableNotice widget="Symbol history" />;
+    }
     return (
       <section data-part="doc-snippet">
         <div data-part="error">Failed to load symbol history: {JSON.stringify(error)}</div>

@@ -1,4 +1,5 @@
 import { useGetDiffQuery } from '../../../api/historyApi';
+import { HistoryUnavailableNotice, isHistoryUnavailable } from './historyUnavailable';
 
 interface DiffStatsWidgetProps {
   from: string;
@@ -8,7 +9,12 @@ interface DiffStatsWidgetProps {
 export function DiffStatsWidget({ from, to }: DiffStatsWidgetProps) {
   const { data, isLoading, error } = useGetDiffQuery({ from, to }, { skip: !from || !to });
   if (isLoading) return <span data-part="loading">Loading diff stats…</span>;
-  if (error) return <span data-part="error">Failed to load diff stats</span>;
+  if (error) {
+    if (isHistoryUnavailable(error)) {
+      return <HistoryUnavailableNotice widget="Diff stats" />;
+    }
+    return <span data-part="error">Failed to load diff stats</span>;
+  }
   if (!data) return null;
   const s = data.Stats;
   const chips = [
