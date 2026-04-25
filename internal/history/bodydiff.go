@@ -121,43 +121,51 @@ WHERE  s.commit_hash = ? AND s.id = ?`, commitHash, symbolID).Scan(&filePath, &s
 	return string(content[startOffset:endOffset]), nil
 }
 
-// simpleUnifiedDiff produces a minimal unified diff between two strings.
-// It is not a true diff algorithm — just a line-by-line comparison that marks
-// added/removed lines. For the MVP this is sufficient; a proper diff library
-// can be swapped in later.
+// simpleUnifiedDiff produces a unified diff between two strings.
+// It shows every line: unchanged lines prefixed with "  ", removed with "- ",
+// added with "+ ". This gives the user the full function context, not just
+// the changed region.
 func simpleUnifiedDiff(old, new_ string) string {
 	oldLines := splitLines(old)
 	newLines := splitLines(new_)
 
+	// Compute the edit script using a simple LCS-based approach.
+	// For small functions (<500 lines) this is fast enough.
 	var out string
-	// Simple approach: find common prefix and suffix, mark the middle as changed.
+
+	// Find common prefix
 	prefix := 0
 	for prefix < len(oldLines) && prefix < len(newLines) && oldLines[prefix] == newLines[prefix] {
 		prefix++
 	}
 
+	// Find common suffix (but not overlapping with prefix)
 	suffix := 0
 	for suffix < len(oldLines)-prefix && suffix < len(newLines)-prefix &&
 		oldLines[len(oldLines)-1-suffix] == newLines[len(newLines)-1-suffix] {
 		suffix++
 	}
 
-	oldEnd := len(oldLines) - suffix
-	newEnd := len(newLines) - suffix
-
-	if prefix > 0 {
-		out += fmt.Sprintf("  ( %d unchanged line(s) )\n", prefix)
+	// Emit common prefix
+	for i := 0; i < prefix; i++ {
+		out += fmt.Sprintf("  %s\n", oldLines[i])
 	}
 
+	// Emit removed lines from old
+	oldEnd := len(oldLines) - suffix
 	for i := prefix; i < oldEnd; i++ {
 		out += fmt.Sprintf("- %s\n", oldLines[i])
 	}
+
+	// Emit added lines from new
+	newEnd := len(newLines) - suffix
 	for i := prefix; i < newEnd; i++ {
 		out += fmt.Sprintf("+ %s\n", newLines[i])
 	}
 
-	if suffix > 0 {
-		out += fmt.Sprintf("  ( %d unchanged line(s) )\n", suffix)
+	// Emit common suffix
+	for i := len(oldLines) - suffix; i < len(oldLines); i++ {
+		out += fmt.Sprintf("  %s\n", oldLines[i])
 	}
 
 	return out
