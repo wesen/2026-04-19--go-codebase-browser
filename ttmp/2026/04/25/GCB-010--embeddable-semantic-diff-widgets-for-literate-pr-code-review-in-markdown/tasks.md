@@ -13,7 +13,7 @@ LastUpdated: 2026-04-25T12:30:00Z
 
 ## Slice 0: "Snapshot at a commit" — commit= on existing directives (~1 day)
 
-- [ ] **T0a** Extend `handleSnippet` in `internal/server/api_source.go` with `commit=` query param — resolve from history DB snapshot_symbols + file_contents
+- [x] **T0a** Extend `handleSnippet` in `internal/server/api_source.go` with `commit=` query param — resolve from history DB snapshot_symbols + file_contents
 - [x] **T0b** Extend `resolveDirective` in `internal/docs/renderer.go` — when `params["commit"]` present, emit `data-commit` attribute on stub (don't resolve server-side)
 - [x] **T0c** Extend `DocSnippet.tsx` + `DocPage.tsx` — pass `data-commit` through to snippet fetch
 - [x] **T0d** Create demo page `internal/docs/embed/pages/04-review-slice0.md` with before/after code blocks
@@ -24,11 +24,11 @@ LastUpdated: 2026-04-25T12:30:00Z
 ## Slice 1: "The diff widget" — codebase-diff (~2–3 days)
 
 - [x] **T1a** Add `case "codebase-diff"` in `internal/docs/renderer.go` — validate sym/from/to, emit stub with data-params JSON
-- [ ] **T1b** Extend `DocPage.tsx` — extract `data-params` JSON from stubs, pass to DocSnippet
-- [ ] **T1c** Create `ui/src/features/doc/widgets/SymbolDiffInlineWidget.tsx` — fetch body-diff API, render side-by-side with diff colours
-- [ ] **T1d** Add `codebase-diff` dispatch in `DocSnippet.tsx`
-- [ ] **T1e** Update demo page with diff blocks
-- [ ] **T1f** Validate: diff renders, lines are coloured, expand to full symbol works
+- [x] **T1b** Extend `DocPage.tsx` — extract `data-params` JSON from stubs, pass to DocSnippet
+- [x] **T1c** Create `ui/src/features/doc/widgets/SymbolDiffInlineWidget.tsx` — fetch body-diff API, render side-by-side with diff colours
+- [x] **T1d** Add `codebase-diff` dispatch in `DocSnippet.tsx`
+- [x] **T1e** Update demo page with diff blocks
+- [x] **T1f** Validate: diff renders, lines are coloured, expand to full symbol works
 
 **Decision gate: Is side-by-side the right layout? Should we also try inline unified diff?**
 

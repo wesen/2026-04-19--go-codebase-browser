@@ -364,3 +364,60 @@ I fixed this as a real frontend issue, not as a manual local patch: copied `inte
 - Inspect `ui/index.html`, `ui/public/wasm_exec.js`, and `ui/src/api/docApi.ts`
 - Use Playwright or browser console to confirm there are no WASM runtime errors
 - Validate `http://localhost:3001/#/doc/04-slice0-demo`
+
+## Step 6: Add syntax highlighting and implement Slice 1 (`codebase-diff`)
+
+The user asked for syntax highlighting on commit-resolved snippets and then to proceed to the next phase. I first replaced the plain `<pre><code>` rendering for `commit=` snippets with the shared `<Code>` component, so history-backed snippets now get the same token spans and colours as normal snippets. Playwright confirmed 1,900+ `data-tok` spans on the Slice 0 demo and 0 console errors.
+
+Then I implemented Slice 1 as a complete vertical slice: `codebase-diff` in the markdown renderer, `data-params` plumbing through doc hydration, a new `SymbolDiffInlineWidget`, and a demo page.
+
+### What I did
+
+- `ui/src/features/doc/DocSnippet.tsx`: imported `<Code>` and used it for commit-resolved snippets and signatures
+- `internal/docs/renderer.go`: added `Params` to `SnippetRef`, emitted safe `data-params` HTML attributes, added `case "codebase-diff"`
+- `ui/src/features/doc/DocPage.tsx`: parsed `data-params` JSON from stubs
+- `ui/src/features/doc/DocSnippet.tsx`: dispatched `codebase-diff` to the new widget
+- `ui/src/features/doc/widgets/SymbolDiffInlineWidget.tsx`: new inline unified diff widget backed by `/api/history/symbol-body-diff`
+- `internal/docs/embed/pages/05-slice1-diff-demo.md`: demo page with `stubHTML` and `handleSnippet` diffs
+
+### Validation
+
+Commands run:
+
+```bash
+go test ./internal/docs ./internal/server
+pnpm -C ui run typecheck
+pnpm -C ui build
+go build -tags embed -o codebase-browser ./cmd/codebase-browser/
+```
+
+Server restarted in tmux:
+
+```bash
+./codebase-browser serve --addr :3001 --history-db history.db --repo-root .
+```
+
+Playwright validation:
+
+- `http://localhost:3001/#/doc/04-slice0-demo`: syntax highlighted commit snippets (`data-tok` spans present), 0 console errors
+- `http://localhost:3001/#/doc/05-slice1-diff-demo`: `codebase-diff` widgets render, 0 console errors
+
+### What didn't work
+
+- The first `data-params` implementation used `%q`/backslash-escaped JSON in an HTML attribute. Browsers do not treat backslashes as quote escapes in HTML, so `getAttribute('data-params')` returned only `{\`. I fixed it by HTML-escaping JSON quotes (`&#34;`) with `html.EscapeString`, so the browser decodes the attribute back to valid JSON.
+- The first Playwright check reused an old tab with cached RTK Query state. Opening a fresh tab showed the corrected `data-params` and widget rendering.
+
+### What I learned
+
+- For arbitrary JSON in data attributes, use HTML entity escaping, not JS-style backslash escaping.
+- The minimal Slice 1 widget can reuse the existing `/api/history/symbol-body-diff` endpoint with no new server API.
+
+### What warrants a second pair of eyes
+
+- `SymbolDiffInlineWidget` currently renders a unified diff, not side-by-side. This is intentional for the first vertical slice, but we should evaluate whether reviewers prefer unified or split before investing in a richer layout.
+
+### Code review instructions
+
+- Start with `internal/docs/renderer.go` (`codebase-diff` case and `data-params` escaping)
+- Then review `SymbolDiffInlineWidget.tsx`
+- Validate both demo pages in the browser

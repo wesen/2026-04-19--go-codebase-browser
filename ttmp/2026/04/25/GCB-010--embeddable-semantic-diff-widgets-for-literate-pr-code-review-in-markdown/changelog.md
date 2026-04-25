@@ -48,3 +48,14 @@ Fixed browser validation issues for Slice 0: load wasm_exec.js before app bundle
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/public/wasm_exec.js — Go WASM runtime copied into Vite public assets
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/docApi.ts — Prefers live server doc API
 
+
+## 2026-04-25
+
+Added syntax highlighting to commit-resolved snippets and implemented Slice 1 codebase-diff widget. New directive validates sym/from/to, passes JSON params through data-params, hydrates SymbolDiffInlineWidget, and renders highlighted unified diffs from /api/history/symbol-body-diff. Validated with tests, typecheck/build, and Playwright (0 console errors).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/docs/embed/pages/05-slice1-diff-demo.md — Slice 1 demo page
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/docs/renderer.go — codebase-diff directive and safe data-params emission
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/SymbolDiffInlineWidget.tsx — New inline diff widget
+
