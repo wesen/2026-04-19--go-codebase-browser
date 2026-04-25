@@ -606,3 +606,37 @@ Playwright validation:
 
 - Review `ImpactInlineWidget.tsx` link behaviour first.
 - Confirm `handleConceptDetail` in `/#/doc/07-slice3-impact-demo` opens a usable history view.
+
+## Step 10: Hide redundant commit sidebar in symbol-history deep links
+
+The user pointed out that `/#/history?symbol=...` still showed the left commit picker, which felt redundant. That route is used by impact-widget rows to open a focused symbol history view. The standalone symbol history panel already has its own from/to selectors for body diff, so the page-level commit-pair sidebar duplicates controls and distracts from the focused symbol.
+
+### What I did
+
+- Updated `ui/src/features/history/HistoryPage.tsx` so `CommitTimeline` immediately returns `<StandaloneSymbolHistory>` when `initialSymbol` is present.
+- Removed the now-unreachable `initialSymbol ? ...` branch inside the normal two-column commit diff layout.
+
+### Validation
+
+Commands run:
+
+```bash
+pnpm -C ui run typecheck
+pnpm -C ui build
+go build -tags embed -o codebase-browser ./cmd/codebase-browser/
+```
+
+Playwright validation:
+
+- Loaded `/#/history?symbol=sym:...handleConceptDetail`
+- Verified `hasCommitsBox: false`
+- Verified the focused symbol history table and body diff still render
+- Console errors: 0
+
+### What worked
+
+- This is a small UI-only change with clear behaviour: ad-hoc `/history` keeps the commit picker; focused `/history?symbol=...` hides it.
+
+### What warrants a second pair of eyes
+
+- The copy at the top still says "5 indexed commit(s). Select two commits to diff." In symbol mode the instruction is slightly wrong; we should probably adjust the header copy in a later polish pass.

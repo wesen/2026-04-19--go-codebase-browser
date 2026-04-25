@@ -51,6 +51,14 @@ export function HistoryPage() {
 }
 
 function CommitTimeline({ commits, initialSymbol }: { commits: CommitRow[]; initialSymbol: string }) {
+  // When linked from an embedded history/impact widget with ?symbol=..., the
+  // user wants the focused symbol history, not the commit-pair picker. The
+  // standalone panel already contains its own from/to selectors, so hide the
+  // left commit sidebar to avoid duplicated controls.
+  if (initialSymbol) {
+    return <StandaloneSymbolHistory symbolId={initialSymbol} />;
+  }
+
   const [selectedOld, setSelectedOld] = React.useState('');
   const [selectedNew, setSelectedNew] = React.useState('');
   const [modifiedCommits, setModifiedCommits] = React.useState<Set<string>>(new Set());
@@ -131,9 +139,7 @@ function CommitTimeline({ commits, initialSymbol }: { commits: CommitRow[]; init
       </aside>
 
       <section>
-        {initialSymbol ? (
-          <StandaloneSymbolHistory symbolId={initialSymbol} />
-        ) : selectedOld && selectedNew && selectedOld !== selectedNew ? (
+        {selectedOld && selectedNew && selectedOld !== selectedNew ? (
           diffQuery.isLoading ? (
             <div>Loading diff…</div>
           ) : diffQuery.error ? (

@@ -91,3 +91,12 @@ Polished Slice 3 impact widget links. Impact API now marks local vs external nod
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/server/api_history.go — Impact nodes now include local flag and external fallback names
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/ImpactInlineWidget.tsx — History-backed links and external-node polish
 
+
+## 2026-04-25
+
+Polished history deep links from impact rows: /history?symbol=... now hides the redundant left commit picker and shows only the focused symbol history panel. Validated with Playwright; console errors 0.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/history/HistoryPage.tsx — Hides commit sidebar when initialSymbol query param is present
+
