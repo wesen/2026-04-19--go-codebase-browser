@@ -93,6 +93,30 @@ export interface BodyDiffResult {
   newRange: string;
 }
 
+export interface ImpactEdge {
+  fromSymbolId: string;
+  toSymbolId: string;
+  kind: string;
+  fileId: string;
+}
+
+export interface ImpactNode {
+  symbolId: string;
+  name: string;
+  kind: string;
+  depth: number;
+  edges: ImpactEdge[];
+  compatibility: string;
+}
+
+export interface ImpactResponse {
+  root: string;
+  direction: string;
+  depth: number;
+  commit: string;
+  nodes: ImpactNode[];
+}
+
 export const historyApi = createApi({
   reducerPath: 'historyApi',
   baseQuery: fetchBaseQuery({ baseUrl: '/api/history' }),
@@ -119,6 +143,13 @@ export const historyApi = createApi({
           `/symbol-body-diff?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&symbol=${encodeURIComponent(symbolId)}`,
       },
     ),
+    getImpact: builder.query<ImpactResponse, { sym: string; dir?: 'usedby' | 'uses'; depth?: number; commit?: string }>({
+      query: ({ sym, dir = 'usedby', depth = 2, commit }) => {
+        const params = new URLSearchParams({ sym, dir, depth: String(depth) });
+        if (commit) params.set('commit', commit);
+        return `/impact?${params.toString()}`;
+      },
+    }),
   }),
 });
 
@@ -129,4 +160,5 @@ export const {
   useGetDiffQuery,
   useGetSymbolHistoryQuery,
   useGetSymbolBodyDiffQuery,
+  useGetImpactQuery,
 } = historyApi;

@@ -245,6 +245,34 @@ func resolveDirective(info string, loaded *browser.Loaded, sourceFS fs.FS) (*Sni
 		ref.Text = fmt.Sprintf("History for %s", sym.ID)
 		return ref, nil
 
+	case "codebase-impact":
+		symRef := params["sym"]
+		if symRef == "" {
+			return nil, errors.New("missing sym= on codebase-impact")
+		}
+		sym, err := resolveSymbol(symRef, loaded)
+		if err != nil {
+			return nil, err
+		}
+		ref.SymbolID = sym.ID
+		ref.Language = sym.Language
+		if ref.Language == "" {
+			ref.Language = "go"
+		}
+		ref.Kind = "impact"
+		ref.Params = map[string]string{}
+		if dir := params["dir"]; dir != "" {
+			ref.Params["dir"] = dir
+		}
+		if depth := params["depth"]; depth != "" {
+			ref.Params["depth"] = depth
+		}
+		if commit := params["commit"]; commit != "" {
+			ref.Params["commit"] = commit
+		}
+		ref.Text = fmt.Sprintf("Impact for %s", sym.ID)
+		return ref, nil
+
 	case "codebase-snippet", "codebase-signature", "codebase-doc":
 		symRef := params["sym"]
 		if symRef == "" {

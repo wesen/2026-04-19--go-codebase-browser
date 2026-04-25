@@ -1,7 +1,10 @@
 package server
 
 import (
+	"context"
+	"database/sql"
 	"net/http"
+	"strconv"
 
 	"github.com/wesen/codebase-browser/internal/history"
 )
@@ -17,6 +20,7 @@ func (s *Server) registerHistoryRoutes() {
 	mux.HandleFunc("GET /api/history/commits/{hash}/symbols", s.handleHistoryCommitSymbols)
 	mux.HandleFunc("GET /api/history/diff", s.handleHistoryDiff)
 	mux.HandleFunc("GET /api/history/symbol-body-diff", s.handleSymbolBodyDiff)
+	mux.HandleFunc("GET /api/history/impact", s.handleHistoryImpact)
 	mux.HandleFunc("GET /api/history/symbols/{symbolID}/history", s.handleSymbolHistory)
 }
 
@@ -58,16 +62,16 @@ ORDER BY name`, hash)
 	defer rows.Close()
 
 	type sym struct {
-		ID         string `json:"id"`
-		Kind       string `json:"kind"`
-		Name       string `json:"name"`
-		PackageID  string `json:"packageId"`
-		FileID     string `json:"fileId"`
-		StartLine  int    `json:"startLine"`
-		EndLine    int    `json:"endLine"`
-		Signature  string `json:"signature"`
-		Exported   bool   `json:"exported"`
-		BodyHash   string `json:"bodyHash"`
+		ID        string `json:"id"`
+		Kind      string `json:"kind"`
+		Name      string `json:"name"`
+		PackageID string `json:"packageId"`
+		FileID    string `json:"fileId"`
+		StartLine int    `json:"startLine"`
+		EndLine   int    `json:"endLine"`
+		Signature string `json:"signature"`
+		Exported  bool   `json:"exported"`
+		BodyHash  string `json:"bodyHash"`
 	}
 	var result []sym
 	for rows.Next() {
@@ -148,6 +152,174 @@ LIMIT  ?`, symbolID, limit)
 		result = []entry{}
 	}
 	writeJSON(w, result)
+}
+
+type impactEdge struct {
+	FromSymbolID string `json:"fromSymbolId"`
+	ToSymbolID   string `json:"toSymbolId"`
+	Kind         string `json:"kind"`
+	FileID       string `json:"fileId"`
+}
+
+type impactNode struct {
+	SymbolID      string       `json:"symbolId"`
+	Name          string       `json:"name"`
+	Kind          string       `json:"kind"`
+	Depth         int          `json:"depth"`
+	Edges         []impactEdge `json:"edges"`
+	Compatibility string       `json:"compatibility"`
+}
+
+type impactResponse struct {
+	Root      string       `json:"root"`
+	Direction string       `json:"direction"`
+	Depth     int          `json:"depth"`
+	Commit    string       `json:"commit"`
+	Nodes     []impactNode `json:"nodes"`
+}
+
+func (s *Server) handleHistoryImpact(w http.ResponseWriter, r *http.Request) {
+	symbolID := r.URL.Query().Get("sym")
+	direction := r.URL.Query().Get("dir")
+	if direction == "" {
+		direction = "usedby"
+	}
+	if symbolID == "" {
+		writeJSONError(w, http.StatusBadRequest, "sym query param required")
+		return
+	}
+	if direction != "usedby" && direction != "uses" {
+		writeJSONError(w, http.StatusBadRequest, "dir must be usedby or uses")
+		return
+	}
+	depth := 2
+	if raw := r.URL.Query().Get("depth"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 {
+			writeJSONError(w, http.StatusBadRequest, "depth must be a positive integer")
+			return
+		}
+		depth = parsed
+	}
+	if depth > 5 {
+		depth = 5
+	}
+
+	commitHash := r.URL.Query().Get("commit")
+	if commitHash == "" {
+		latest, err := latestHistoryCommit(r.Context(), s.History.DB())
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		commitHash = latest
+	}
+
+	result, err := impactBFS(r.Context(), s.History.DB(), commitHash, symbolID, direction, depth)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, result)
+}
+
+func latestHistoryCommit(ctx context.Context, db *sql.DB) (string, error) {
+	var hash string
+	err := db.QueryRowContext(ctx, `SELECT hash FROM commits WHERE error = '' ORDER BY author_time DESC LIMIT 1`).Scan(&hash)
+	return hash, err
+}
+
+func impactBFS(ctx context.Context, db *sql.DB, commitHash, root, direction string, maxDepth int) (*impactResponse, error) {
+	response := &impactResponse{Root: root, Direction: direction, Depth: maxDepth, Commit: commitHash}
+	visited := map[string]bool{root: true}
+	type queueItem struct {
+		symbolID string
+		depth    int
+	}
+	queue := []queueItem{{symbolID: root, depth: 0}}
+	nodeByID := map[string]*impactNode{}
+
+	for len(queue) > 0 {
+		item := queue[0]
+		queue = queue[1:]
+		if item.depth >= maxDepth {
+			continue
+		}
+
+		edges, err := impactOneHop(ctx, db, commitHash, item.symbolID, direction)
+		if err != nil {
+			return nil, err
+		}
+		for _, edge := range edges {
+			nextID := edge.FromSymbolID
+			if direction == "uses" {
+				nextID = edge.ToSymbolID
+			}
+			nextDepth := item.depth + 1
+			node := nodeByID[nextID]
+			if node == nil {
+				name, kind, err := impactSymbolMeta(ctx, db, commitHash, nextID)
+				if err != nil {
+					name, kind = nextID, "symbol"
+				}
+				node = &impactNode{SymbolID: nextID, Name: name, Kind: kind, Depth: nextDepth, Compatibility: "unknown"}
+				nodeByID[nextID] = node
+				response.Nodes = append(response.Nodes, *node)
+			}
+			node.Edges = append(node.Edges, edge)
+			// Keep response slice in sync after appending edge to node pointer.
+			for i := range response.Nodes {
+				if response.Nodes[i].SymbolID == nextID {
+					response.Nodes[i] = *node
+					break
+				}
+			}
+			if !visited[nextID] {
+				visited[nextID] = true
+				queue = append(queue, queueItem{symbolID: nextID, depth: nextDepth})
+			}
+		}
+	}
+	if response.Nodes == nil {
+		response.Nodes = []impactNode{}
+	}
+	return response, nil
+}
+
+func impactOneHop(ctx context.Context, db *sql.DB, commitHash, symbolID, direction string) ([]impactEdge, error) {
+	query := `
+SELECT from_symbol_id, to_symbol_id, kind, file_id
+FROM   snapshot_refs
+WHERE  commit_hash = ? AND to_symbol_id = ?
+ORDER BY from_symbol_id, kind`
+	if direction == "uses" {
+		query = `
+SELECT from_symbol_id, to_symbol_id, kind, file_id
+FROM   snapshot_refs
+WHERE  commit_hash = ? AND from_symbol_id = ?
+ORDER BY to_symbol_id, kind`
+	}
+	rows, err := db.QueryContext(ctx, query, commitHash, symbolID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var edges []impactEdge
+	for rows.Next() {
+		var edge impactEdge
+		if err := rows.Scan(&edge.FromSymbolID, &edge.ToSymbolID, &edge.Kind, &edge.FileID); err != nil {
+			return nil, err
+		}
+		edges = append(edges, edge)
+	}
+	return edges, rows.Err()
+}
+
+func impactSymbolMeta(ctx context.Context, db *sql.DB, commitHash, symbolID string) (string, string, error) {
+	var name, kind string
+	err := db.QueryRowContext(ctx, `
+SELECT name, kind FROM snapshot_symbols WHERE commit_hash = ? AND id = ?`, commitHash, symbolID).Scan(&name, &kind)
+	return name, kind, err
 }
 
 // HistoryStore is a dependency the Server can optionally carry.

@@ -7,6 +7,7 @@ import { XrefPanel } from '../symbol/XrefPanel';
 import { Code } from '../../packages/ui/src/Code';
 import { SymbolDiffInlineWidget } from './widgets/SymbolDiffInlineWidget';
 import { SymbolHistoryInlineWidget } from './widgets/SymbolHistoryInlineWidget';
+import { ImpactInlineWidget } from './widgets/ImpactInlineWidget';
 
 /**
  * useGetSnippetFromCommit fetches a symbol's snippet at a specific commit
@@ -81,6 +82,18 @@ export function DocSnippet({ sym, directive, lang, commit, params }: DocSnippetP
   if (directive === 'codebase-symbol-history') {
     const parsedLimit = params?.limit ? Number.parseInt(params.limit, 10) : undefined;
     return <SymbolHistoryInlineWidget sym={sym} limit={Number.isFinite(parsedLimit) ? parsedLimit : undefined} />;
+  }
+  if (directive === 'codebase-impact') {
+    const parsedDepth = params?.depth ? Number.parseInt(params.depth, 10) : undefined;
+    const dir = params?.dir === 'uses' ? 'uses' : 'usedby';
+    return (
+      <ImpactInlineWidget
+        sym={sym}
+        dir={dir}
+        depth={Number.isFinite(parsedDepth) ? parsedDepth : undefined}
+        commit={params?.commit}
+      />
+    );
   }
   if (directive === 'codebase-signature') return <DocSignature sym={sym} commit={commit} language={lang} />;
   if (directive === 'codebase-doc') return <DocGodoc sym={sym} commit={commit} />;
