@@ -79,4 +79,4 @@
 - [x] 7.9 Verify source page in serve mode — 209 lines of build.go rendered
 - [x] 7.10 Add history links to package and symbol pages
 - [x] 7.11 Write diary for session 2
-- [ ] 7.12 Commit and finalize
+- [x] 7.12 Commit and finalize
