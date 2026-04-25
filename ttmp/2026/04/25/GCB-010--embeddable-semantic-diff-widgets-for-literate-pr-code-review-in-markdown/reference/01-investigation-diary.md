@@ -550,3 +550,59 @@ Playwright validation:
 - Start with `handleHistoryImpact` and `impactBFS` in `internal/server/api_history.go`.
 - Then review `ImpactInlineWidget.tsx` for rendering and grouping semantics.
 - Validate `/#/doc/07-slice3-impact-demo`.
+
+## Step 9: Polish Slice 3 impact links and external symbols
+
+The user noticed that clicking `handleConceptDetail` in the `writeJSON` "used by" list did not resolve. The underlying issue is that impact nodes come from the history DB snapshot, while `/symbol/:id` resolves against the static embedded HEAD index. When the static index is older or does not contain that symbol, the click lands on "Symbol not found" even though the history DB has the symbol.
+
+I polished Slice 3 by making impact rows history-backed: the server now marks each impact node as `local` if it exists in `snapshot_symbols`, and the frontend links local rows to `/history?symbol=...` instead of `/symbol/...`. This makes `handleConceptDetail` resolve to the standalone symbol history view. External nodes are displayed as non-links with a compact fallback name and an `external` badge.
+
+### What I did
+
+- `internal/server/api_history.go`
+  - Added `local` boolean to impact nodes
+  - Changed `impactSymbolMeta` to report whether a symbol is local to the snapshot
+  - Added `impactFallbackName` for external refs such as `sym:fmt.func.Sprintf`
+- `ui/src/api/historyApi.ts`
+  - Added `local: boolean` to `ImpactNode`
+- `ui/src/features/doc/widgets/ImpactInlineWidget.tsx`
+  - Link local rows to `/history?symbol=<id>`
+  - Render external rows as non-links with muted style and `external` badge
+  - Improved header counts (local/external) and included the commit hash
+  - Added a footer explaining why links use the history-backed route
+
+### Validation
+
+Commands run:
+
+```bash
+gofmt -w internal/server/api_history.go
+go test ./internal/server ./internal/docs
+pnpm -C ui run typecheck
+pnpm -C ui build
+go build -tags embed -o codebase-browser ./cmd/codebase-browser/
+```
+
+Playwright validation:
+
+- Loaded `http://localhost:3001/#/doc/07-slice3-impact-demo`
+- Verified the `writeJSON` impact widget renders with local counts
+- Clicked `handleConceptDetail`
+- Browser navigated to `/history?symbol=sym:...handleConceptDetail`
+- Verified the symbol history view renders and shows the body diff
+- Console errors: 0
+
+### What worked
+
+- `/history?symbol=...` is the right target for history-backed impact rows because it does not depend on the static embedded index.
+- External refs are much clearer now: `Sprintf` instead of the full `sym:fmt.func.Sprintf` as the primary label, with the full ID retained as a tooltip.
+
+### What warrants a second pair of eyes
+
+- Whether local impact rows should eventually offer both links: "open history" and "open current symbol" when the current static index contains the symbol.
+- Whether external refs should be hidden by default for `usedby`, or grouped separately.
+
+### Code review instructions
+
+- Review `ImpactInlineWidget.tsx` link behaviour first.
+- Confirm `handleConceptDetail` in `/#/doc/07-slice3-impact-demo` opens a usable history view.

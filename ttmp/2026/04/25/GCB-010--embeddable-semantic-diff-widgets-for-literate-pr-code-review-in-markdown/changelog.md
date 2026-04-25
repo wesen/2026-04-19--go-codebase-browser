@@ -81,3 +81,13 @@ Implemented Slice 3 codebase-impact widget. Added /api/history/impact BFS endpoi
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/server/api_history.go — /api/history/impact endpoint and BFS helpers
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/ImpactInlineWidget.tsx — New inline impact widget
 
+
+## 2026-04-25
+
+Polished Slice 3 impact widget links. Impact API now marks local vs external nodes; widget links local rows to history-backed /history?symbol=... so rows like handleConceptDetail resolve even when the static index is stale. External refs render as muted non-links with compact names. Validated with Playwright.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/server/api_history.go — Impact nodes now include local flag and external fallback names
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/ImpactInlineWidget.tsx — History-backed links and external-node polish
+
