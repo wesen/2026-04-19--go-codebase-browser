@@ -1,8 +1,56 @@
 // React namespace provided by jsx: react-jsx
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useGetSymbolQuery } from '../../api/indexApi';
 import { ExpandableSymbol } from '../symbol/ExpandableSymbol';
 import { XrefPanel } from '../symbol/XrefPanel';
+
+/**
+ * useGetSnippetFromCommit fetches a symbol's snippet at a specific commit
+ * from the history API. Returns undefined while loading, null on error,
+ * or the snippet text string on success. When commit is undefined, returns
+ * null immediately (used as a "skip" signal).
+ */
+function useGetSnippetFromCommit(
+  sym: string,
+  kind: string,
+  commit?: string,
+): string | null | undefined {
+  // No commit specified → not a history-aware request.
+  if (!commit) return null;
+
+  // We use a synchronous fetch pattern to keep the hook simple.
+  // RTK-Query with dynamic base URL would be cleaner, but for Slice 0
+  // this direct fetch keeps the blast radius minimal.
+  const cache = React.useRef<Map<string, string | null>>(new Map());
+  const key = `${sym}|${kind}|${commit}`;
+  const [, forceUpdate] = React.useReducer((x: number) => x + 1, 0);
+
+  React.useEffect(() => {
+    if (cache.current.has(key)) return;
+    // Mark as "loading" by setting undefined (not in cache).
+    // We use a sentinel to track in-flight requests.
+    const controller = new AbortController();
+    const url = `/api/snippet?sym=${encodeURIComponent(sym)}&kind=${encodeURIComponent(kind)}&commit=${encodeURIComponent(commit)}`;
+    fetch(url, { signal: controller.signal })
+      .then((resp) => {
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        return resp.text();
+      })
+      .then((text) => {
+        cache.current.set(key, text);
+        forceUpdate();
+      })
+      .catch(() => {
+        cache.current.set(key, null);
+        forceUpdate();
+      });
+    return () => controller.abort();
+  }, [key, sym, kind, commit]);
+
+  if (!cache.current.has(key)) return undefined; // loading
+  return cache.current.get(key);
+}
 
 /**
  * DocSnippet hydrates one `[data-codebase-snippet]` stub on a doc page.
@@ -19,27 +67,32 @@ export interface DocSnippetProps {
   directive: string;
   kind: string;
   lang: string;
+  commit?: string;
 }
 
-export function DocSnippet({ sym, directive }: DocSnippetProps) {
-  if (directive === 'codebase-signature') return <DocSignature sym={sym} />;
-  if (directive === 'codebase-doc') return <DocGodoc sym={sym} />;
-  return <DocFullSnippet sym={sym} />;
+export function DocSnippet({ sym, directive, commit }: DocSnippetProps) {
+  if (directive === 'codebase-signature') return <DocSignature sym={sym} commit={commit} />;
+  if (directive === 'codebase-doc') return <DocGodoc sym={sym} commit={commit} />;
+  return <DocFullSnippet sym={sym} commit={commit} />;
 }
 
-function DocSignature({ sym }: { sym: string }) {
+function DocSignature({ sym, commit }: { sym: string; commit?: string }) {
   const { data } = useGetSymbolQuery(sym);
+  const snippet = useGetSnippetFromCommit(sym, 'signature', commit);
+  const display = commit ? (snippet ?? data?.signature ?? data?.name ?? sym) : (data?.signature ?? data?.name ?? sym);
   return (
     <pre data-part="code-block" data-role="signature">
       <Link to={`/symbol/${encodeURIComponent(sym)}`} data-role="xref">
-        <code data-tok="kw">{data?.signature ?? data?.name ?? sym}</code>
+        <code data-tok="kw">{display}</code>
       </Link>
     </pre>
   );
 }
 
-function DocGodoc({ sym }: { sym: string }) {
+function DocGodoc({ sym, commit: _commit }: { sym: string; commit?: string }) {
   const { data } = useGetSymbolQuery(sym);
+  // Doc comments don't change often; use static index for now.
+  // History-backed doc resolution can be added later.
   return (
     <blockquote data-part="symbol-doc" data-role="doc">
       {data?.doc ?? ''}
@@ -53,18 +106,44 @@ function DocGodoc({ sym }: { sym: string }) {
 // on /symbol/{id} — plus a show/hide toggle so long snippets can collapse
 // once they've been skimmed, and a <details> section for digging into
 // callers and callees without leaving the doc page.
-function DocFullSnippet({ sym }: { sym: string }) {
+function DocFullSnippet({ sym, commit }: { sym: string; commit?: string }) {
   const { data: symbol } = useGetSymbolQuery(sym);
-  if (!symbol) {
+  const commitSnippet = useGetSnippetFromCommit(sym, 'declaration', commit);
+
+  if (commit && commitSnippet === undefined) {
+    return (
+      <pre data-part="code-block">
+        <code>Loading snippet at commit {commit.slice(0, 7)}…</code>
+      </pre>
+    );
+  }
+  if (!symbol && !commit) {
     return (
       <pre data-part="code-block">
         <code>Loading…</code>
       </pre>
     );
   }
+
+  // When commit is set, render the commit-resolved snippet as a simple
+  // code block (without the full ExpandableSymbol treatment since xrefs
+  // are not available for non-HEAD commits yet).
+  if (commit && commitSnippet) {
+    return (
+      <section data-part="doc-snippet">
+        <div style={{ fontSize: 12, color: 'var(--cb-color-muted)', marginBottom: 8 }}>
+          at commit <code>{commit.slice(0, 7)}</code>
+        </div>
+        <pre data-part="code-block">
+          <code>{commitSnippet}</code>
+        </pre>
+      </section>
+    );
+  }
+
   return (
     <section data-part="doc-snippet">
-      <ExpandableSymbol symbol={symbol} defaultOpen />
+      <ExpandableSymbol symbol={symbol!} defaultOpen />
       <details data-part="doc-snippet-xref" style={{ marginTop: 8 }}>
         <summary data-role="hint" style={{ cursor: 'pointer' }}>
           cross-references

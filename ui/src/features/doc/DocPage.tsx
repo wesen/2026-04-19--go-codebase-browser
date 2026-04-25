@@ -11,6 +11,7 @@ interface StubHandle {
   directive: string;
   kind: string;
   lang: string;
+  commit?: string;
 }
 
 export function DocPage() {
@@ -38,9 +39,10 @@ export function DocPage() {
         const directive = el.getAttribute('data-directive') ?? '';
         const kind = el.getAttribute('data-kind') ?? '';
         const lang = el.getAttribute('data-lang') ?? 'go';
+        const commit = el.getAttribute('data-commit') ?? undefined;
         if (!sym || !directive) return;
         el.innerHTML = ''; // drop the plaintext fallback before React mounts
-        found.push({ el, sym, directive, kind, lang });
+        found.push({ el, sym, directive, kind, lang, commit });
       });
     setStubs(found);
   }, [data?.html]);
@@ -66,6 +68,7 @@ export function DocPage() {
             directive={s.directive}
             kind={s.kind}
             lang={s.lang}
+            commit={s.commit}
           />,
           s.el,
           `${slug}-${i}`,
