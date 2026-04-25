@@ -10,6 +10,7 @@ import { SourcePage } from '../features/source/SourcePage';
 import { SearchPanel } from '../features/tree/SearchPanel';
 import { DocPage, DocList } from '../features/doc/DocPage';
 import { QueryConceptsPage } from '../features/query/QueryConceptsPage';
+import { HistoryPage } from '../features/history/HistoryPage';
 import { useGetIndexQuery } from '../api/indexApi';
 
 export function App() {
@@ -24,6 +25,11 @@ export function App() {
             <div style={{ marginBottom: 12 }}>
               <Link to="/queries" style={{ fontWeight: 600, color: 'var(--cb-color-accent)', textDecoration: 'none' }}>
                 Structured queries
+              </Link>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <Link to="/history" style={{ fontWeight: 600, color: 'var(--cb-color-accent)', textDecoration: 'none' }}>
+                History
               </Link>
             </div>
             <details open style={{ marginBottom: 12 }}>
@@ -41,6 +47,7 @@ export function App() {
               <Route path="/doc/:slug" element={<DocPage />} />
               <Route path="/queries" element={<QueryConceptsPage />} />
               <Route path="/queries/*" element={<QueryConceptsPage />} />
+              <Route path="/history" element={<HistoryPage />} />
             </Routes>
           </main>
         </div>
