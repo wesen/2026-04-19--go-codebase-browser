@@ -77,6 +77,8 @@ topics:
       description: 'Git history indexing subsystem: per-commit symbol snapshots in SQLite'
     - slug: markdown-directives
       description: codebase-* fenced code block directives for embedding live widgets in markdown
+    - slug: performance
+      description: Performance analysis and optimization work, including bundle size, latency, rendering cost, and resource usage.
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

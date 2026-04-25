@@ -12,19 +12,31 @@ Topics:
 DocType: index
 Intent: long-term
 Owners: []
-RelatedFiles: []
-ExternalSources: []
-Summary: ""
-LastUpdated: 2026-04-25T13:03:35.256481146-04:00
-WhatFor: ""
-WhenToUse: ""
+RelatedFiles:
+    - Path: ui/src/features/diff/DiffsUnifiedDiff.tsx
+      Note: Lazy-loading shell and fallback for Diffs review rendering
+    - Path: ui/src/features/diff/DiffsUnifiedDiffRenderer.tsx
+      Note: Current Diffs renderer
+    - Path: ui/src/features/doc/widgets/AnnotationWidget.tsx
+      Note: Future candidate for Diffs-native line annotations
+    - Path: ui/src/features/doc/widgets/CommitWalkWidget.tsx
+      Note: Future candidate for richer authoring/deep links/preferences
+    - Path: ui/src/features/history/HistoryPage.tsx
+      Note: Focused symbol-history UX and diff surface
+ExternalSources:
+    - https://diffs.com/docs
+Summary: Roadmap and assessment workspace for future improvements after adopting @pierre/diffs for semantic review widgets.
+LastUpdated: 2026-04-25T13:05:00-04:00
+WhatFor: Collect and prioritize future work without overloading GCB-011.
+WhenToUse: Use when planning follow-up tickets for Diffs-powered review UX, performance, annotations, theming, accessibility, or patch support.
 ---
+
 
 # Future assessment of Diffs-powered review UX improvements
 
 ## Overview
 
-<!-- Provide a brief overview of the ticket, its goals, and current status -->
+GCB-012 is a future assessment workspace for everything we should, can, or could address after GCB-010/GCB-011. It is intentionally a planning ticket: read the design guide, decide what matters next, then split implementation into smaller tickets.
 
 ## Key Links
 

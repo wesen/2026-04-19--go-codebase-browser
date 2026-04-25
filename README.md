@@ -37,7 +37,9 @@ annotated snippet, check history, and finish with impact.
 ### Semantic symbol diffs
 
 Instead of reviewing only file-level patches, docs can embed symbol-level diffs
-for a specific function or method across two commits.
+for a specific function or method across two commits. Diff rendering is powered
+by `@pierre/diffs`, with word-level highlighting, a unified/split toggle, and
+lazy-loaded Shiki syntax highlighting scoped at runtime to Go/TypeScript/TSX.
 
 ![Embedded symbol diff widget](docs/readme-assets/symbol-diff-widget.png)
 
@@ -51,7 +53,8 @@ narrative, with local symbols linked back into history-backed routes.
 ### History-backed symbol pages
 
 Deep links such as `/history?symbol=...` open a focused symbol-history view with
-per-commit body hashes and a colored body diff between selected commits.
+per-commit body hashes and the same Diffs-powered body diff renderer used in
+embedded review guides.
 
 ![History-backed symbol page](docs/readme-assets/symbol-history.png)
 
