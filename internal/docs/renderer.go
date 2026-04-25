@@ -39,10 +39,14 @@ type SnippetRef struct {
 	FilePath  string `json:"filePath,omitempty"`
 	Kind      string `json:"kind,omitempty"`
 	// Language of the resolved symbol (go | ts | ...). Empty for codebase-file.
-	Language  string `json:"language,omitempty"`
-	Text      string `json:"text"`
-	StartLine int    `json:"startLine,omitempty"`
-	EndLine   int    `json:"endLine,omitempty"`
+	Language string `json:"language,omitempty"`
+	Text     string `json:"text"`
+	// CommitHash is set when the author passes commit=<hash> on a directive.
+	// The frontend uses it to fetch the snippet from the history API instead
+	// of the static index. (GCB-010 Slice 0)
+	CommitHash string `json:"commitHash,omitempty"`
+	StartLine  int    `json:"startLine,omitempty"`
+	EndLine    int    `json:"endLine,omitempty"`
 }
 
 // Page is a single rendered doc page.
@@ -155,11 +159,15 @@ func stubHTML(ref *SnippetRef) string {
 		body = `<pre><code class="language-` + lang + `">` +
 			htmlpkg.EscapeString(ref.Text) + "</code></pre>"
 	}
+	commitAttr := ""
+	if ref.CommitHash != "" {
+		commitAttr = fmt.Sprintf(` data-commit=%q`, ref.CommitHash)
+	}
 	return fmt.Sprintf(
 		`<div class="codebase-snippet" data-codebase-snippet `+
 			`data-stub-id=%q data-sym=%q data-directive=%q `+
-			`data-kind=%q data-lang=%q>%s</div>`,
-		ref.StubID, ref.SymbolID, ref.Directive, ref.Kind, ref.Language, body,
+			`data-kind=%q data-lang=%q%s>%s</div>`,
+		ref.StubID, ref.SymbolID, ref.Directive, ref.Kind, ref.Language, commitAttr, body,
 	)
 }
 
@@ -174,6 +182,12 @@ func resolveDirective(info string, loaded *browser.Loaded, sourceFS fs.FS) (*Sni
 		}
 	}
 	ref := &SnippetRef{Directive: directive}
+	// Capture commit= param for history-aware resolution (GCB-010 Slice 0).
+	// When set, the stub emits data-commit so the frontend fetches from the
+	// history API instead of the static index.
+	commitHash := params["commit"]
+	ref.CommitHash = commitHash
+
 	switch directive {
 	case "codebase-snippet", "codebase-signature", "codebase-doc":
 		symRef := params["sym"]
