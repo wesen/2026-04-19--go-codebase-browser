@@ -107,6 +107,7 @@ export interface ImpactNode {
   depth: number;
   edges: ImpactEdge[];
   compatibility: string;
+  local: boolean;
 }
 
 export interface ImpactResponse {

@@ -168,6 +168,7 @@ type impactNode struct {
 	Depth         int          `json:"depth"`
 	Edges         []impactEdge `json:"edges"`
 	Compatibility string       `json:"compatibility"`
+	Local         bool         `json:"local"`
 }
 
 type impactResponse struct {
@@ -258,11 +259,11 @@ func impactBFS(ctx context.Context, db *sql.DB, commitHash, root, direction stri
 			nextDepth := item.depth + 1
 			node := nodeByID[nextID]
 			if node == nil {
-				name, kind, err := impactSymbolMeta(ctx, db, commitHash, nextID)
+				name, kind, local, err := impactSymbolMeta(ctx, db, commitHash, nextID)
 				if err != nil {
-					name, kind = nextID, "symbol"
+					name, kind, local = impactFallbackName(nextID), "external", false
 				}
-				node = &impactNode{SymbolID: nextID, Name: name, Kind: kind, Depth: nextDepth, Compatibility: "unknown"}
+				node = &impactNode{SymbolID: nextID, Name: name, Kind: kind, Depth: nextDepth, Compatibility: "unknown", Local: local}
 				nodeByID[nextID] = node
 				response.Nodes = append(response.Nodes, *node)
 			}
@@ -315,11 +316,29 @@ ORDER BY to_symbol_id, kind`
 	return edges, rows.Err()
 }
 
-func impactSymbolMeta(ctx context.Context, db *sql.DB, commitHash, symbolID string) (string, string, error) {
+func impactSymbolMeta(ctx context.Context, db *sql.DB, commitHash, symbolID string) (string, string, bool, error) {
 	var name, kind string
 	err := db.QueryRowContext(ctx, `
 SELECT name, kind FROM snapshot_symbols WHERE commit_hash = ? AND id = ?`, commitHash, symbolID).Scan(&name, &kind)
-	return name, kind, err
+	return name, kind, err == nil, err
+}
+
+func impactFallbackName(symbolID string) string {
+	trimmed := symbolID
+	if len(trimmed) > 4 && trimmed[:4] == "sym:" {
+		trimmed = trimmed[4:]
+	}
+	lastDot := -1
+	for i := len(trimmed) - 1; i >= 0; i-- {
+		if trimmed[i] == '.' {
+			lastDot = i
+			break
+		}
+	}
+	if lastDot >= 0 && lastDot+1 < len(trimmed) {
+		return trimmed[lastDot+1:]
+	}
+	return trimmed
 }
 
 // HistoryStore is a dependency the Server can optionally carry.
