@@ -239,3 +239,88 @@ Playwright validation:
 ### Build/performance note
 
 The Vite build now emits many Shiki language/theme chunks and large bundle warnings. This is expected from the Diffs/Shiki integration but should be handled in Phase 4, likely by lazy-loading the Diffs wrapper or otherwise reducing initial bundle impact.
+
+## Step 5: Lazy-load Diffs and refresh README screenshots
+
+The user asked to continue and refresh screenshots. I focused on Phase 4 performance polish first, then regenerated the README screenshots from the updated UI.
+
+### Lazy-loading change
+
+The first Diffs integration statically imported `@pierre/diffs/react` in `DiffsUnifiedDiff.tsx`. That moved Diffs/Shiki into the main application chunk and made the build output show a very large initial bundle.
+
+I split the implementation into two files:
+
+- `ui/src/features/diff/DiffsUnifiedDiff.tsx`
+  - lightweight shell;
+  - owns the error boundary and fallback renderer;
+  - uses `React.lazy` / `Suspense` to load the real Diffs renderer only when a diff widget is actually mounted.
+- `ui/src/features/diff/DiffsUnifiedDiffRenderer.tsx`
+  - imports `@pierre/diffs/react`;
+  - owns `MultiFileDiff`, unified/split state, and Diffs options.
+
+This keeps the public local wrapper API stable while isolating the large third-party renderer behind a dynamic import.
+
+### Build impact
+
+Before lazy loading, the main app chunk was roughly:
+
+```text
+index-*.js  ~745 kB minified / ~225 kB gzip
+```
+
+After lazy loading:
+
+```text
+index-*.js                       ~342 kB minified / ~109 kB gzip
+DiffsUnifiedDiffRenderer-*.js    ~404 kB minified / ~117 kB gzip
+```
+
+The total code still exists, but it is no longer paid on first load for routes that do not render diffs.
+
+The build still emits large Shiki language/theme chunks, including a few >500 kB warnings. Those are now mostly lazy dependency chunks. Future work can investigate narrowing Shiki languages/themes or using more explicit Rollup chunking.
+
+### Screenshot refresh
+
+Regenerated README screenshots with Playwright at 1440×1000:
+
+- `docs/readme-assets/symbol-diff-widget.png`
+- `docs/readme-assets/symbol-history.png`
+- `docs/readme-assets/commit-walk.png`
+- `docs/readme-assets/impact-widget.png`
+
+Only the screenshots whose pixels changed are reported by git. The diff and history screenshots changed because the Diffs renderer is now visible there.
+
+### Validation
+
+Commands run:
+
+```bash
+pnpm -C ui run typecheck
+pnpm -C ui build
+go build -tags embed -o codebase-browser ./cmd/codebase-browser/
+go test ./internal/docs ./internal/server
+```
+
+Copied the built frontend into `internal/web/embed/public/` and restarted tmux server on `:3001`.
+
+Playwright validation:
+
+- `/#/doc/05-slice1-diff-demo`
+  - 2 Diffs wrappers;
+  - no loading placeholder remaining;
+  - no fallback renderer;
+  - Diffs Shadow DOM header present.
+- `/#/doc/09-slice5-commit-walk-demo`
+  - commit walk renders;
+  - no fallback renderer.
+- `/#/doc/07-slice3-impact-demo`
+  - impact demo still renders.
+- `/#/history?symbol=sym:...Server.handleSnippet`
+  - 1 Diffs wrapper;
+  - no fallback renderer;
+  - Diffs Shadow DOM header present.
+- `/#/doc/08-slice4-quick-wins-demo`
+  - annotation widget renders;
+  - 5 highlighted rows;
+  - review-note text is visible.
+- Browser console errors: 0.

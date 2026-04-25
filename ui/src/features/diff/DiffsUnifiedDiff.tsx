@@ -1,6 +1,9 @@
 import React from 'react';
-import { MultiFileDiff } from '@pierre/diffs/react';
-import type { FileContents } from '@pierre/diffs/react';
+import type { DiffsUnifiedDiffRendererProps } from './DiffsUnifiedDiffRenderer';
+
+const LazyDiffsUnifiedDiffRenderer = React.lazy(() =>
+  import('./DiffsUnifiedDiffRenderer').then((mod) => ({ default: mod.DiffsUnifiedDiffRenderer })),
+);
 
 interface DiffsUnifiedDiffProps {
   name: string;
@@ -21,63 +24,21 @@ export function DiffsUnifiedDiff({
   newLabel,
   maxHeight = '60vh',
 }: DiffsUnifiedDiffProps) {
-  const [diffStyle, setDiffStyle] = React.useState<'unified' | 'split'>('unified');
-  const oldFile = React.useMemo<FileContents>(() => ({
-    name: oldLabel ? `${name} (${oldLabel})` : name,
-    contents: oldText,
-    lang: language,
-    cacheKey: oldLabel ? `${name}:${oldLabel}` : undefined,
-  }), [language, name, oldLabel, oldText]);
-
-  const newFile = React.useMemo<FileContents>(() => ({
-    name: newLabel ? `${name} (${newLabel})` : name,
-    contents: newText,
-    lang: language,
-    cacheKey: newLabel ? `${name}:${newLabel}` : undefined,
-  }), [language, name, newLabel, newText]);
+  const props: DiffsUnifiedDiffRendererProps = {
+    name,
+    oldText,
+    newText,
+    language,
+    oldLabel,
+    newLabel,
+    maxHeight,
+  };
 
   return (
-    <DiffsErrorBoundary fallback={<FallbackUnifiedDiff oldText={oldText} newText={newText} />}>
-      <div data-role="diffs-unified-diff">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, color: 'var(--cb-color-muted)' }}>
-            Rendered with Diffs · word-level changes enabled
-          </span>
-          <div role="group" aria-label="Diff layout" style={{ display: 'inline-flex', border: '1px solid var(--cb-color-border)', borderRadius: 999, overflow: 'hidden' }}>
-            <button
-              type="button"
-              onClick={() => setDiffStyle('unified')}
-              aria-pressed={diffStyle === 'unified'}
-              style={toggleButtonStyle(diffStyle === 'unified')}
-            >
-              Unified
-            </button>
-            <button
-              type="button"
-              onClick={() => setDiffStyle('split')}
-              aria-pressed={diffStyle === 'split'}
-              style={toggleButtonStyle(diffStyle === 'split')}
-            >
-              Split
-            </button>
-          </div>
-        </div>
-        <div style={{ maxHeight, overflow: 'auto' }}>
-          <MultiFileDiff
-            oldFile={oldFile}
-            newFile={newFile}
-            disableWorkerPool
-            options={{
-              diffStyle,
-              overflow: 'wrap',
-              theme: { light: 'github-light', dark: 'github-dark' },
-              themeType: 'system',
-              hunkSeparators: 'line-info-basic',
-              lineDiffType: 'word',
-            }}
-          />
-        </div>
-      </div>
+    <DiffsErrorBoundary fallback={<FallbackUnifiedDiff oldText={oldText} newText={newText} maxHeight={maxHeight} />}>
+      <React.Suspense fallback={<DiffLoading maxHeight={maxHeight} />}>
+        <LazyDiffsUnifiedDiffRenderer {...props} />
+      </React.Suspense>
     </DiffsErrorBoundary>
   );
 }
@@ -99,10 +60,18 @@ class DiffsErrorBoundary extends React.Component<React.PropsWithChildren<{ fallb
   }
 }
 
-function FallbackUnifiedDiff({ oldText, newText }: { oldText: string; newText: string }) {
+function DiffLoading({ maxHeight }: { maxHeight: string }) {
+  return (
+    <pre data-part="code-block" data-role="diff-loading" style={{ whiteSpace: 'pre-wrap', maxHeight, overflow: 'auto' }}>
+      <code>Loading Diffs renderer…</code>
+    </pre>
+  );
+}
+
+function FallbackUnifiedDiff({ oldText, newText, maxHeight }: { oldText: string; newText: string; maxHeight: string }) {
   const lines = simpleUnifiedDiff(oldText, newText);
   return (
-    <pre data-part="code-block" data-role="diff-fallback" style={{ whiteSpace: 'pre-wrap', maxHeight: '60vh', overflow: 'auto' }}>
+    <pre data-part="code-block" data-role="diff-fallback" style={{ whiteSpace: 'pre-wrap', maxHeight, overflow: 'auto' }}>
       <code>
         {lines.map((line, i) => {
           const style = line.startsWith('- ')
@@ -115,19 +84,6 @@ function FallbackUnifiedDiff({ oldText, newText }: { oldText: string; newText: s
       </code>
     </pre>
   );
-}
-
-function toggleButtonStyle(active: boolean): React.CSSProperties {
-  return {
-    border: 0,
-    borderRight: active ? 0 : '1px solid var(--cb-color-border)',
-    background: active ? 'var(--cb-color-accent, #2196f3)' : 'transparent',
-    color: active ? '#fff' : 'var(--cb-color-text)',
-    padding: '4px 10px',
-    cursor: 'pointer',
-    fontSize: 12,
-    fontWeight: active ? 700 : 400,
-  };
 }
 
 function simpleUnifiedDiff(oldText: string, newText: string): string[] {

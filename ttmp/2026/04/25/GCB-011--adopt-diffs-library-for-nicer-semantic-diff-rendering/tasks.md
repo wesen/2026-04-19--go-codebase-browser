@@ -35,7 +35,8 @@
 
 ## Phase 4 — Follow-up polish / performance
 
-- [ ] Document theming/performance findings
-- [ ] Investigate dynamic import or lazy loading to reduce Diffs/Shiki initial bundle impact
+- [x] Document theming/performance findings
+- [x] Lazy-load the Diffs renderer to keep Diffs/Shiki out of the initial app chunk
+- [x] Refresh README screenshots after Diffs UI changes
 - [ ] Consider Diffs line annotations for a future richer `codebase-annotation`
 - [ ] Consider `PatchDiff` / `parsePatchFiles` for future full file or PR patch views

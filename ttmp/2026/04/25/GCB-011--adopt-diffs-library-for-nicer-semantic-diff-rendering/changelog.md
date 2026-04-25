@@ -27,3 +27,15 @@ Implemented the first @pierre/diffs integration: added dependency, shared MultiF
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/SymbolDiffInlineWidget.tsx — Uses shared Diffs wrapper
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/history/HistoryPage.tsx — Focused symbol body diff uses shared Diffs wrapper
 
+
+## 2026-04-25
+
+Phase 4 polish: lazy-loaded the Diffs renderer so @pierre/diffs/Shiki move out of the initial app chunk, documented build impact, refreshed README screenshots for the updated Diffs UI, and revalidated demos/routes with Playwright.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/docs/readme-assets/symbol-diff-widget.png — Refreshed screenshot
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/docs/readme-assets/symbol-history.png — Refreshed screenshot
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/diff/DiffsUnifiedDiff.tsx — Lightweight lazy-loading shell and fallback
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/diff/DiffsUnifiedDiffRenderer.tsx — Lazy-loaded @pierre/diffs renderer
+
