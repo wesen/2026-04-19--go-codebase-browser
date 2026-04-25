@@ -1,4 +1,5 @@
 import { useGetSymbolBodyDiffQuery } from '../../../api/historyApi';
+import { DiffsUnifiedDiff } from '../../diff/DiffsUnifiedDiff';
 
 interface SymbolDiffInlineWidgetProps {
   sym: string;
@@ -28,8 +29,6 @@ export function SymbolDiffInlineWidget({ sym, from, to }: SymbolDiffInlineWidget
   }
   if (!data) return null;
 
-  const lines = (data.unifiedDiff || '').split('\n');
-
   return (
     <section data-part="doc-snippet" data-role="diff">
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -39,22 +38,14 @@ export function SymbolDiffInlineWidget({ sym, from, to }: SymbolDiffInlineWidget
           {' '}({data.oldRange} → {data.newRange})
         </span>
       </div>
-      <pre
-        data-part="code-block"
-        data-role="diff"
-        style={{ whiteSpace: 'pre-wrap', maxHeight: '60vh', overflow: 'auto' }}
-      >
-        <code>
-          {lines.map((line, i) => {
-            const style = line.startsWith('- ')
-              ? { background: 'rgba(244, 67, 54, 0.12)', color: '#c62828', display: 'block' }
-              : line.startsWith('+ ')
-                ? { background: 'rgba(76, 175, 80, 0.12)', color: '#2e7d32', display: 'block' }
-                : { color: 'var(--cb-color-muted)', display: 'block' };
-            return <span key={i} style={style}>{line || ' '}</span>;
-          })}
-        </code>
-      </pre>
+      <DiffsUnifiedDiff
+        name={`${data.name || 'symbol'}.go`}
+        oldText={data.oldBody}
+        newText={data.newBody}
+        language="go"
+        oldLabel={from.slice(0, 7)}
+        newLabel={to.slice(0, 7)}
+      />
     </section>
   );
 }

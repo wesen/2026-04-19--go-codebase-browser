@@ -1,5 +1,4 @@
 import React from 'react';
-import { Code } from '../../../packages/ui/src/Code';
 
 interface AnnotationWidgetProps {
   sym: string;
@@ -9,7 +8,7 @@ interface AnnotationWidgetProps {
   note?: string;
 }
 
-export function AnnotationWidget({ sym, language = 'go', commit, lines, note }: AnnotationWidgetProps) {
+export function AnnotationWidget({ sym, commit, lines, note }: AnnotationWidgetProps) {
   const [text, setText] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -34,41 +33,74 @@ export function AnnotationWidget({ sym, language = 'go', commit, lines, note }: 
 
   const highlight = parseLineSpec(lines);
   const sourceLines = text.split('\n');
+  const lineLabel = lines ? `lines ${lines}` : 'selected lines';
+  const cleanNote = normalizeNote(note);
+
   return (
-    <section data-part="doc-snippet" data-role="annotation">
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
-        <strong>Annotated snippet: <code>{displayName(sym)}</code></strong>
-        {commit && <span style={{ fontSize: 12, color: 'var(--cb-color-muted)' }}>at <code>{commit.slice(0, 7)}</code></span>}
-      </div>
-      <div style={{ display: 'grid', gap: 2 }}>
-        {sourceLines.map((line, index) => {
-          const lineNo = index + 1;
-          const active = highlight.has(lineNo);
-          return (
-            <div
-              key={lineNo}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '3rem minmax(0, 1fr)',
-                gap: 8,
-                background: active ? 'rgba(255, 193, 7, 0.18)' : 'transparent',
-                borderLeft: active ? '3px solid #ffb300' : '3px solid transparent',
-                paddingLeft: 4,
-              }}
-            >
-              <code style={{ userSelect: 'none', color: 'var(--cb-color-muted)', textAlign: 'right', paddingTop: 8 }}>{lineNo}</code>
-              <Code text={line || ' '} language={language} />
-            </div>
-          );
-        })}
-      </div>
-      {note && (
-        <div style={{ marginTop: 8, border: '1px solid var(--cb-color-border)', borderRadius: 8, padding: 8 }}>
-          <strong>Note:</strong> {note.split('_').join(' ')}
+    <section
+      data-part="doc-snippet"
+      data-role="annotation"
+      style={{ border: '1px solid var(--cb-color-border)', borderRadius: 12, overflow: 'hidden' }}
+    >
+      <div style={{ padding: 12, borderBottom: '1px solid var(--cb-color-border)', background: 'rgba(255, 193, 7, 0.10)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
+          <strong>Review note: <code>{displayName(sym)}</code></strong>
+          <span style={{ fontSize: 12, color: 'var(--cb-color-muted)' }}>
+            {commit && <>at <code>{commit.slice(0, 7)}</code> · </>}
+            highlighting <code>{lineLabel}</code>
+          </span>
         </div>
-      )}
+        <p style={{ margin: '8px 0 0', color: 'var(--cb-color-text)' }}>
+          {cleanNote || 'Read the highlighted lines below; they are the part of this snippet the guide is calling out.'}
+        </p>
+      </div>
+
+      <pre
+        data-part="code-block"
+        data-role="annotation-code"
+        style={{
+          margin: 0,
+          padding: 0,
+          maxHeight: '60vh',
+          overflow: 'auto',
+          background: 'var(--cb-color-surface, #f8f8f8)',
+          border: 0,
+          borderRadius: 0,
+          lineHeight: 1.55,
+          fontSize: 13,
+        }}
+      >
+        <code>
+          {sourceLines.map((line, index) => {
+            const lineNo = index + 1;
+            const active = highlight.has(lineNo);
+            return (
+              <span
+                key={lineNo}
+                data-highlighted={active ? 'true' : undefined}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '3.5rem minmax(0, 1fr)',
+                  background: active ? 'rgba(255, 193, 7, 0.22)' : 'transparent',
+                  borderLeft: active ? '4px solid #ffb300' : '4px solid transparent',
+                }}
+              >
+                <span style={{ color: active ? '#8a5a00' : 'var(--cb-color-muted)', textAlign: 'right', padding: '0 10px 0 6px', userSelect: 'none' }}>
+                  {lineNo}
+                </span>
+                <span style={{ whiteSpace: 'pre-wrap', paddingRight: 12 }}>{line || ' '}</span>
+              </span>
+            );
+          })}
+        </code>
+      </pre>
     </section>
   );
+}
+
+function normalizeNote(note?: string): string {
+  if (!note) return '';
+  return note.split('_').join(' ');
 }
 
 function parseLineSpec(spec?: string): Set<number> {

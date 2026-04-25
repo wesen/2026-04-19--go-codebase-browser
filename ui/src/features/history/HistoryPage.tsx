@@ -10,6 +10,7 @@ import {
   type SymbolHistoryEntry,
   type FileDiff,
 } from '../../api/historyApi';
+import { DiffsUnifiedDiff } from '../diff/DiffsUnifiedDiff';
 
 export function HistoryPage() {
   const { data: commits, isLoading, error } = useListCommitsQuery();
@@ -506,32 +507,15 @@ function SymbolBodyDiffView({ from, to, symbolId }: { from: string; to: string; 
       </div>
 
       {data.unifiedDiff ? (
-        <pre
-          data-role="diff"
-          style={{
-            whiteSpace: 'pre-wrap',
-            fontSize: 13,
-            lineHeight: 1.5,
-            background: 'var(--cb-color-surface, #f8f8f8)',
-            border: '1px solid var(--cb-color-border)',
-            borderRadius: 8,
-            padding: 16,
-            margin: 0,
-            maxHeight: '50vh',
-            overflow: 'auto',
-          }}
-        >
-          <code>
-            {data.unifiedDiff.split('\n').map((line: string, i: number) => {
-              const style = line.startsWith('- ')
-                ? { background: 'rgba(244, 67, 54, 0.16)', color: '#c62828', display: 'block', padding: '0 4px' }
-                : line.startsWith('+ ')
-                  ? { background: 'rgba(76, 175, 80, 0.16)', color: '#2e7d32', display: 'block', padding: '0 4px' }
-                  : { color: 'var(--cb-color-muted)', display: 'block', padding: '0 4px' };
-              return <span key={i} style={style}>{line || ' '}</span>;
-            })}
-          </code>
-        </pre>
+        <DiffsUnifiedDiff
+          name={`${data.name || 'symbol'}.go`}
+          oldText={data.oldBody}
+          newText={data.newBody}
+          language="go"
+          oldLabel={from.slice(0, 7)}
+          newLabel={to.slice(0, 7)}
+          maxHeight="50vh"
+        />
       ) : data.oldBody === data.newBody ? (
         <div style={{ padding: 16, color: 'var(--cb-color-muted)' }}>No body changes between these commits.</div>
       ) : (
