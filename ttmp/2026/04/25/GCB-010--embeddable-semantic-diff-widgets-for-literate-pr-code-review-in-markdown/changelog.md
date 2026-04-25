@@ -151,3 +151,16 @@ Implemented Slice 5 codebase-commit-walk: body-driven guided review directive, q
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/docs/renderer.go — Body-aware directive resolver and commit-walk step parser
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/CommitWalkWidget.tsx — Guided commit walk widget
 
+
+## 2026-04-25
+
+Added README feature-tour screenshots for commit walk, symbol diff, impact analysis, and history-backed symbol pages.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/README.md — Feature tour with screenshots
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/docs/readme-assets/commit-walk.png — README screenshot
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/docs/readme-assets/impact-widget.png — README screenshot
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/docs/readme-assets/symbol-diff-widget.png — README screenshot
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/docs/readme-assets/symbol-history.png — README screenshot
+

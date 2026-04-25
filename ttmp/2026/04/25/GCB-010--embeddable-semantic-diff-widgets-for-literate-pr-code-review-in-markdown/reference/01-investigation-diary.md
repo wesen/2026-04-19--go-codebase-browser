@@ -849,3 +849,30 @@ It walked through all six steps with the Next button and confirmed the expected 
 - Add tests for `splitFields` and `parseCommitWalkSteps`.
 - Consider a richer YAML-ish or Markdown-body DSL for long prose instead of `body="..."` attributes.
 - Improve keyboard/ARIA affordances beyond the current basic buttons and `aria-current=step`.
+
+## Step 15: Add README screenshots for the embeddable review features
+
+The user asked for nice README screenshots that show the different features. I captured representative browser views from the running local server and added a feature-tour section to the README.
+
+### What I did
+
+- Created `docs/readme-assets/`.
+- Captured screenshots with Playwright at a 1440×1000 viewport:
+  - `docs/readme-assets/commit-walk.png`
+  - `docs/readme-assets/symbol-diff-widget.png`
+  - `docs/readme-assets/impact-widget.png`
+  - `docs/readme-assets/symbol-history.png`
+- Updated `README.md` with a new **Feature tour** section covering:
+  - Literate review guides / commit walk
+  - Semantic symbol diffs
+  - Impact analysis
+  - History-backed symbol pages
+
+### Validation
+
+- Confirmed screenshots were written and are PNG images.
+- Reviewed the README diff to ensure all image paths are relative and repository-local.
+
+### Notes
+
+The screenshots are intentionally committed as docs assets; local runtime artifacts (`codebase-browser`, `history.db*`, `scripts/codebase.db`) remain untracked.

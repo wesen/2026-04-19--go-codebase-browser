@@ -23,6 +23,38 @@ index at request time. See `03-meta.md` for a worked example.
 - **Deterministic.** Stable symbol IDs (`sym:<importPath>.<kind>.<name>`)
   survive file moves; sorted output gives reproducible builds.
 
+## Feature tour
+
+### Literate review guides
+
+Markdown docs can embed guided, interactive review flows. The `codebase-commit-walk`
+widget below composes smaller semantic widgets into a step-by-step walkthrough:
+start with change size, inspect files, drill into a symbol diff, zoom in on an
+annotated snippet, check history, and finish with impact.
+
+![Guided commit walk widget](docs/readme-assets/commit-walk.png)
+
+### Semantic symbol diffs
+
+Instead of reviewing only file-level patches, docs can embed symbol-level diffs
+for a specific function or method across two commits.
+
+![Embedded symbol diff widget](docs/readme-assets/symbol-diff-widget.png)
+
+### Impact analysis
+
+Impact widgets show callers/callees around a symbol directly inside the review
+narrative, with local symbols linked back into history-backed routes.
+
+![Impact analysis widget](docs/readme-assets/impact-widget.png)
+
+### History-backed symbol pages
+
+Deep links such as `/history?symbol=...` open a focused symbol-history view with
+per-commit body hashes and a colored body diff between selected commits.
+
+![History-backed symbol page](docs/readme-assets/symbol-history.png)
+
 ## Quick start
 
 Prerequisites: Go 1.22+ and optional Docker for the hermetic Dagger build path.
