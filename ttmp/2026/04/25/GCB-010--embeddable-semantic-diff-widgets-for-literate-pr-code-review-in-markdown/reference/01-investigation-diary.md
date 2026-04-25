@@ -756,3 +756,96 @@ Playwright validation:
 ### What worked
 
 - Reusing the Slice 1 rendering structure fixed the issue and makes diff rendering more consistent between doc widgets and the history page.
+
+## Step 14: Implement Slice 5 commit walk widget
+
+I implemented Slice 5: `codebase-commit-walk`, a guided multi-step review widget intended to turn the smaller semantic widgets into a coherent literate PR review path.
+
+### What I did
+
+- `internal/docs/renderer.go`
+  - Changed preprocessing so directive resolution receives the fenced block body.
+  - Added `codebase-commit-walk` directive support.
+  - Added a small line-oriented step DSL parser:
+    - Each non-empty, non-comment body line starts with `step`.
+    - Parameters use `key=value`.
+    - Quoted values are supported, so authors can write `title="..."` and `body="..."`.
+    - `sym=` values are resolved through the existing symbol resolver before being serialized to the frontend.
+  - Serialized commit-walk steps as JSON in `data-params.steps`.
+- `ui/src/features/doc/widgets/CommitWalkWidget.tsx`
+  - Added a navigable commit walk shell with previous/next buttons and numbered step jump buttons.
+  - Composes existing widgets for step kinds:
+    - `stats` / `diff-stats`
+    - `files` / `changed-files`
+    - `diff`
+    - `annotation` / `snippet`
+    - `history`
+    - `impact`
+- `ui/src/features/doc/DocSnippet.tsx`
+  - Added dispatch for `codebase-commit-walk`.
+- Added demo page:
+  - `internal/docs/embed/pages/09-slice5-commit-walk-demo.md`
+
+### Demo shape
+
+The demo walks through the Slice 0 commit-aware snippet change using six steps:
+
+1. Diff stats
+2. Changed files
+3. Symbol diff for `Server.handleSnippet`
+4. Annotated snippet highlighting the new commit-aware branch
+5. Symbol history for `Server.handleSnippet`
+6. Impact around `Server.handleSnippet`
+
+### Validation
+
+Commands run:
+
+```bash
+gofmt -w internal/docs/renderer.go
+go test ./internal/docs ./internal/server
+pnpm -C ui run typecheck
+pnpm -C ui build
+go build -tags embed -o codebase-browser ./cmd/codebase-browser/
+```
+
+Server restarted in tmux:
+
+```bash
+./codebase-browser serve --addr :3001 --history-db history.db --repo-root .
+```
+
+Playwright validation loaded:
+
+```text
+http://localhost:3001/#/doc/09-slice5-commit-walk-demo
+```
+
+It walked through all six steps with the Next button and confirmed the expected sub-widget for each:
+
+- Step 1 rendered diff stats.
+- Step 2 rendered changed files.
+- Step 3 rendered a body diff.
+- Step 4 rendered an annotation widget.
+- Step 5 rendered symbol-history content.
+- Step 6 rendered impact content.
+- Browser console errors: 0.
+
+### What was tricky
+
+- The existing docs renderer intentionally ignored fence bodies. Slice 5 needed body-aware directives, so I changed the resolver call to pass body lines while keeping all earlier directives behavior-compatible.
+- Commit-walk steps are currently serialized into the existing `map[string]string` `Params` field as a JSON string. This avoids a broader API shape change but means the frontend parses `params.steps` separately.
+- I added quoted field parsing because `strings.Fields` would make authoring titles and body text too awkward.
+
+### Code review instructions
+
+- Open `/#/doc/09-slice5-commit-walk-demo`.
+- Use Next/Prev and numbered step buttons to traverse all six steps.
+- Confirm each composed widget still behaves the same as when rendered standalone.
+- Review `internal/docs/renderer.go` carefully: `resolveDirective` now receives fence body lines, and the quoted-field parser is shared by normal directive infos and commit-walk step lines.
+
+### Future polish
+
+- Add tests for `splitFields` and `parseCommitWalkSteps`.
+- Consider a richer YAML-ish or Markdown-body DSL for long prose instead of `body="..."` attributes.
+- Improve keyboard/ARIA affordances beyond the current basic buttons and `aria-current=step`.

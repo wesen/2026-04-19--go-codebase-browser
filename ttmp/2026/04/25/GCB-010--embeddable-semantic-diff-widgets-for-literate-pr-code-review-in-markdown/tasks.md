@@ -65,11 +65,11 @@ LastUpdated: 2026-04-25T12:30:00Z
 
 ## Slice 5: "The guided walk" — codebase-commit-walk (~3–4 days)
 
-- [ ] **T5a** Add `case "codebase-commit-walk"` in `internal/docs/renderer.go` — parse `step` sub-directives, serialise as JSON in data-params
-- [ ] **T5b** Create `ui/src/features/doc/widgets/CommitWalkWidget.tsx` — step navigation, sub-widget composition
-- [ ] **T5c** Add dispatch in `DocSnippet.tsx`
-- [ ] **T5d** Write full literate PR review guide demo page
-- [ ] **T5e** Validate: walk through all steps, sub-widgets render, navigation works, reads as coherent guide
+- [x] **T5a** Add `case "codebase-commit-walk"` in `internal/docs/renderer.go` — parse `step` sub-directives, serialise as JSON in data-params
+- [x] **T5b** Create `ui/src/features/doc/widgets/CommitWalkWidget.tsx` — step navigation, sub-widget composition
+- [x] **T5c** Add dispatch in `DocSnippet.tsx`
+- [x] **T5d** Write full literate PR review guide demo page
+- [x] **T5e** Validate: walk through all steps, sub-widgets render, navigation works, reads as coherent guide
 
 ## Polish (after all slices)
 

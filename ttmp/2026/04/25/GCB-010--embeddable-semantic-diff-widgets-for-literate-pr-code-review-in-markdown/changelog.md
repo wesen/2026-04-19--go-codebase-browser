@@ -140,3 +140,14 @@ Fixed symbol history body diff colouring by replacing invalid div-inside-pre ren
 
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/history/HistoryPage.tsx — Body diff now uses pre/code/span with coloured block lines
 
+
+## 2026-04-25
+
+Implemented Slice 5 codebase-commit-walk: body-driven guided review directive, quoted step DSL, CommitWalkWidget with prev/next and step navigation, composition of stats/files/diff/annotation/history/impact widgets, and demo page at /#/doc/09-slice5-commit-walk-demo.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/docs/embed/pages/09-slice5-commit-walk-demo.md — Slice 5 demo page
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/docs/renderer.go — Body-aware directive resolver and commit-walk step parser
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/CommitWalkWidget.tsx — Guided commit walk widget
+
