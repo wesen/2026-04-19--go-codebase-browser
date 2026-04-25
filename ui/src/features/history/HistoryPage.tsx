@@ -138,7 +138,7 @@ function CommitTimeline({ commits, initialSymbol }: { commits: CommitRow[]; init
               {JSON.stringify(diffQuery.error, null, 2)}
             </pre>
           ) : diffQuery.data ? (
-            <DiffView diff={diffQuery.data} initialSymbol={initialSymbol} />
+            <DiffView diff={diffQuery.data} initialSymbol={initialSymbol} oldHash={selectedOld} newHash={selectedNew} />
           ) : null
         ) : (
           <div
@@ -152,14 +152,10 @@ function CommitTimeline({ commits, initialSymbol }: { commits: CommitRow[]; init
   );
 }
 
-function DiffView({ diff, initialSymbol }: { diff: ReturnType<typeof useGetDiffQuery>['data'] & {}; initialSymbol: string }) {
+function DiffView({ diff, initialSymbol, oldHash, newHash }: { diff: ReturnType<typeof useGetDiffQuery>['data'] & {}; initialSymbol: string; oldHash: string; newHash: string }) {
   if (!diff) return null;
 
   const [selectedSymbolId, setSelectedSymbolId] = React.useState(initialSymbol);
-  const historyQuery = useGetSymbolHistoryQuery(
-    { symbolId: selectedSymbolId },
-    { skip: !selectedSymbolId },
-  );
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
@@ -285,10 +281,10 @@ function DiffView({ diff, initialSymbol }: { diff: ReturnType<typeof useGetDiffQ
         </section>
       )}
 
-      {selectedSymbolId && historyQuery.data && (
+      {selectedSymbolId && (
         <section style={{ border: '1px solid var(--cb-color-accent)', borderRadius: 12, padding: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
-            <h3 style={{ margin: 0 }}>Function history</h3>
+            <h3 style={{ margin: 0 }}>Function diff</h3>
             <button
               onClick={() => setSelectedSymbolId('')}
               style={{ border: '1px solid var(--cb-color-border)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', background: 'transparent', color: 'var(--cb-color-text)' }}
@@ -296,12 +292,8 @@ function DiffView({ diff, initialSymbol }: { diff: ReturnType<typeof useGetDiffQ
               Close
             </button>
           </div>
-          <SymbolHistoryPanel entries={historyQuery.data} symbolId={selectedSymbolId} />
+          <SymbolBodyDiffView from={oldHash} to={newHash} symbolId={selectedSymbolId} />
         </section>
-      )}
-
-      {selectedSymbolId && historyQuery.isLoading && (
-        <div>Loading symbol history…</div>
       )}
 
       {diff.Symbols && diff.Symbols.length === 0 && (
