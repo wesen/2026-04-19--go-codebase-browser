@@ -421,3 +421,63 @@ Playwright validation:
 - Start with `internal/docs/renderer.go` (`codebase-diff` case and `data-params` escaping)
 - Then review `SymbolDiffInlineWidget.tsx`
 - Validate both demo pages in the browser
+
+## Step 7: Implement Slice 2 (`codebase-symbol-history`)
+
+I continued with Slice 2 after the syntax-highlighting and Slice 1 work. The goal was a compact inline history timeline that shows which indexed commits contain a symbol, marks body changes with a filled dot, and lets the reviewer click a changed row to expand the existing inline diff widget against its predecessor.
+
+### What I did
+
+- `internal/docs/renderer.go`: added `case "codebase-symbol-history"`, requiring `sym=` and accepting optional `limit=`. The directive resolves the symbol to its full `sym:...` ID and emits `data-params` for the limit.
+- `ui/src/features/doc/widgets/SymbolHistoryInlineWidget.tsx`: new component using `useGetSymbolHistoryQuery`. It renders commit rows with body-change dots, date, short hash, message, and line range.
+- `ui/src/features/doc/DocSnippet.tsx`: dispatches `codebase-symbol-history` to the new widget and parses `limit` as a number.
+- `internal/docs/embed/pages/06-slice2-history-demo.md`: demo page for `stubHTML` and `handleSnippet` histories.
+
+### Validation
+
+Commands run:
+
+```bash
+go test ./internal/docs ./internal/server
+pnpm -C ui run typecheck
+pnpm -C ui build
+go build -tags embed -o codebase-browser ./cmd/codebase-browser/
+```
+
+Server restarted in tmux:
+
+```bash
+./codebase-browser serve --addr :3001 --history-db history.db --repo-root .
+```
+
+Playwright validation:
+
+- Loaded `http://localhost:3001/#/doc/06-slice2-history-demo`
+- Verified two history widgets render (`stubHTML`, `handleSnippet`)
+- Clicked a changed row (`3eed622` for `stubHTML`) and verified an inline diff expands below the timeline
+- Console errors: 0
+
+### What worked
+
+- Reusing `SymbolDiffInlineWidget` for row expansion made the implementation small and kept the UI consistent with Slice 1.
+- The existing `/api/history/symbols/{id}/history` endpoint had enough data for the timeline.
+
+### What didn't work
+
+- My first Playwright click targeted the newest row (`e457069`) which was unchanged relative to its predecessor, so no diff appeared. Clicking a filled-dot row validated the expansion path.
+
+### What I learned
+
+- The history API orders newest-first, so the predecessor of row `i` is row `i+1`.
+- Filled-dot semantics should be explained in the widget footer because rows can exist without a body change.
+
+### What warrants a second pair of eyes
+
+- The current grid layout is dense and works for the demo, but it may need responsive tuning for smaller screens.
+- The widget marks the root commit as changed because it has no predecessor in the window. That is technically true for the visible window but may be confusing; we might want a distinct "introduced/out-of-window" marker later.
+
+### Code review instructions
+
+- Review `SymbolHistoryInlineWidget.tsx` first; it owns the interaction and row/diff expansion logic.
+- Then review the `codebase-symbol-history` case in `renderer.go`.
+- Validate `/#/doc/06-slice2-history-demo` and click the filled-dot rows.

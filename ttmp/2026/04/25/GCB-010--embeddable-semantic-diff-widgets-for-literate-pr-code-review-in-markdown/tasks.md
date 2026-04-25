@@ -34,11 +34,11 @@ LastUpdated: 2026-04-25T12:30:00Z
 
 ## Slice 2: "The history timeline" — codebase-symbol-history (~1–2 days)
 
-- [ ] **T2a** Add `case "codebase-symbol-history"` in `internal/docs/renderer.go`
-- [ ] **T2b** Create `ui/src/features/doc/widgets/SymbolHistoryInlineWidget.tsx` — compact commit list with body-hash dots
-- [ ] **T2c** Add dispatch in `DocSnippet.tsx`
-- [ ] **T2d** Update demo page with history block
-- [ ] **T2e** Validate: timeline renders with correct commit data, click-to-expand mini-diff works
+- [x] **T2a** Add `case "codebase-symbol-history"` in `internal/docs/renderer.go`
+- [x] **T2b** Create `ui/src/features/doc/widgets/SymbolHistoryInlineWidget.tsx` — compact commit list with body-hash dots
+- [x] **T2c** Add dispatch in `DocSnippet.tsx`
+- [x] **T2d** Update demo page with history block
+- [x] **T2e** Validate: timeline renders with correct commit data, click-to-expand mini-diff works
 
 ## Slice 3: "Impact analysis" — codebase-impact (~2–3 days)
 

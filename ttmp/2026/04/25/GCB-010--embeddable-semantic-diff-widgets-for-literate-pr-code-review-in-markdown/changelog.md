@@ -59,3 +59,14 @@ Added syntax highlighting to commit-resolved snippets and implemented Slice 1 co
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/docs/renderer.go — codebase-diff directive and safe data-params emission
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/SymbolDiffInlineWidget.tsx — New inline diff widget
 
+
+## 2026-04-25
+
+Implemented Slice 2 codebase-symbol-history widget. New directive renders compact body-hash timeline; clicking a changed row expands SymbolDiffInlineWidget against the predecessor commit. Validated with tests, typecheck/build, and Playwright (0 console errors).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/docs/embed/pages/06-slice2-history-demo.md — Slice 2 demo page
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/docs/renderer.go — codebase-symbol-history directive
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/SymbolHistoryInlineWidget.tsx — New inline history widget
+
