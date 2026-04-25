@@ -60,6 +60,15 @@ export function SymbolPage() {
       </p>
 
       <XrefPanel symbolId={sym.id} />
+
+      <div style={{ marginTop: 16 }}>
+        <Link
+          to={`/history?symbol=${encodeURIComponent(sym.id)}`}
+          style={{ fontSize: 13, color: 'var(--cb-color-link, #2196f3)' }}
+        >
+          📜 View change history
+        </Link>
+      </div>
     </div>
   );
 }

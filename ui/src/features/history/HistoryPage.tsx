@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   useListCommitsQuery,
   useGetDiffQuery,
@@ -13,6 +13,11 @@ import {
 
 export function HistoryPage() {
   const { data: commits, isLoading, error } = useListCommitsQuery();
+  const location = useLocation();
+  const initialSymbol = React.useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('symbol') || '';
+  }, [location.search]);
 
   if (isLoading) {
     return <div data-part="loading">Loading commit history…</div>;
@@ -39,13 +44,13 @@ export function HistoryPage() {
       {rows.length === 0 ? (
         <div data-part="empty">No commits indexed yet.</div>
       ) : (
-        <CommitTimeline commits={rows} />
+        <CommitTimeline commits={rows} initialSymbol={initialSymbol} />
       )}
     </div>
   );
 }
 
-function CommitTimeline({ commits }: { commits: CommitRow[] }) {
+function CommitTimeline({ commits, initialSymbol }: { commits: CommitRow[]; initialSymbol: string }) {
   const [selectedOld, setSelectedOld] = React.useState('');
   const [selectedNew, setSelectedNew] = React.useState('');
 
@@ -123,7 +128,9 @@ function CommitTimeline({ commits }: { commits: CommitRow[] }) {
       </aside>
 
       <section>
-        {selectedOld && selectedNew && selectedOld !== selectedNew ? (
+        {initialSymbol ? (
+          <StandaloneSymbolHistory symbolId={initialSymbol} />
+        ) : selectedOld && selectedNew && selectedOld !== selectedNew ? (
           diffQuery.isLoading ? (
             <div>Loading diff…</div>
           ) : diffQuery.error ? (
@@ -131,7 +138,7 @@ function CommitTimeline({ commits }: { commits: CommitRow[] }) {
               {JSON.stringify(diffQuery.error, null, 2)}
             </pre>
           ) : diffQuery.data ? (
-            <DiffView diff={diffQuery.data} />
+            <DiffView diff={diffQuery.data} initialSymbol={initialSymbol} />
           ) : null
         ) : (
           <div
@@ -145,10 +152,10 @@ function CommitTimeline({ commits }: { commits: CommitRow[] }) {
   );
 }
 
-function DiffView({ diff }: { diff: ReturnType<typeof useGetDiffQuery>['data'] & {} }) {
+function DiffView({ diff, initialSymbol }: { diff: ReturnType<typeof useGetDiffQuery>['data'] & {}; initialSymbol: string }) {
   if (!diff) return null;
 
-  const [selectedSymbolId, setSelectedSymbolId] = React.useState('');
+  const [selectedSymbolId, setSelectedSymbolId] = React.useState(initialSymbol);
   const historyQuery = useGetSymbolHistoryQuery(
     { symbolId: selectedSymbolId },
     { skip: !selectedSymbolId },
@@ -302,6 +309,40 @@ function DiffView({ diff }: { diff: ReturnType<typeof useGetDiffQuery>['data'] &
           No symbol changes between these commits.
         </div>
       )}
+    </div>
+  );
+}
+
+function StandaloneSymbolHistory({ symbolId }: { symbolId: string }) {
+  const historyQuery = useGetSymbolHistoryQuery(
+    { symbolId },
+    { skip: !symbolId },
+  );
+
+  if (historyQuery.isLoading) return <div>Loading symbol history…</div>;
+  if (historyQuery.error) return <div style={{ color: '#f44336' }}>Failed to load history: {JSON.stringify(historyQuery.error)}</div>;
+  if (!historyQuery.data || historyQuery.data.length === 0) {
+    return (
+      <div>
+        <h3 style={{ marginTop: 0 }}>Symbol history</h3>
+        <p style={{ color: 'var(--cb-color-muted)' }}>No history found for <code>{symbolId}</code>.</p>
+      </div>
+    );
+  }
+
+  const name = symbolId.split('.').pop() || symbolId;
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+        <h3 style={{ margin: 0 }}>History: <code>{name}</code></h3>
+        <Link to="/history" style={{ fontSize: 12, color: 'var(--cb-color-link, #2196f3)' }}>← Back to commit diff</Link>
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--cb-color-muted)', margin: '8px 0 0' }}>
+        {symbolId}
+      </p>
+      <div style={{ marginTop: 16 }}>
+        <SymbolHistoryPanel entries={historyQuery.data} symbolId={symbolId} />
+      </div>
     </div>
   );
 }
