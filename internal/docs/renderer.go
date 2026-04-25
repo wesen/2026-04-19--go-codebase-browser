@@ -223,6 +223,28 @@ func resolveDirective(info string, loaded *browser.Loaded, sourceFS fs.FS) (*Sni
 		ref.Text = fmt.Sprintf("Diff for %s from %s to %s", sym.ID, from, to)
 		return ref, nil
 
+	case "codebase-symbol-history":
+		symRef := params["sym"]
+		if symRef == "" {
+			return nil, errors.New("missing sym= on codebase-symbol-history")
+		}
+		sym, err := resolveSymbol(symRef, loaded)
+		if err != nil {
+			return nil, err
+		}
+		ref.SymbolID = sym.ID
+		ref.Language = sym.Language
+		if ref.Language == "" {
+			ref.Language = "go"
+		}
+		ref.Kind = "history"
+		ref.Params = map[string]string{}
+		if limit := params["limit"]; limit != "" {
+			ref.Params["limit"] = limit
+		}
+		ref.Text = fmt.Sprintf("History for %s", sym.ID)
+		return ref, nil
+
 	case "codebase-snippet", "codebase-signature", "codebase-doc":
 		symRef := params["sym"]
 		if symRef == "" {

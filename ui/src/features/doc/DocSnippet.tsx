@@ -6,6 +6,7 @@ import { ExpandableSymbol } from '../symbol/ExpandableSymbol';
 import { XrefPanel } from '../symbol/XrefPanel';
 import { Code } from '../../packages/ui/src/Code';
 import { SymbolDiffInlineWidget } from './widgets/SymbolDiffInlineWidget';
+import { SymbolHistoryInlineWidget } from './widgets/SymbolHistoryInlineWidget';
 
 /**
  * useGetSnippetFromCommit fetches a symbol's snippet at a specific commit
@@ -76,6 +77,10 @@ export interface DocSnippetProps {
 export function DocSnippet({ sym, directive, lang, commit, params }: DocSnippetProps) {
   if (directive === 'codebase-diff') {
     return <SymbolDiffInlineWidget sym={sym} from={params?.from ?? ''} to={params?.to ?? ''} />;
+  }
+  if (directive === 'codebase-symbol-history') {
+    const parsedLimit = params?.limit ? Number.parseInt(params.limit, 10) : undefined;
+    return <SymbolHistoryInlineWidget sym={sym} limit={Number.isFinite(parsedLimit) ? parsedLimit : undefined} />;
   }
   if (directive === 'codebase-signature') return <DocSignature sym={sym} commit={commit} language={lang} />;
   if (directive === 'codebase-doc') return <DocGodoc sym={sym} commit={commit} />;
