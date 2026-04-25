@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/doc"
+	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/history"
 	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/index"
 	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/query"
 	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/symbol"
@@ -37,6 +38,7 @@ func main() {
 	conceptRepositoryFlags := concepts.ExtractRepositoryFlagValuesFromArgs(os.Args[1:])
 	cobra.CheckErr(query.Register(rootCmd, conceptRepositoryFlags))
 	cobra.CheckErr(doc.Register(rootCmd))
+	cobra.CheckErr(history.Register(rootCmd))
 	registerServe(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {

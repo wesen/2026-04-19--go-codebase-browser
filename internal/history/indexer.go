@@ -1,0 +1,164 @@
+package history
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/wesen/codebase-browser/internal/gitutil"
+	"github.com/wesen/codebase-browser/internal/indexer"
+)
+
+// IndexOptions controls how per-commit indexing runs.
+type IndexOptions struct {
+	RepoRoot     string
+	Commits      []gitutil.Commit
+	Patterns     []string // Go package patterns for extraction
+	IncludeTests bool
+	Worktrees    bool // if false, indexes in-process without worktrees (for testing)
+	OnProgress   func(done, total int, shortHash, message string)
+}
+
+// IndexResult describes what the indexer did.
+type IndexResult struct {
+	Indexed  int
+	Skipped  int
+	Failed   int
+	Errors   []IndexError
+	Duration time.Duration
+}
+
+// IndexError records a failure for a specific commit.
+type IndexError struct {
+	ShortHash string
+	Message   string
+	Err       error
+}
+
+// IndexCommits runs the extraction pipeline for each commit.
+// When Worktrees is true, it creates a git worktree for each commit and
+// extracts the index from it. When false, it indexes the working directory
+// directly (useful for single-commit testing).
+func IndexCommits(ctx context.Context, store *Store, opts IndexOptions) (*IndexResult, error) {
+	start := time.Now()
+	result := &IndexResult{}
+
+	if opts.Worktrees {
+		result = indexWithWorktrees(ctx, store, opts)
+	} else {
+		result = indexDirect(ctx, store, opts)
+	}
+
+	result.Duration = time.Since(start)
+	return result, nil
+}
+
+// indexWithWorktrees creates a worktree per commit and extracts.
+func indexWithWorktrees(ctx context.Context, store *Store, opts IndexOptions) *IndexResult {
+	result := &IndexResult{}
+	var mu sync.Mutex
+
+	for i, commit := range opts.Commits {
+		func() {
+			// Create worktree.
+			wt, err := gitutil.CreateWorktree(ctx, opts.RepoRoot, commit.Hash)
+			if err != nil {
+				mu.Lock()
+				result.Errors = append(result.Errors, IndexError{
+					ShortHash: commit.ShortHash,
+					Message:   commit.Message,
+					Err:       fmt.Errorf("worktree: %w", err),
+				})
+				result.Failed++
+				mu.Unlock()
+				return
+			}
+			defer func() {
+				_ = gitutil.RemoveWorktree(context.Background(), opts.RepoRoot, wt)
+			}()
+
+			// Extract index from worktree.
+			idx, err := indexer.Extract(indexer.ExtractOptions{
+				ModuleRoot:   wt,
+				Patterns:     opts.Patterns,
+				IncludeTests: opts.IncludeTests,
+			})
+			if err != nil {
+				mu.Lock()
+				result.Errors = append(result.Errors, IndexError{
+					ShortHash: commit.ShortHash,
+					Message:   commit.Message,
+					Err:       fmt.Errorf("extract: %w", err),
+				})
+				result.Failed++
+				mu.Unlock()
+				return
+			}
+
+			// Load snapshot into history store.
+			if err := store.LoadSnapshot(ctx, commit, idx, wt); err != nil {
+				mu.Lock()
+				result.Errors = append(result.Errors, IndexError{
+					ShortHash: commit.ShortHash,
+					Message:   commit.Message,
+					Err:       fmt.Errorf("load: %w", err),
+				})
+				result.Failed++
+				mu.Unlock()
+				return
+			}
+
+			mu.Lock()
+			result.Indexed++
+			if opts.OnProgress != nil {
+				opts.OnProgress(result.Indexed, len(opts.Commits), commit.ShortHash, commit.Message)
+			}
+			mu.Unlock()
+			_ = i
+		}()
+	}
+
+	return result
+}
+
+// indexDirect indexes the working directory for each commit without worktrees.
+// This is used for testing and for single-commit indexing where the working
+// directory is already at the right commit.
+func indexDirect(ctx context.Context, store *Store, opts IndexOptions) *IndexResult {
+	result := &IndexResult{}
+
+	for _, commit := range opts.Commits {
+		idx, err := indexer.Extract(indexer.ExtractOptions{
+			ModuleRoot:   opts.RepoRoot,
+			Patterns:     opts.Patterns,
+			IncludeTests: opts.IncludeTests,
+		})
+		if err != nil {
+			result.Errors = append(result.Errors, IndexError{
+				ShortHash: commit.ShortHash,
+				Message:   commit.Message,
+				Err:       fmt.Errorf("extract: %w", err),
+			})
+			result.Failed++
+			continue
+		}
+
+		if err := store.LoadSnapshot(ctx, commit, idx, opts.RepoRoot); err != nil {
+			result.Errors = append(result.Errors, IndexError{
+				ShortHash: commit.ShortHash,
+				Message:   commit.Message,
+				Err:       fmt.Errorf("load: %w", err),
+			})
+			result.Failed++
+			continue
+		}
+
+		result.Indexed++
+		if opts.OnProgress != nil {
+			opts.OnProgress(result.Indexed, len(opts.Commits), commit.ShortHash, commit.Message)
+		}
+	}
+
+	return result
+}
