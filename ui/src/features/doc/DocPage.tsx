@@ -50,7 +50,9 @@ export function DocPage() {
             params = undefined;
           }
         }
-        if (!sym || !directive) return;
+        // Some document widgets (diff-stats, changed-files) are not tied to a
+        // single symbol, so only directive is required here.
+        if (!directive) return;
         el.innerHTML = ''; // drop the plaintext fallback before React mounts
         found.push({ el, sym, directive, kind, lang, commit, params });
       });

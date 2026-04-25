@@ -8,6 +8,9 @@ import { Code } from '../../packages/ui/src/Code';
 import { SymbolDiffInlineWidget } from './widgets/SymbolDiffInlineWidget';
 import { SymbolHistoryInlineWidget } from './widgets/SymbolHistoryInlineWidget';
 import { ImpactInlineWidget } from './widgets/ImpactInlineWidget';
+import { AnnotationWidget } from './widgets/AnnotationWidget';
+import { ChangedFilesWidget } from './widgets/ChangedFilesWidget';
+import { DiffStatsWidget } from './widgets/DiffStatsWidget';
 
 /**
  * useGetSnippetFromCommit fetches a symbol's snippet at a specific commit
@@ -92,6 +95,23 @@ export function DocSnippet({ sym, directive, lang, commit, params }: DocSnippetP
         dir={dir}
         depth={Number.isFinite(parsedDepth) ? parsedDepth : undefined}
         commit={params?.commit}
+      />
+    );
+  }
+  if (directive === 'codebase-diff-stats') {
+    return <DiffStatsWidget from={params?.from ?? ''} to={params?.to ?? ''} />;
+  }
+  if (directive === 'codebase-changed-files') {
+    return <ChangedFilesWidget from={params?.from ?? ''} to={params?.to ?? ''} />;
+  }
+  if (directive === 'codebase-annotation') {
+    return (
+      <AnnotationWidget
+        sym={sym}
+        language={lang}
+        commit={params?.commit}
+        lines={params?.lines}
+        note={params?.note}
       />
     );
   }

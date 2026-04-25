@@ -48,7 +48,7 @@ type SnippetRef struct {
 	CommitHash string            `json:"commitHash,omitempty"`
 	Params     map[string]string `json:"params,omitempty"`
 	StartLine  int               `json:"startLine,omitempty"`
-	EndLine    int    `json:"endLine,omitempty"`
+	EndLine    int               `json:"endLine,omitempty"`
 }
 
 // Page is a single rendered doc page.
@@ -271,6 +271,42 @@ func resolveDirective(info string, loaded *browser.Loaded, sourceFS fs.FS) (*Sni
 			ref.Params["commit"] = commit
 		}
 		ref.Text = fmt.Sprintf("Impact for %s", sym.ID)
+		return ref, nil
+
+	case "codebase-diff-stats", "codebase-changed-files":
+		from := params["from"]
+		to := params["to"]
+		if from == "" || to == "" {
+			return nil, fmt.Errorf("%s requires from= and to=", directive)
+		}
+		ref.Kind = strings.TrimPrefix(directive, "codebase-")
+		ref.Language = "text"
+		ref.Params = map[string]string{"from": from, "to": to}
+		ref.Text = fmt.Sprintf("%s from %s to %s", directive, from, to)
+		return ref, nil
+
+	case "codebase-annotation":
+		symRef := params["sym"]
+		if symRef == "" {
+			return nil, errors.New("missing sym= on codebase-annotation")
+		}
+		sym, err := resolveSymbol(symRef, loaded)
+		if err != nil {
+			return nil, err
+		}
+		ref.SymbolID = sym.ID
+		ref.Language = sym.Language
+		if ref.Language == "" {
+			ref.Language = "go"
+		}
+		ref.Kind = "annotation"
+		ref.Params = map[string]string{}
+		for _, key := range []string{"commit", "lines", "note"} {
+			if value := params[key]; value != "" {
+				ref.Params[key] = value
+			}
+		}
+		ref.Text = fmt.Sprintf("Annotated snippet for %s", sym.ID)
 		return ref, nil
 
 	case "codebase-snippet", "codebase-signature", "codebase-doc":
