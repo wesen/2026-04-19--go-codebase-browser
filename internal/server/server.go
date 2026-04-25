@@ -9,6 +9,7 @@ import (
 
 	"github.com/wesen/codebase-browser/internal/browser"
 	"github.com/wesen/codebase-browser/internal/concepts"
+	"github.com/wesen/codebase-browser/internal/history"
 	cbsqlite "github.com/wesen/codebase-browser/internal/sqlite"
 )
 
@@ -19,6 +20,8 @@ type Server struct {
 	SPAFS          fs.FS
 	SQLite         *cbsqlite.Store
 	ConceptCatalog *concepts.Catalog
+	History        *history.Store
+	mux            *http.ServeMux
 }
 
 // New constructs a Server.
@@ -31,6 +34,7 @@ func New(l *browser.Loaded, srcFS, spaFS fs.FS, sqliteStore *cbsqlite.Store, con
 // rather than index.html.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	s.mux = mux
 
 	mux.HandleFunc("/api/index", s.handleIndex)
 	mux.HandleFunc("/api/packages", s.handlePackages)
@@ -46,6 +50,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/file-xref", s.handleFileXref)
 	mux.HandleFunc("/api/query-concepts", s.handleConceptList)
 	mux.HandleFunc("/api/query-concepts/", s.handleConceptSubtree)
+
+	s.registerHistoryRoutes()
 
 	mux.Handle("/", s.spaHandler())
 	return withCommonHeaders(mux)

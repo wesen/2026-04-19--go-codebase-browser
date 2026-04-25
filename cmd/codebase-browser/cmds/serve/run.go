@@ -22,6 +22,8 @@ import (
 	"github.com/wesen/codebase-browser/internal/sourcefs"
 	cbsqlite "github.com/wesen/codebase-browser/internal/sqlite"
 	"github.com/wesen/codebase-browser/internal/web"
+
+	"github.com/wesen/codebase-browser/internal/history"
 )
 
 type ServeCommand struct {
@@ -29,8 +31,9 @@ type ServeCommand struct {
 }
 
 type ServeSettings struct {
-	Addr   string `glazed:"addr"`
-	DBPath string `glazed:"db"`
+	Addr         string `glazed:"addr"`
+	DBPath       string `glazed:"db"`
+	HistoryDBPath string `glazed:"history-db"`
 }
 
 func NewServeCommand() (*ServeCommand, error) {
@@ -54,6 +57,9 @@ Examples:
 			fields.New("db", fields.TypeString,
 				fields.WithDefault("internal/sqlite/embed/codebase.db"),
 				fields.WithHelp("Path to codebase.db for structured query concepts")),
+			fields.New("history-db", fields.TypeString,
+				fields.WithDefault(""),
+				fields.WithHelp("Path to history.db for git-aware codebase history")),
 		),
 		cmds.WithSections(cmdSettingsSection),
 	)
@@ -95,6 +101,17 @@ func (c *ServeCommand) Run(ctx context.Context, vals *values.Values) error {
 	}()
 
 	srv := server.New(loaded, sourcefs.FS(), web.FS(), sqliteStore, catalog)
+
+	// Optionally open history DB.
+	if s.HistoryDBPath != "" {
+		histStore, err := history.Open(s.HistoryDBPath)
+		if err != nil {
+			log.Warn().Err(err).Str("history-db", s.HistoryDBPath).Msg("history DB unavailable; history API will be disabled")
+		} else {
+			srv.History = histStore
+			defer func() { _ = histStore.Close() }()
+		}
+	}
 	h := srv.Handler()
 
 	log.Info().Str("addr", s.Addr).
