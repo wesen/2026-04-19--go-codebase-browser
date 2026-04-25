@@ -109,3 +109,25 @@ Polished symbol-mode history header copy: /history?symbol=... now says Symbol hi
 
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/history/HistoryPage.tsx — Mode-aware history header copy
 
+
+## 2026-04-25
+
+Implemented Slice 4 quick review widgets: codebase-diff-stats, codebase-changed-files, and codebase-annotation. Added non-symbol widget hydration support, three widgets, and Slice 4 demo page. Validated with tests, typecheck/build, and Playwright (0 console errors).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-code-browser/ui/src/features/doc/DocPage.tsx — Hydrates non-symbol widgets
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/docs/renderer.go — Slice 4 directive cases
+
+
+## 2026-04-25
+
+Slice 4 demo page added at /#/doc/08-slice4-quick-wins-demo.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/docs/embed/pages/08-slice4-quick-wins-demo.md — Slice 4 demo page
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/AnnotationWidget.tsx — Annotation widget
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/ChangedFilesWidget.tsx — Changed files widget
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/DiffStatsWidget.tsx — Diff stats widget
+

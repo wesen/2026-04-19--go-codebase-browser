@@ -55,13 +55,13 @@ LastUpdated: 2026-04-25T12:30:00Z
 
 ## Slice 4: "Quick wins" — annotation + changed-files + diff-stats (~1–2 days)
 
-- [ ] **T4a** Add three `case` branches in `internal/docs/renderer.go` (codebase-annotation, codebase-changed-files, codebase-diff-stats)
-- [ ] **T4b** Create `ui/src/features/doc/widgets/AnnotationWidget.tsx`
-- [ ] **T4c** Create `ui/src/features/doc/widgets/ChangedFilesWidget.tsx`
-- [ ] **T4d** Create `ui/src/features/doc/widgets/DiffStatsWidget.tsx`
-- [ ] **T4e** Add three dispatch branches in `DocSnippet.tsx`
-- [ ] **T4f** Update demo page with all three
-- [ ] **T4g** Validate: all three render correctly, adding a new directive takes <30 min
+- [x] **T4a** Add three `case` branches in `internal/docs/renderer.go` (codebase-annotation, codebase-changed-files, codebase-diff-stats)
+- [x] **T4b** Create `ui/src/features/doc/widgets/AnnotationWidget.tsx`
+- [x] **T4c** Create `ui/src/features/doc/widgets/ChangedFilesWidget.tsx`
+- [x] **T4d** Create `ui/src/features/doc/widgets/DiffStatsWidget.tsx`
+- [x] **T4e** Add three dispatch branches in `DocSnippet.tsx`
+- [x] **T4f** Update demo page with all three
+- [x] **T4g** Validate: all three render correctly, adding a new directive takes <30 min
 
 ## Slice 5: "The guided walk" — codebase-commit-walk (~3–4 days)
 

@@ -660,3 +660,65 @@ Ran frontend typecheck/build and rebuilt the embedded binary. Playwright loaded 
 - Heading: `Symbol history`
 - Copy: `5 indexed commit(s). Review this symbol across commits.`
 - Console errors: 0
+
+## Step 12: Implement Slice 4 quick review widgets
+
+I implemented the Slice 4 quick wins: `codebase-diff-stats`, `codebase-changed-files`, and `codebase-annotation`. These are intentionally smaller widgets that reuse existing APIs and the directive/hydration patterns established by Slices 1–3.
+
+### What I did
+
+- `internal/docs/renderer.go`
+  - Added `codebase-diff-stats` and `codebase-changed-files`, both requiring `from=` and `to=`.
+  - Added `codebase-annotation`, requiring `sym=` and accepting `commit=`, `lines=`, and `note=`.
+- `ui/src/features/doc/DocPage.tsx`
+  - Allowed non-symbol widgets to hydrate by requiring only `data-directive`, not `data-sym`. This is needed because diff stats and changed files are commit-pair widgets, not symbol widgets.
+- `ui/src/features/doc/DocSnippet.tsx`
+  - Added dispatch branches for the three new directives.
+- Added widgets:
+  - `ui/src/features/doc/widgets/DiffStatsWidget.tsx`
+  - `ui/src/features/doc/widgets/ChangedFilesWidget.tsx`
+  - `ui/src/features/doc/widgets/AnnotationWidget.tsx`
+- Added demo page:
+  - `internal/docs/embed/pages/08-slice4-quick-wins-demo.md`
+
+### Validation
+
+Commands run:
+
+```bash
+gofmt -w internal/docs/renderer.go
+go test ./internal/docs ./internal/server
+pnpm -C ui run typecheck
+pnpm -C ui build
+go build -tags embed -o codebase-browser ./cmd/codebase-browser/
+```
+
+Server restarted in tmux:
+
+```bash
+./codebase-browser serve --addr :3001 --history-db history.db --repo-root .
+```
+
+Playwright validation:
+
+- Loaded `http://localhost:3001/#/doc/08-slice4-quick-wins-demo`
+- Verified one diff-stats widget renders
+- Verified one changed-files widget renders
+- Verified one annotation widget renders
+- Verified highlighted lines appear in the annotation widget
+- Console errors: 0
+
+### What didn't work
+
+- The first validation showed only the annotation widget. Diff stats and changed files rendered as fallback text because their stubs had empty `data-sym`, and `DocPage` skipped stubs without symbols. I fixed this by requiring only `data-directive` for hydration; symbol-specific widgets still receive a `sym`, while commit-pair widgets can hydrate without one.
+- `AnnotationWidget` originally used `String.replaceAll`, which is not in the current TS target. Replaced with `split('_').join(' ')`.
+
+### What warrants a second pair of eyes
+
+- `AnnotationWidget` renders each line as a separate `<Code>` block to preserve syntax highlighting with line-level highlighting. It works for the demo but creates nested/pre-per-line markup that may need visual refinement.
+- `codebase-annotation` currently uses directive parameters (`lines=`, `note=`) instead of parsing a richer fence body DSL. This is enough for Slice 4 but not the final authoring experience.
+
+### Code review instructions
+
+- Validate `/#/doc/08-slice4-quick-wins-demo`.
+- Review `DocPage.tsx` change carefully: non-symbol widgets now hydrate, so widget components must handle empty `sym` where appropriate.
