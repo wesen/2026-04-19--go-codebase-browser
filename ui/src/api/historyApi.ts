@@ -81,6 +81,18 @@ export interface CommitDiff {
   Stats: DiffStats;
 }
 
+export interface BodyDiffResult {
+  symbolId: string;
+  name: string;
+  oldCommit: string;
+  newCommit: string;
+  oldBody: string;
+  newBody: string;
+  unifiedDiff: string;
+  oldRange: string;
+  newRange: string;
+}
+
 export const historyApi = createApi({
   reducerPath: 'historyApi',
   baseQuery: fetchBaseQuery({ baseUrl: '/api/history' }),
@@ -101,6 +113,12 @@ export const historyApi = createApi({
       query: ({ symbolId, limit }) =>
         `/symbols/${encodeURIComponent(symbolId)}/history${limit ? `?limit=${limit}` : ''}`,
     }),
+    getSymbolBodyDiff: builder.query<BodyDiffResult, { from: string; to: string; symbolId: string }>(
+      {
+        query: ({ from, to, symbolId }) =>
+          `/symbol-body-diff?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&symbol=${encodeURIComponent(symbolId)}`,
+      },
+    ),
   }),
 });
 
@@ -110,4 +128,5 @@ export const {
   useGetCommitSymbolsQuery,
   useGetDiffQuery,
   useGetSymbolHistoryQuery,
+  useGetSymbolBodyDiffQuery,
 } = historyApi;

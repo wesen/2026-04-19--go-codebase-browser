@@ -60,9 +60,27 @@ export const sourceApi = createApi({
   baseQuery: staticBaseQuery,
   keepUnusedDataFor: 3600,
   endpoints: (b) => ({
-    // Static source file serving
+    // Source file: try serve API first, fall back to static file
     getSource: b.query<string, string>({
-      query: (path) => `./source/${path}`,
+      queryFn: async (path) => {
+        // Try the serve-mode API endpoint first
+        try {
+          const resp = await fetch(`/api/source?path=${encodeURIComponent(path)}`);
+          if (resp.ok) {
+            const text = await resp.text();
+            return { data: text };
+          }
+        } catch {}
+        // Fall back to static file serving (static bundle mode)
+        try {
+          const resp = await fetch(`./source/${encodeURIComponent(path)}`);
+          if (resp.ok) {
+            const text = await resp.text();
+            return { data: text };
+          }
+        } catch {}
+        return { error: { status: 'CUSTOM_ERROR', data: `Failed to load source: ${path}` } } as any;
+      },
     }),
 
     // Snippet from WASM

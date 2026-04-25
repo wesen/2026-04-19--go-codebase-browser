@@ -31,9 +31,10 @@ type ServeCommand struct {
 }
 
 type ServeSettings struct {
-	Addr         string `glazed:"addr"`
-	DBPath       string `glazed:"db"`
+	Addr          string `glazed:"addr"`
+	DBPath        string `glazed:"db"`
 	HistoryDBPath string `glazed:"history-db"`
+	RepoRoot      string `glazed:"repo-root"`
 }
 
 func NewServeCommand() (*ServeCommand, error) {
@@ -60,6 +61,9 @@ Examples:
 			fields.New("history-db", fields.TypeString,
 				fields.WithDefault(""),
 				fields.WithHelp("Path to history.db for git-aware codebase history")),
+			fields.New("repo-root", fields.TypeString,
+				fields.WithDefault("."),
+				fields.WithHelp("Path to git repo root for reading file contents at specific commits")),
 		),
 		cmds.WithSections(cmdSettingsSection),
 	)
@@ -109,6 +113,7 @@ func (c *ServeCommand) Run(ctx context.Context, vals *values.Values) error {
 			log.Warn().Err(err).Str("history-db", s.HistoryDBPath).Msg("history DB unavailable; history API will be disabled")
 		} else {
 			srv.History = histStore
+			srv.RepoRoot = s.RepoRoot
 			defer func() { _ = histStore.Close() }()
 		}
 	}

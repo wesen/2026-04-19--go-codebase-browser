@@ -16,6 +16,7 @@ func (s *Server) registerHistoryRoutes() {
 	mux.HandleFunc("GET /api/history/commits/{hash}", s.handleHistoryCommitDetail)
 	mux.HandleFunc("GET /api/history/commits/{hash}/symbols", s.handleHistoryCommitSymbols)
 	mux.HandleFunc("GET /api/history/diff", s.handleHistoryDiff)
+	mux.HandleFunc("GET /api/history/symbol-body-diff", s.handleSymbolBodyDiff)
 	mux.HandleFunc("GET /api/history/symbols/{symbolID}/history", s.handleSymbolHistory)
 }
 
@@ -151,3 +152,26 @@ LIMIT  ?`, symbolID, limit)
 
 // HistoryStore is a dependency the Server can optionally carry.
 var _ = (*history.Store)(nil)
+
+func (s *Server) handleSymbolBodyDiff(w http.ResponseWriter, r *http.Request) {
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+	symbolID := r.URL.Query().Get("symbol")
+	if from == "" || to == "" || symbolID == "" {
+		writeJSONError(w, http.StatusBadRequest, "'from', 'to', and 'symbol' query params required")
+		return
+	}
+
+	repoRoot := s.RepoRoot
+	if repoRoot == "" {
+		writeJSONError(w, http.StatusNotFound, "repo root not configured; pass --repo-root to serve")
+		return
+	}
+
+	result, err := history.DiffSymbolBodyWithContent(r.Context(), s.History, repoRoot, from, to, symbolID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, result)
+}

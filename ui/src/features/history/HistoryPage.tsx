@@ -4,6 +4,7 @@ import {
   useListCommitsQuery,
   useGetDiffQuery,
   useGetSymbolHistoryQuery,
+  useGetSymbolBodyDiffQuery,
   type CommitRow,
   type SymbolDiff,
   type SymbolHistoryEntry,
@@ -288,7 +289,7 @@ function DiffView({ diff }: { diff: ReturnType<typeof useGetDiffQuery>['data'] &
               Close
             </button>
           </div>
-          <SymbolHistoryPanel entries={historyQuery.data} />
+          <SymbolHistoryPanel entries={historyQuery.data} symbolId={selectedSymbolId} />
         </section>
       )}
 
@@ -305,55 +306,206 @@ function DiffView({ diff }: { diff: ReturnType<typeof useGetDiffQuery>['data'] &
   );
 }
 
-function SymbolHistoryPanel({ entries }: { entries: SymbolHistoryEntry[] }) {
+function SymbolHistoryPanel({ entries, symbolId }: { entries: SymbolHistoryEntry[]; symbolId: string }) {
+  const [diffFrom, setDiffFrom] = React.useState('');
+  const [diffTo, setDiffTo] = React.useState('');
+
+  // Auto-select first and last entries with different body hashes
+  React.useEffect(() => {
+    if (entries.length >= 2 && !diffFrom && !diffTo) {
+      setDiffTo(entries[0].commitHash);
+      const firstDifferent = [...entries].reverse().find((e) => e.bodyHash !== entries[0].bodyHash && e.bodyHash !== '');
+      setDiffFrom(firstDifferent?.commitHash ?? entries[entries.length - 1].commitHash);
+    }
+  }, [entries, diffFrom, diffTo]);
+
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-        <thead>
-          <tr>
-            <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Date</th>
-            <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Commit</th>
-            <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Lines</th>
-            <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Body</th>
-            <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Message</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((e, i) => {
-            // Detect body hash changes
-            const prevHash = i < entries.length - 1 ? entries[i + 1].bodyHash : '';
-            const changed = e.bodyHash !== prevHash && e.bodyHash !== '';
-            const date = new Date(e.authorTime * 1000);
-            const dateStr = date.toISOString().slice(0, 16).replace('T', ' ');
-            return (
-              <tr key={i} style={{ background: changed ? 'rgba(255, 152, 0, 0.08)' : 'transparent' }}>
-                <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px', fontSize: 12, whiteSpace: 'nowrap' }}>
-                  {dateStr}
-                </td>
-                <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>
-                  <code style={{ fontSize: 12 }}>{e.shortHash}</code>
-                </td>
-                <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px', fontSize: 12 }}>
-                  {e.startLine}-{e.endLine}
-                </td>
-                <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>
-                  {changed ? (
-                    <code style={{ fontSize: 11, color: '#ff9800', fontWeight: 700 }}>{e.bodyHash.slice(0, 7)}</code>
-                  ) : (
-                    <code style={{ fontSize: 11, color: 'var(--cb-color-muted)' }}>{e.bodyHash.slice(0, 7)}</code>
-                  )}
-                </td>
-                <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px', fontSize: 12 }}>
-                  {e.message}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <div style={{ fontSize: 12, color: 'var(--cb-color-muted)', marginTop: 8 }}>
-        {entries.length} commit(s). Rows highlighted in orange indicate commits where the function body changed.
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+        <div style={{ fontSize: 12, color: 'var(--cb-color-muted)' }}>
+          {entries.length} commit(s). Rows highlighted in orange = body changed.
+          Select <strong>from</strong> and <strong>to</strong> to see the diff.
+        </div>
       </div>
+      <div style={{ overflowX: 'auto', marginBottom: 16 }}>
+        <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Diff</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Date</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Hash</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Lines</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Body</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((e, i) => {
+              const prevHash = i < entries.length - 1 ? entries[i + 1].bodyHash : '';
+              const changed = e.bodyHash !== prevHash && e.bodyHash !== '';
+              const date = new Date(e.authorTime * 1000);
+              const dateStr = date.toISOString().slice(0, 16).replace('T', ' ');
+              const isFrom = e.commitHash === diffFrom;
+              const isTo = e.commitHash === diffTo;
+              return (
+                <tr key={i} style={{ background: changed ? 'rgba(255, 152, 0, 0.08)' : 'transparent' }}>
+                  <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 4px', whiteSpace: 'nowrap' }}>
+                    <button
+                      onClick={() => setDiffFrom(isFrom ? '' : e.commitHash)}
+                      style={{
+                        padding: '0px 4px',
+                        fontSize: 10,
+                        border: isFrom ? '2px solid #2196f3' : '1px solid var(--cb-color-border)',
+                        borderRadius: 3,
+                        background: isFrom ? '#2196f3' : 'transparent',
+                        color: isFrom ? '#fff' : 'inherit',
+                        cursor: 'pointer',
+                        marginRight: 2,
+                      }}
+                    >
+                      from
+                    </button>
+                    <button
+                      onClick={() => setDiffTo(isTo ? '' : e.commitHash)}
+                      style={{
+                        padding: '0px 4px',
+                        fontSize: 10,
+                        border: isTo ? '2px solid #4caf50' : '1px solid var(--cb-color-border)',
+                        borderRadius: 3,
+                        background: isTo ? '#4caf50' : 'transparent',
+                        color: isTo ? '#fff' : 'inherit',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      to
+                    </button>
+                  </td>
+                  <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px', fontSize: 12, whiteSpace: 'nowrap' }}>
+                    {dateStr}
+                  </td>
+                  <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>
+                    <code style={{ fontSize: 12 }}>{e.shortHash}</code>
+                  </td>
+                  <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px', fontSize: 12 }}>
+                    {e.startLine}-{e.endLine}
+                  </td>
+                  <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px' }}>
+                    {changed ? (
+                      <code style={{ fontSize: 11, color: '#ff9800', fontWeight: 700 }}>{e.bodyHash.slice(0, 7)}</code>
+                    ) : (
+                      <code style={{ fontSize: 11, color: 'var(--cb-color-muted)' }}>{e.bodyHash.slice(0, 7)}</code>
+                    )}
+                  </td>
+                  <td style={{ borderBottom: '1px solid var(--cb-color-border)', padding: '6px 8px', fontSize: 12, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {e.message}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {diffFrom && diffTo && diffFrom !== diffTo && (
+        <SymbolBodyDiffView
+          from={diffFrom}
+          to={diffTo}
+          symbolId={symbolId}
+        />
+      )}
+    </div>
+  );
+}
+
+function SymbolBodyDiffView({ from, to, symbolId }: { from: string; to: string; symbolId: string }) {
+  const { data, isLoading, error } = useGetSymbolBodyDiffQuery(
+    { from, to, symbolId },
+    { skip: !from || !to },
+  );
+
+  if (isLoading) return <div style={{ padding: 16 }}>Loading body diff…</div>;
+  if (error) return <div style={{ padding: 16, color: '#f44336' }}>Failed to load body diff: {JSON.stringify(error)}</div>;
+  if (!data) return null;
+
+  return (
+    <div style={{ borderTop: '1px solid var(--cb-color-border)', paddingTop: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+        <h3 style={{ margin: 0 }}>Body diff</h3>
+        <div style={{ fontSize: 12, color: 'var(--cb-color-muted)' }}>
+          <code>{from.slice(0, 7)}</code> → <code>{to.slice(0, 7)}</code>
+          {' '}({data.oldRange} → {data.newRange})
+        </div>
+      </div>
+
+      {data.unifiedDiff ? (
+        <pre
+          style={{
+            whiteSpace: 'pre-wrap',
+            fontSize: 13,
+            lineHeight: 1.5,
+            background: 'var(--cb-color-surface, #f8f8f8)',
+            border: '1px solid var(--cb-color-border)',
+            borderRadius: 8,
+            padding: 16,
+            margin: 0,
+            maxHeight: '50vh',
+            overflow: 'auto',
+          }}
+        >
+          {data.unifiedDiff.split('\n').map((line: string, i: number) => {
+            if (line.startsWith('- ')) {
+              return <div key={i} style={{ background: 'rgba(244, 67, 54, 0.12)', color: '#c62828' }}>{line}</div>;
+            }
+            if (line.startsWith('+ ')) {
+              return <div key={i} style={{ background: 'rgba(76, 175, 80, 0.12)', color: '#2e7d32' }}>{line}</div>;
+            }
+            return <div key={i} style={{ color: 'var(--cb-color-muted)' }}>{line}</div>;
+          })}
+        </pre>
+      ) : data.oldBody === data.newBody ? (
+        <div style={{ padding: 16, color: 'var(--cb-color-muted)' }}>No body changes between these commits.</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--cb-color-muted)', marginBottom: 4 }}>Old ({from.slice(0, 7)} {data.oldRange})</div>
+            <pre
+              style={{
+                whiteSpace: 'pre-wrap',
+                fontSize: 13,
+                lineHeight: 1.5,
+                background: 'var(--cb-color-surface, #f8f8f8)',
+                border: '1px solid var(--cb-color-border)',
+                borderRadius: 8,
+                padding: 12,
+                margin: 0,
+                maxHeight: '40vh',
+                overflow: 'auto',
+              }}
+            >
+              {data.oldBody}
+            </pre>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--cb-color-muted)', marginBottom: 4 }}>New ({to.slice(0, 7)} {data.newRange})</div>
+            <pre
+              style={{
+                whiteSpace: 'pre-wrap',
+                fontSize: 13,
+                lineHeight: 1.5,
+                background: 'var(--cb-color-surface, #f8f8f8)',
+                border: '1px solid var(--cb-color-border)',
+                borderRadius: 8,
+                padding: 12,
+                margin: 0,
+                maxHeight: '40vh',
+                overflow: 'auto',
+              }}
+            >
+              {data.newBody}
+            </pre>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

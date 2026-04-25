@@ -21,6 +21,7 @@ type Server struct {
 	SQLite         *cbsqlite.Store
 	ConceptCatalog *concepts.Catalog
 	History        *history.Store
+	RepoRoot       string
 	mux            *http.ServeMux
 }
 
