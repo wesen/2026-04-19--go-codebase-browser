@@ -13,6 +13,7 @@ package docs
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	htmlpkg "html"
@@ -44,8 +45,9 @@ type SnippetRef struct {
 	// CommitHash is set when the author passes commit=<hash> on a directive.
 	// The frontend uses it to fetch the snippet from the history API instead
 	// of the static index. (GCB-010 Slice 0)
-	CommitHash string `json:"commitHash,omitempty"`
-	StartLine  int    `json:"startLine,omitempty"`
+	CommitHash string            `json:"commitHash,omitempty"`
+	Params     map[string]string `json:"params,omitempty"`
+	StartLine  int               `json:"startLine,omitempty"`
 	EndLine    int    `json:"endLine,omitempty"`
 }
 
@@ -163,11 +165,19 @@ func stubHTML(ref *SnippetRef) string {
 	if ref.CommitHash != "" {
 		commitAttr = fmt.Sprintf(` data-commit=%q`, ref.CommitHash)
 	}
+	paramsAttr := ""
+	if len(ref.Params) > 0 {
+		paramsJSON, _ := json.Marshal(ref.Params)
+		// HTML attributes cannot safely contain raw JSON quotes escaped with
+		// backslashes: the browser still treats the quote as the end of the
+		// attribute. Escape as HTML instead so getAttribute returns valid JSON.
+		paramsAttr = ` data-params="` + htmlpkg.EscapeString(string(paramsJSON)) + `"`
+	}
 	return fmt.Sprintf(
 		`<div class="codebase-snippet" data-codebase-snippet `+
 			`data-stub-id=%q data-sym=%q data-directive=%q `+
-			`data-kind=%q data-lang=%q%s>%s</div>`,
-		ref.StubID, ref.SymbolID, ref.Directive, ref.Kind, ref.Language, commitAttr, body,
+			`data-kind=%q data-lang=%q%s%s>%s</div>`,
+		ref.StubID, ref.SymbolID, ref.Directive, ref.Kind, ref.Language, commitAttr, paramsAttr, body,
 	)
 }
 
@@ -189,6 +199,30 @@ func resolveDirective(info string, loaded *browser.Loaded, sourceFS fs.FS) (*Sni
 	ref.CommitHash = commitHash
 
 	switch directive {
+	case "codebase-diff":
+		symRef := params["sym"]
+		from := params["from"]
+		to := params["to"]
+		if symRef == "" {
+			return nil, errors.New("missing sym= on codebase-diff")
+		}
+		if from == "" || to == "" {
+			return nil, errors.New("codebase-diff requires from= and to=")
+		}
+		sym, err := resolveSymbol(symRef, loaded)
+		if err != nil {
+			return nil, err
+		}
+		ref.SymbolID = sym.ID
+		ref.Language = sym.Language
+		if ref.Language == "" {
+			ref.Language = "go"
+		}
+		ref.Kind = "diff"
+		ref.Params = map[string]string{"from": from, "to": to}
+		ref.Text = fmt.Sprintf("Diff for %s from %s to %s", sym.ID, from, to)
+		return ref, nil
+
 	case "codebase-snippet", "codebase-signature", "codebase-doc":
 		symRef := params["sym"]
 		if symRef == "" {

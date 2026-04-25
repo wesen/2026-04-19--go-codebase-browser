@@ -12,6 +12,7 @@ interface StubHandle {
   kind: string;
   lang: string;
   commit?: string;
+  params?: Record<string, string>;
 }
 
 export function DocPage() {
@@ -40,9 +41,18 @@ export function DocPage() {
         const kind = el.getAttribute('data-kind') ?? '';
         const lang = el.getAttribute('data-lang') ?? 'go';
         const commit = el.getAttribute('data-commit') ?? undefined;
+        const rawParams = el.getAttribute('data-params') ?? '';
+        let params: Record<string, string> | undefined;
+        if (rawParams) {
+          try {
+            params = JSON.parse(rawParams) as Record<string, string>;
+          } catch {
+            params = undefined;
+          }
+        }
         if (!sym || !directive) return;
         el.innerHTML = ''; // drop the plaintext fallback before React mounts
-        found.push({ el, sym, directive, kind, lang, commit });
+        found.push({ el, sym, directive, kind, lang, commit, params });
       });
     setStubs(found);
   }, [data?.html]);
@@ -69,6 +79,7 @@ export function DocPage() {
             kind={s.kind}
             lang={s.lang}
             commit={s.commit}
+            params={s.params}
           />,
           s.el,
           `${slug}-${i}`,

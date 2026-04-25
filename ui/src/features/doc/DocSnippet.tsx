@@ -5,6 +5,7 @@ import { useGetSymbolQuery } from '../../api/indexApi';
 import { ExpandableSymbol } from '../symbol/ExpandableSymbol';
 import { XrefPanel } from '../symbol/XrefPanel';
 import { Code } from '../../packages/ui/src/Code';
+import { SymbolDiffInlineWidget } from './widgets/SymbolDiffInlineWidget';
 
 /**
  * useGetSnippetFromCommit fetches a symbol's snippet at a specific commit
@@ -69,9 +70,13 @@ export interface DocSnippetProps {
   kind: string;
   lang: string;
   commit?: string;
+  params?: Record<string, string>;
 }
 
-export function DocSnippet({ sym, directive, lang, commit }: DocSnippetProps) {
+export function DocSnippet({ sym, directive, lang, commit, params }: DocSnippetProps) {
+  if (directive === 'codebase-diff') {
+    return <SymbolDiffInlineWidget sym={sym} from={params?.from ?? ''} to={params?.to ?? ''} />;
+  }
   if (directive === 'codebase-signature') return <DocSignature sym={sym} commit={commit} language={lang} />;
   if (directive === 'codebase-doc') return <DocGodoc sym={sym} commit={commit} />;
   return <DocFullSnippet sym={sym} commit={commit} language={lang} />;
