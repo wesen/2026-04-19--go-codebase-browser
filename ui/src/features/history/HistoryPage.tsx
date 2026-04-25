@@ -53,6 +53,7 @@ export function HistoryPage() {
 function CommitTimeline({ commits, initialSymbol }: { commits: CommitRow[]; initialSymbol: string }) {
   const [selectedOld, setSelectedOld] = React.useState('');
   const [selectedNew, setSelectedNew] = React.useState('');
+  const [modifiedCommits, setModifiedCommits] = React.useState<Set<string>>(new Set());
 
   // Auto-select HEAD and HEAD~3 if available.
   React.useEffect(() => {
@@ -87,8 +88,9 @@ function CommitTimeline({ commits, initialSymbol }: { commits: CommitRow[]; init
           {commits.map((c) => {
             const isOld = c.Hash === selectedOld;
             const isNew = c.Hash === selectedNew;
+            const isModified = modifiedCommits.has(c.Hash);
             return (
-              <li key={c.Hash} style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+              <li key={c.Hash} style={{ display: 'flex', gap: 6, alignItems: 'baseline', background: isModified ? 'rgba(255, 152, 0, 0.08)' : 'transparent', borderRadius: 4, padding: '2px 4px', margin: '-2px -4px' }}>
                 <button
                   onClick={() => setSelectedOld(c.Hash)}
                   style={{
@@ -120,6 +122,7 @@ function CommitTimeline({ commits, initialSymbol }: { commits: CommitRow[]; init
                 <span style={{ fontSize: 12 }}>
                   <code>{c.ShortHash}</code>{' '}
                   <span style={{ color: 'var(--cb-color-muted)' }}>{c.Message}</span>
+                  {isModified && <span style={{ marginLeft: 4, fontSize: 10, color: '#ff9800' }}>●</span>}
                 </span>
               </li>
             );
@@ -138,7 +141,7 @@ function CommitTimeline({ commits, initialSymbol }: { commits: CommitRow[]; init
               {JSON.stringify(diffQuery.error, null, 2)}
             </pre>
           ) : diffQuery.data ? (
-            <DiffView diff={diffQuery.data} initialSymbol={initialSymbol} oldHash={selectedOld} newHash={selectedNew} />
+            <DiffView diff={diffQuery.data} initialSymbol={initialSymbol} oldHash={selectedOld} newHash={selectedNew} onModifiedCommitsChange={setModifiedCommits} />
           ) : null
         ) : (
           <div
@@ -152,10 +155,33 @@ function CommitTimeline({ commits, initialSymbol }: { commits: CommitRow[]; init
   );
 }
 
-function DiffView({ diff, initialSymbol, oldHash, newHash }: { diff: ReturnType<typeof useGetDiffQuery>['data'] & {}; initialSymbol: string; oldHash: string; newHash: string }) {
+function DiffView({ diff, initialSymbol, oldHash, newHash, onModifiedCommitsChange }: { diff: ReturnType<typeof useGetDiffQuery>['data'] & {}; initialSymbol: string; oldHash: string; newHash: string; onModifiedCommitsChange: (s: Set<string>) => void }) {
   if (!diff) return null;
 
   const [selectedSymbolId, setSelectedSymbolId] = React.useState(initialSymbol);
+
+  // When a symbol is selected, fetch its history and compute which commits modified it
+  const historyQuery = useGetSymbolHistoryQuery(
+    { symbolId: selectedSymbolId },
+    { skip: !selectedSymbolId },
+  );
+
+  React.useEffect(() => {
+    if (!selectedSymbolId || !historyQuery.data) {
+      onModifiedCommitsChange(new Set());
+      return;
+    }
+    const modified = new Set<string>();
+    const entries = historyQuery.data;
+    for (let i = 0; i < entries.length; i++) {
+      const prevHash = i < entries.length - 1 ? entries[i + 1].bodyHash : '';
+      if (entries[i].bodyHash !== prevHash && entries[i].bodyHash !== '') {
+        modified.add(entries[i].commitHash);
+      }
+    }
+    onModifiedCommitsChange(modified);
+    return () => onModifiedCommitsChange(new Set());
+  }, [selectedSymbolId, historyQuery.data, onModifiedCommitsChange]);
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
