@@ -42,14 +42,14 @@ LastUpdated: 2026-04-25T12:30:00Z
 
 ## Slice 3: "Impact analysis" — codebase-impact (~2–3 days)
 
-- [ ] **T3a** Implement `handleHistoryImpact` in `internal/server/api_history.go` — BFS over snapshot_refs with compatibility checking
-- [ ] **T3b** Register `GET /api/history/impact` in `internal/server/server.go`
-- [ ] **T3c** Add `useGetImpactQuery` hook in `ui/src/api/historyApi.ts`
-- [ ] **T3d** Add `case "codebase-impact"` in `internal/docs/renderer.go`
-- [ ] **T3e** Create `ui/src/features/doc/widgets/ImpactInlineWidget.tsx` — grouped caller list with ✓/⚠
-- [ ] **T3f** Add dispatch in `DocSnippet.tsx`
-- [ ] **T3g** Update demo page with impact block
-- [ ] **T3h** Validate: callers render at correct depths, compatibility indicators work, performance acceptable
+- [x] **T3a** Implement `handleHistoryImpact` in `internal/server/api_history.go` — BFS over snapshot_refs with compatibility checking
+- [x] **T3b** Register `GET /api/history/impact` in `internal/server/server.go`
+- [x] **T3c** Add `useGetImpactQuery` hook in `ui/src/api/historyApi.ts`
+- [x] **T3d** Add `case "codebase-impact"` in `internal/docs/renderer.go`
+- [x] **T3e** Create `ui/src/features/doc/widgets/ImpactInlineWidget.tsx` — grouped caller list with ✓/⚠
+- [x] **T3f** Add dispatch in `DocSnippet.tsx`
+- [x] **T3g** Update demo page with impact block
+- [x] **T3h** Validate: callers render at correct depths, compatibility indicators work, performance acceptable
 
 **Decision gate: Is BFS fast enough? Is depth=2 the right default?**
 

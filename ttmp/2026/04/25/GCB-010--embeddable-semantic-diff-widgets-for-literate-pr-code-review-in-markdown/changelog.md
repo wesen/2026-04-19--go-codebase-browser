@@ -70,3 +70,14 @@ Implemented Slice 2 codebase-symbol-history widget. New directive renders compac
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/docs/renderer.go — codebase-symbol-history directive
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/SymbolHistoryInlineWidget.tsx — New inline history widget
 
+
+## 2026-04-25
+
+Implemented Slice 3 codebase-impact widget. Added /api/history/impact BFS endpoint over snapshot_refs, directive support, RTK Query hook, inline grouped impact widget, and Slice 3 demo page. Validated with tests, typecheck/build, and Playwright (0 console errors).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/docs/embed/pages/07-slice3-impact-demo.md — Slice 3 demo page
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/server/api_history.go — /api/history/impact endpoint and BFS helpers
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/ImpactInlineWidget.tsx — New inline impact widget
+

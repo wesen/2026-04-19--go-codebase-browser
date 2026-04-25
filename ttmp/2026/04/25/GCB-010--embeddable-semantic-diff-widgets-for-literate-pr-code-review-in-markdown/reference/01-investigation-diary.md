@@ -481,3 +481,72 @@ Playwright validation:
 - Review `SymbolHistoryInlineWidget.tsx` first; it owns the interaction and row/diff expansion logic.
 - Then review the `codebase-symbol-history` case in `renderer.go`.
 - Validate `/#/doc/06-slice2-history-demo` and click the filled-dot rows.
+
+## Step 8: Implement Slice 3 (`codebase-impact`)
+
+I continued with Slice 3, the first slice that needed a genuinely new server endpoint. The goal was an inline caller/callee impact widget backed by a bounded BFS over the per-commit `snapshot_refs` table.
+
+### What I did
+
+- `internal/server/api_history.go`: added `GET /api/history/impact` and helper functions:
+  - `latestHistoryCommit`
+  - `impactBFS`
+  - `impactOneHop`
+  - `impactSymbolMeta`
+- `internal/docs/renderer.go`: added `case "codebase-impact"`, accepting `sym=`, `dir=usedby|uses`, `depth=`, and optional `commit=`.
+- `ui/src/api/historyApi.ts`: added `ImpactResponse`, `ImpactNode`, `ImpactEdge` types and `useGetImpactQuery`.
+- `ui/src/features/doc/widgets/ImpactInlineWidget.tsx`: new widget grouping impact nodes by depth.
+- `ui/src/features/doc/DocSnippet.tsx`: dispatches `codebase-impact` to the new widget.
+- `internal/docs/embed/pages/07-slice3-impact-demo.md`: demo page showing both `usedby` and `uses` directions.
+
+### Validation
+
+Commands run:
+
+```bash
+go test ./internal/docs ./internal/server
+pnpm -C ui run typecheck
+pnpm -C ui build
+go build -tags embed -o codebase-browser ./cmd/codebase-browser/
+```
+
+Server restarted in tmux:
+
+```bash
+./codebase-browser serve --addr :3001 --history-db history.db --repo-root .
+```
+
+Playwright validation:
+
+- Loaded `http://localhost:3001/#/doc/07-slice3-impact-demo`
+- Verified two impact widgets render
+- `writeJSON usedby depth=2` showed 21 symbols: 18 at depth 1, 3 at depth 2
+- `handleSnippet uses depth=2` showed 26 symbols: 16 at depth 1, 10 at depth 2
+- Console errors: 0
+
+### What worked
+
+- The `snapshot_refs` table already had enough information for useful impact lists.
+- The endpoint is fast on the current history DB and returns compact JSON.
+- The widget works for both graph directions (`usedby` and `uses`).
+
+### What didn't work / caveats
+
+- Some external symbols (e.g. `sym:fmt.func.Sprintf`) don't have `snapshot_symbols` metadata in our DB, so the widget displays the full symbol ID and `kind=symbol`. This is acceptable for Slice 3 but should be polished later.
+- Compatibility indicators are currently placeholders (`unknown`). The first useful version focuses on impact reachability; true signature compatibility can come later when we compare from/to diffs.
+
+### What I learned
+
+- Depth-2 impact is already useful; for high fan-in helpers like `writeJSON`, depth 2 exposes route registration paths (`Handler`, `registerHistoryRoutes`).
+- External refs need separate display treatment because they are present as ref targets but not necessarily indexed as local snapshot symbols.
+
+### What warrants a second pair of eyes
+
+- The BFS response currently updates a pointer map and a response slice in sync. It works, but could be simplified by collecting pointers first and flattening at the end.
+- The default `commit` selection is latest indexed commit by `author_time`; this is practical for demos but the UI should expose/accept explicit commit selection later.
+
+### Code review instructions
+
+- Start with `handleHistoryImpact` and `impactBFS` in `internal/server/api_history.go`.
+- Then review `ImpactInlineWidget.tsx` for rendering and grouping semantics.
+- Validate `/#/doc/07-slice3-impact-demo`.
