@@ -63,13 +63,13 @@ func (s *Store) Close() error {
 
 // ResetSchema drops and recreates the history database schema.
 func (s *Store) ResetSchema(ctx context.Context) error {
-	if _, err := s.db.ExecContext(ctx, dropSchemaSQL); err != nil {
+	if _, err := s.db.ExecContext(ctx, DropSchemaSQL); err != nil {
 		return fmt.Errorf("drop history schema: %w", err)
 	}
-	if _, err := s.db.ExecContext(ctx, createSchemaSQL); err != nil {
+	if _, err := s.db.ExecContext(ctx, CreateSchemaSQL); err != nil {
 		return fmt.Errorf("create history schema: %w", err)
 	}
-	if _, err := s.db.ExecContext(ctx, createViewsSQL); err != nil {
+	if _, err := s.db.ExecContext(ctx, CreateViewsSQL); err != nil {
 		return fmt.Errorf("create history views: %w", err)
 	}
 	return nil

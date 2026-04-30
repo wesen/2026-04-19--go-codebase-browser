@@ -1,6 +1,6 @@
 package history
 
-const dropSchemaSQL = `
+const DropSchemaSQL = `
 DROP VIEW IF EXISTS symbol_history;
 DROP TABLE IF EXISTS snapshot_refs;
 DROP TABLE IF EXISTS snapshot_symbols;
@@ -10,7 +10,7 @@ DROP TABLE IF EXISTS file_contents;
 DROP TABLE IF EXISTS commits;
 `
 
-const createSchemaSQL = `
+const CreateSchemaSQL = `
 CREATE TABLE commits (
     hash TEXT PRIMARY KEY,
     short_hash TEXT NOT NULL,
@@ -112,7 +112,7 @@ CREATE INDEX idx_snap_ref_from ON snapshot_refs(from_symbol_id, commit_hash);
 CREATE INDEX idx_snap_ref_to ON snapshot_refs(to_symbol_id, commit_hash);
 `
 
-const createViewsSQL = `
+const CreateViewsSQL = `
 CREATE VIEW IF NOT EXISTS symbol_history AS
 SELECT
     s.id AS symbol_id,
