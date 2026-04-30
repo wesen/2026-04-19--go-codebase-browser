@@ -1,0 +1,198 @@
+package review
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/wesen/codebase-browser/internal/browser"
+	"github.com/wesen/codebase-browser/internal/docs"
+	"github.com/wesen/codebase-browser/internal/gitutil"
+	"github.com/wesen/codebase-browser/internal/history"
+)
+
+// IndexOptions controls the review indexing process.
+type IndexOptions struct {
+	RepoRoot     string
+	CommitRange  string
+	DocsPaths    []string
+	Patterns     []string
+	IncludeTests bool
+	Worktrees    bool
+	Parallelism  int
+	OnProgress   func(phase string, done, total int, detail string)
+	SkipDocs     bool
+}
+
+// IndexResult describes what the indexer did.
+type IndexResult struct {
+	CommitsIndexed  int
+	DocsIndexed     int
+	SnippetsIndexed int
+	Duration        time.Duration
+	Errors          []IndexError
+}
+
+// IndexError records a failure for a specific phase.
+type IndexError struct {
+	Phase  string
+	Detail string
+	Err    error
+}
+
+// IndexReview builds a review database from commits and markdown docs.
+func IndexReview(ctx context.Context, store *Store, opts IndexOptions) (*IndexResult, error) {
+	start := time.Now()
+	result := &IndexResult{}
+
+	// ── Phase 1: resolve commit range ──
+	commits, err := gitutil.LogCommits(ctx, opts.RepoRoot, opts.CommitRange)
+	if err != nil {
+		return nil, fmt.Errorf("parse commit range %q: %w", opts.CommitRange, err)
+	}
+
+	// ── Phase 2: index commits ──
+	histOpts := history.IndexOptions{
+		RepoRoot:     opts.RepoRoot,
+		Commits:      commits,
+		Patterns:     opts.Patterns,
+		IncludeTests: opts.IncludeTests,
+		Worktrees:    opts.Worktrees,
+		Parallelism:  opts.Parallelism,
+		OnProgress: func(done, total int, shortHash, message string) {
+			result.CommitsIndexed = done
+			if opts.OnProgress != nil {
+				opts.OnProgress("commits", done, total, shortHash)
+			}
+		},
+	}
+
+	histResult, err := history.IndexCommits(ctx, store.History, histOpts)
+	if err != nil {
+		return nil, fmt.Errorf("index commits: %w", err)
+	}
+	result.CommitsIndexed = histResult.Indexed
+
+	if opts.SkipDocs {
+		result.Duration = time.Since(start)
+		return result, nil
+	}
+
+	// ── Phase 3: discover markdown files ──
+	docPaths, err := discoverDocs(opts.DocsPaths)
+	if err != nil {
+		return nil, fmt.Errorf("discover docs: %w", err)
+	}
+
+	// Load the latest snapshot for snippet resolution.
+	loaded, err := LoadLatestSnapshot(ctx, store)
+	if err != nil {
+		return nil, fmt.Errorf("load latest snapshot: %w", err)
+	}
+
+	// The source FS is the repo root.
+	sourceFS := os.DirFS(opts.RepoRoot)
+
+	// ── Phase 4: index each markdown file ──
+	for i, path := range docPaths {
+		if err := indexDoc(ctx, store, path, loaded, sourceFS); err != nil {
+			result.Errors = append(result.Errors, IndexError{
+				Phase:  "doc",
+				Detail: path,
+				Err:    err,
+			})
+			continue
+		}
+		result.DocsIndexed++
+		if opts.OnProgress != nil {
+			opts.OnProgress("docs", i+1, len(docPaths), filepath.Base(path))
+		}
+	}
+
+	result.Duration = time.Since(start)
+	return result, nil
+}
+
+// discoverDocs resolves a list of file/directory paths into a flat list of .md files.
+func discoverDocs(paths []string) ([]string, error) {
+	var result []string
+	for _, p := range paths {
+		info, err := os.Stat(p)
+		if err != nil {
+			return nil, err
+		}
+		if info.IsDir() {
+			entries, err := os.ReadDir(p)
+			if err != nil {
+				return nil, err
+			}
+			for _, e := range entries {
+				if strings.HasSuffix(e.Name(), ".md") {
+					result = append(result, filepath.Join(p, e.Name()))
+				}
+			}
+		} else {
+			result = append(result, p)
+		}
+	}
+	return result, nil
+}
+
+// indexDoc reads a markdown file, renders it to resolve snippets, and stores both.
+func indexDoc(ctx context.Context, store *Store, path string, loaded *browser.Loaded, sourceFS fs.FS) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	slug := strings.TrimSuffix(filepath.Base(path), ".md")
+
+	page, err := docs.Render(slug, data, loaded, sourceFS)
+	if err != nil {
+		return fmt.Errorf("render doc: %w", err)
+	}
+
+	frontmatter := "{}"
+	// TODO: parse YAML frontmatter from data if present
+
+	res, err := store.DB().ExecContext(ctx, `
+		INSERT INTO review_docs (slug, title, path, content, frontmatter_json, indexed_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT(slug) DO UPDATE SET
+			title = excluded.title,
+			path = excluded.path,
+			content = excluded.content,
+			frontmatter_json = excluded.frontmatter_json,
+			indexed_at = excluded.indexed_at
+	`, slug, page.Title, path, string(data), frontmatter, time.Now().Unix())
+	if err != nil {
+		return fmt.Errorf("insert review doc: %w", err)
+	}
+
+	docID, err := res.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("get last insert id: %w", err)
+	}
+
+	for _, snip := range page.Snippets {
+		paramsJSON, _ := json.Marshal(snip.Params)
+		_, err := store.DB().ExecContext(ctx, `
+			INSERT INTO review_doc_snippets
+				(doc_id, stub_id, directive, symbol_id, file_path, kind, language,
+				 text, params_json, start_line, end_line, commit_hash)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, docID, snip.StubID, snip.Directive, snip.SymbolID, snip.FilePath,
+			snip.Kind, snip.Language, snip.Text, string(paramsJSON),
+			snip.StartLine, snip.EndLine, snip.CommitHash)
+		if err != nil {
+			return fmt.Errorf("insert snippet: %w", err)
+		}
+	}
+
+	return nil
+}
