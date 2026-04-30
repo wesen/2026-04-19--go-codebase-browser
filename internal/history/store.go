@@ -27,6 +27,16 @@ func Open(path string) (*Store, error) {
 	return &Store{db: db}, nil
 }
 
+// NewFromDB creates a Store from an existing *sql.DB connection.
+// The caller retains ownership of the DB and is responsible for closing it.
+// This is used when the history tables live in a shared database (e.g. a review DB).
+func NewFromDB(db *sql.DB) (*Store, error) {
+	if err := configure(db); err != nil {
+		return nil, err
+	}
+	return &Store{db: db}, nil
+}
+
 // Create opens path, drops any existing tables, and recreates the schema.
 func Create(path string) (*Store, error) {
 	store, err := Open(path)
