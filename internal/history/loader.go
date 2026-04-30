@@ -118,7 +118,13 @@ INSERT INTO snapshot_symbols(
 	}
 	defer stmt.Close()
 
+	seen := make(map[string]bool, len(symbols))
 	for _, sym := range symbols {
+		if seen[sym.ID] {
+			continue
+		}
+		seen[sym.ID] = true
+
 		lang := sym.Language
 		if lang == "" {
 			lang = "go"

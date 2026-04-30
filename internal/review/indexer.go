@@ -77,6 +77,13 @@ func IndexReview(ctx context.Context, store *Store, opts IndexOptions) (*IndexRe
 		return nil, fmt.Errorf("index commits: %w", err)
 	}
 	result.CommitsIndexed = histResult.Indexed
+	for _, e := range histResult.Errors {
+		result.Errors = append(result.Errors, IndexError{
+			Phase:  "commit",
+			Detail: e.ShortHash,
+			Err:    e.Err,
+		})
+	}
 
 	if opts.SkipDocs {
 		result.Duration = time.Since(start)
