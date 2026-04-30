@@ -1,110 +1,128 @@
 topics:
-    - slug: chat
-      description: Chat backend and frontend surfaces
-    - slug: backend
-      description: Backend services
-    - slug: websocket
-      description: WebSocket lifecycle & events
-    - slug: go-ast
-      description: go/ast, go/analysis, go/types based source code indexing
     - slug: codebase-browser
-      description: Embedded web-based codebase navigation
-    - slug: embedded-web
-      description: Go-embedded SPA/web server
-    - slug: react-frontend
-      description: React + Vite frontend
-    - slug: storybook
-      description: Storybook stories and isolated component development
-    - slug: glazed
-      description: Glazed command framework for Go CLIs
-    - slug: rtk-query
-      description: Redux Toolkit Query data fetching
-    - slug: documentation-tooling
-      description: Tools that embed living source into docs
-    - slug: typescript
-      description: TypeScript source indexing and tsc-based extraction
-    - slug: dagger
-      description: Dagger containerised build pipelines
-    - slug: node-tooling
-      description: Node/pnpm build tooling invoked from Go
-    - slug: multi-language
-      description: Multi-language indexer / extractor pluggability
-    - slug: ghcr
-      description: GitHub Container Registry publishing and pulls
-    - slug: argocd
-      description: Argo CD application and reconciliation workflows
-    - slug: github-actions
-      description: GitHub Actions CI and release workflows
-    - slug: gitops
-      description: GitOps repositories and declarative deployment state
-    - slug: deployment
-      description: Application packaging and runtime rollout
-    - slug: kubernetes
-      description: Kubernetes workload and ingress deployment
+      description: Codebase browser project
     - slug: pr-review
-      description: Pull-request / code review tooling
+      description: Pull request review features
+    - slug: code-review
+      description: Code review tool features and workflows
+    - slug: glazed-help
+      description: Glazed help system documentation entries
+    - slug: literate-programming
+      description: Literate programming and markdown-based code documentation
+    - slug: markdown-docs
+      description: Markdown document rendering and serving
+    - slug: sqlite-index
+      description: SQLite-based indexing and structured querying
+    - slug: chat
+      description: Chat-related topics
+    - slug: backend
+      description: Backend development
+    - slug: websocket
+      description: WebSocket communication
+    - slug: go-ast
+      description: Go AST parsing and analysis
+    - slug: embedded-web
+      description: Embedded web assets
+    - slug: react-frontend
+      description: React frontend development
+    - slug: storybook
+      description: Storybook component development
+    - slug: glazed
+      description: Glazed CLI framework
+    - slug: rtk-query
+      description: Redux Toolkit Query
+    - slug: documentation-tooling
+      description: Documentation tooling
+    - slug: typescript
+      description: TypeScript language and tooling
+    - slug: dagger
+      description: Dagger CI/CD pipelines
+    - slug: node-tooling
+      description: Node.js tooling
+    - slug: multi-language
+      description: Multi-language support
+    - slug: ghcr
+      description: GitHub Container Registry
+    - slug: argocd
+      description: ArgoCD deployment
+    - slug: github-actions
+      description: GitHub Actions CI/CD
+    - slug: gitops
+      description: GitOps workflows
+    - slug: deployment
+      description: Deployment processes
+    - slug: kubernetes
+      description: Kubernetes orchestration
     - slug: semantic-diff
-      description: Symbol-level diffs derived from AST indexes
+      description: Semantic diff analysis
     - slug: git-integration
-      description: Git history/blame integration in tooling
+      description: Git integration features
     - slug: ui-design
-      description: UI affordance and wireframe exploration
+      description: UI design and UX
     - slug: wasm
-      description: WebAssembly compilation of Go search/index logic for browser-side execution
+      description: WebAssembly
     - slug: static-build
-      description: Static file/HTML generation and bundling for zero-server deployment
+      description: Static build processes
     - slug: go
-      description: 'Go language tooling: go/ast, go/packages, go/types, standard library'
+      description: Go programming language
     - slug: indexing
-      description: Source code indexing and extraction
+      description: Indexing and search
     - slug: search
-      description: Search functionality, FTS5, query
+      description: Search functionality
     - slug: sqlite
-      description: SQLite database storage and querying
+      description: SQLite database
     - slug: git
-      description: Git integration, commit history, and branch-aware indexing
+      description: Git version control
     - slug: diff
-      description: Per-symbol and per-file diff computation across commits
+      description: Diff and comparison
     - slug: history
-      description: Tracking symbol and file changes over time
+      description: History and versioning
     - slug: concepts
-      description: Structured query concepts and the concept catalog system
+      description: Concepts and structured queries
     - slug: symbols
-      description: Symbol extraction, lookup, and analysis
+      description: Symbol indexing and lookup
     - slug: embeddable-widgets
-      description: Embeddable UI widgets rendered inline in markdown doc pages
+      description: Embeddable UI widgets
     - slug: history-index
-      description: 'Git history indexing subsystem: per-commit symbol snapshots in SQLite'
+      description: Git history indexing
     - slug: markdown-directives
-      description: codebase-* fenced code block directives for embedding live widgets in markdown
+      description: Markdown directive processing
     - slug: performance
-      description: Performance analysis and optimization work, including bundle size, latency, rendering cost, and resource usage.
+      description: Performance optimization
 docTypes:
-    - slug: design-doc
-      description: Structured rationale and architecture notes
-    - slug: reference
-      description: Reference docs and API contracts
-    - slug: playbook
-      description: Operational procedures and QA/Smoke steps
     - slug: index
-      description: Ticket landing page
+      description: Ticket index document
+    - slug: design-doc
+      description: Design and architecture document
+    - slug: reference
+      description: Reference documentation
+    - slug: playbook
+      description: Operational playbook
+    - slug: tutorial
+      description: Tutorial or guide
+    - slug: script
+      description: Script or automation
     - slug: skill
-      description: Skill documentation (what it's for and when to use it)
+      description: Skill definition
+    - slug: log
+      description: Log or diary entry
+    - slug: working-note
+      description: Working note or scratchpad
+    - slug: code-review
+      description: Code review document
 intent:
     - slug: long-term
-      description: Likely to persist
+      description: Long-term design or reference document
     - slug: short-term
-      description: Short-term documentation for active work
-    - slug: throwaway
-      description: Temporary/experimental documentation
+      description: Short-term tactical document
+    - slug: ephemeral
+      description: Temporary or throwaway document
 status:
-    - slug: draft
-      description: Initial draft state
     - slug: active
-      description: Active work in progress
-    - slug: review
-      description: Ready for review
-    - slug: complete
-      description: Work completed
+      description: Active ticket or document
+    - slug: completed
+      description: Completed ticket or document
     - slug: archived
-      description: Archived/completed work
+      description: Archived ticket or document
+    - slug: blocked
+      description: Blocked ticket or document
