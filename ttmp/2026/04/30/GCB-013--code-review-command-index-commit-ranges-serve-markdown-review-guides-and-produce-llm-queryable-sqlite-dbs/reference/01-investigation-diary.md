@@ -609,3 +609,35 @@ User asked to build the ticket task by task, committing at appropriate intervals
 - `codebase-diff` body-level diffs are still not precomputed for static export; static mode now fails locally with `STATIC_NOT_PRECOMPUTED` instead of making an HTTP request.
 - Impact static rendering is shape-normalized enough for the current widget, but the export-side impact graph still lacks real `edges` and `local` semantics.
 - The export still copies the large source tree.
+
+---
+
+## Step 15: Static body-diff support for `codebase-diff`
+
+### What I did
+- Added `bodyDiffs` to `PrecomputedReview` and WASM `ReviewData`.
+- Precomputed symbol body diffs during `review export` for:
+  - changed symbols present in adjacent commit diffs;
+  - symbols referenced by `codebase-diff` review doc snippets, resolving `HEAD`, `HEAD~N`, full hashes, and short hashes against the exported commit list.
+- Added WASM export `getSymbolBodyDiff(oldHash, newHash, symbolID)`.
+- Updated `historyApi` static mode to serve `/symbol-body-diff?...` through the WASM body-diff lookup instead of returning `STATIC_NOT_PRECOMPUTED`.
+- Fixed `internal/history/bodydiff.go` panic on short synthetic commit hashes by using a safe short-hash helper in error messages.
+
+### Validation
+- `go test ./internal/review ./internal/wasm` — PASS
+- `pnpm -C ui run typecheck` — PASS
+- `go build ./cmd/codebase-browser` — PASS
+- `GOOS=js GOARCH=wasm go build ./cmd/wasm` — PASS
+- `go generate ./internal/wasm` regenerated `internal/wasm/embed/search.wasm` with the new export.
+- Created `/tmp/reviews/pr-bodydiff.md` with `codebase-diff sym=github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/review.newExportCmd from=HEAD~1 to=HEAD` and `codebase-diff-stats from=HEAD~1 to=HEAD`.
+- Indexed/exported a two-commit review DB and verified `reviewData.bodyDiffs` contained one entry.
+- Browser validation with Playwright:
+  - opened `http://localhost:8773/#/review/pr-bodydiff`;
+  - network filter `/api/` returned no requests;
+  - `codebase-diff` rendered a Diffs unified/split diff for `newExportCmd`;
+  - `codebase-diff-stats` rendered from static data;
+  - no `[data-part=error]` elements were present.
+
+### Remaining caveats
+- Body diffs are precomputed for changed symbols and explicit `codebase-diff` snippets only, not every possible symbol pair.
+- The export still assumes `repoRoot="."` when falling back to git content reads; cached `file_contents` should cover normal indexed files, but this should become an explicit export option.

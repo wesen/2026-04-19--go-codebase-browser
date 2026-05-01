@@ -2,14 +2,15 @@ package wasm
 
 // ReviewData holds pre-computed review-specific data loaded into WASM.
 type ReviewData struct {
-	Version     string              `json:"version"`
-	GeneratedAt string              `json:"generatedAt"`
-	CommitRange string              `json:"commitRange"`
-	Commits     []CommitLite        `json:"commits"`
-	Diffs       map[string]*DiffLite `json:"diffs"`
+	Version     string                        `json:"version"`
+	GeneratedAt string                        `json:"generatedAt"`
+	CommitRange string                        `json:"commitRange"`
+	Commits     []CommitLite                  `json:"commits"`
+	Diffs       map[string]*DiffLite          `json:"diffs"`
 	Histories   map[string][]HistoryEntryLite `json:"histories"`
-	Impacts     map[string]*ImpactLite `json:"impacts"`
-	Docs        []ReviewDocLite     `json:"docs"`
+	Impacts     map[string]*ImpactLite        `json:"impacts"`
+	BodyDiffs   map[string]*BodyDiffResult    `json:"bodyDiffs"`
+	Docs        []ReviewDocLite               `json:"docs"`
 }
 
 type CommitLite struct {
@@ -21,9 +22,9 @@ type CommitLite struct {
 }
 
 type DiffLite struct {
-	OldHash string      `json:"oldHash"`
-	NewHash string      `json:"newHash"`
-	Stats   DiffStats   `json:"stats"`
+	OldHash string       `json:"oldHash"`
+	NewHash string       `json:"newHash"`
+	Stats   DiffStats    `json:"stats"`
 	Symbols []SymbolDiff `json:"symbols"`
 	Files   []FileDiff   `json:"files"`
 }
@@ -71,6 +72,18 @@ type HistoryEntryLite struct {
 	Signature  string `json:"signature"`
 	StartLine  int    `json:"startLine"`
 	EndLine    int    `json:"endLine"`
+}
+
+type BodyDiffResult struct {
+	SymbolID    string `json:"symbolId"`
+	Name        string `json:"name"`
+	OldCommit   string `json:"oldCommit"`
+	NewCommit   string `json:"newCommit"`
+	OldBody     string `json:"oldBody"`
+	NewBody     string `json:"newBody"`
+	UnifiedDiff string `json:"unifiedDiff"`
+	OldRange    string `json:"oldRange"`
+	NewRange    string `json:"newRange"`
 }
 
 type ImpactLite struct {

@@ -63,3 +63,16 @@ Implemented the first static transport repair pass: static exports now set VITE_
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/historyApi.ts — Static-aware history transport using WASM review helpers
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/runtimeMode.ts — Static export runtime mode helper
 
+
+## 2026-05-01
+
+Added static body-diff support for codebase-diff: review export now precomputes body diffs for changed symbols and explicit codebase-diff snippets, WASM exposes getSymbolBodyDiff, and static historyApi serves symbol-body-diff without /api calls.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/history/bodydiff.go — Safe short-hash errors
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/review/export.go — Precomputes reviewData.bodyDiffs
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/wasm/exports.go — JS export getSymbolBodyDiff
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/wasm/search.go — WASM body-diff lookup
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/historyApi.ts — Static /symbol-body-diff transport
+

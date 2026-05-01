@@ -1,7 +1,7 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { fetchBaseQuery, type BaseQueryFn } from '@reduxjs/toolkit/query/react';
 import { isStaticExport } from './runtimeMode';
-import { getCommitDiff, getCommits, getImpact, getSymbolHistory } from './wasmClient';
+import { getCommitDiff, getCommits, getImpact, getSymbolBodyDiff, getSymbolHistory } from './wasmClient';
 
 export interface CommitRow {
   Hash: string;
@@ -185,9 +185,16 @@ async function staticHistoryBaseQuery(arg: string): Promise<{ data?: unknown; er
   }
 
   if (arg.startsWith('/symbol-body-diff?')) {
-    // Body-level diffs are not in reviewData yet. Return a typed static error
-    // instead of probing a nonexistent server API.
-    return { error: { status: 'STATIC_NOT_PRECOMPUTED', data: 'symbol body diffs are not precomputed in static export yet' } };
+    const params = paramsFor(arg);
+    const from = resolveCommitRef(params.get('from') ?? '', commits);
+    const to = resolveCommitRef(params.get('to') ?? '', commits);
+    const symbolId = params.get('symbol') ?? '';
+    if (!from || !to || !symbolId) {
+      return staticNotFound(`cannot resolve body diff refs: ${params.get('from')}..${params.get('to')} ${symbolId}`);
+    }
+    const bodyDiff = await getSymbolBodyDiff(from, to, symbolId) as BodyDiffResult | null;
+    if (!bodyDiff) return { error: { status: 'STATIC_NOT_PRECOMPUTED', data: `symbol body diff not precomputed: ${symbolId}` } };
+    return { data: bodyDiff };
   }
 
   if (arg.startsWith('/impact?')) {

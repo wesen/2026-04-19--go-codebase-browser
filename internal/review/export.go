@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/wesen/codebase-browser/internal/browser"
 	"github.com/wesen/codebase-browser/internal/docs"
@@ -15,14 +16,15 @@ import (
 
 // PrecomputedReview holds all data needed for a standalone WASM export.
 type PrecomputedReview struct {
-	Version     string              `json:"version"`
-	GeneratedAt string              `json:"generatedAt"`
-	CommitRange string              `json:"commitRange"`
-	Commits     []CommitLite        `json:"commits"`
-	Diffs       map[string]*DiffLite `json:"diffs"`
-	Histories   map[string][]HistoryEntryLite `json:"histories"`
-	Impacts     map[string]*ImpactLite `json:"impacts"`
-	Docs        []ReviewDocLite     `json:"docs"`
+	Version     string                             `json:"version"`
+	GeneratedAt string                             `json:"generatedAt"`
+	CommitRange string                             `json:"commitRange"`
+	Commits     []CommitLite                       `json:"commits"`
+	Diffs       map[string]*DiffLite               `json:"diffs"`
+	Histories   map[string][]HistoryEntryLite      `json:"histories"`
+	Impacts     map[string]*ImpactLite             `json:"impacts"`
+	BodyDiffs   map[string]*history.BodyDiffResult `json:"bodyDiffs"`
+	Docs        []ReviewDocLite                    `json:"docs"`
 }
 
 type CommitLite struct {
@@ -34,9 +36,9 @@ type CommitLite struct {
 }
 
 type DiffLite struct {
-	OldHash string              `json:"oldHash"`
-	NewHash string              `json:"newHash"`
-	Stats   history.DiffStats   `json:"stats"`
+	OldHash string               `json:"oldHash"`
+	NewHash string               `json:"newHash"`
+	Stats   history.DiffStats    `json:"stats"`
 	Symbols []history.SymbolDiff `json:"symbols"`
 	Files   []history.FileDiff   `json:"files"`
 }
@@ -67,9 +69,9 @@ type ImpactNode struct {
 }
 
 type ReviewDocLite struct {
-	Slug     string       `json:"slug"`
-	Title    string       `json:"title"`
-	HTML     string       `json:"html"`
+	Slug     string            `json:"slug"`
+	Title    string            `json:"title"`
+	HTML     string            `json:"html"`
 	Snippets []docs.SnippetRef `json:"snippets"`
 }
 
@@ -96,6 +98,7 @@ func LoadForExport(dbPath string) (*PrecomputedReview, error) {
 		Diffs:       make(map[string]*DiffLite),
 		Histories:   make(map[string][]HistoryEntryLite),
 		Impacts:     make(map[string]*ImpactLite),
+		BodyDiffs:   make(map[string]*history.BodyDiffResult),
 		Docs:        make([]ReviewDocLite, 0),
 	}
 
@@ -143,6 +146,11 @@ func LoadForExport(dbPath string) (*PrecomputedReview, error) {
 	// Pre-compute histories for all symbols that appear in >1 commit.
 	if err := computeHistories(ctx, store, out); err != nil {
 		return nil, fmt.Errorf("compute histories: %w", err)
+	}
+
+	// Pre-compute body diffs for changed symbols in adjacent commit pairs.
+	if err := computeBodyDiffs(ctx, store, out, "."); err != nil {
+		return nil, fmt.Errorf("compute body diffs: %w", err)
 	}
 
 	// Pre-compute impact for symbols referenced in review docs.
@@ -207,6 +215,80 @@ func computeHistories(ctx context.Context, store *Store, out *PrecomputedReview)
 	}
 
 	return nil
+}
+
+func computeBodyDiffs(ctx context.Context, store *Store, out *PrecomputedReview, repoRoot string) error {
+	compute := func(oldHash, newHash, symbolID string) {
+		if oldHash == "" || newHash == "" || symbolID == "" {
+			return
+		}
+		key := oldHash + ".." + newHash + "|" + symbolID
+		if _, ok := out.BodyDiffs[key]; ok {
+			return
+		}
+		bodyDiff, err := history.DiffSymbolBodyWithContent(ctx, store.History, repoRoot, oldHash, newHash, symbolID)
+		if err != nil {
+			// Body diffs are useful but not required for the export. Keep the
+			// commit-level diff and let the static UI report the missing body diff.
+			return
+		}
+		out.BodyDiffs[key] = bodyDiff
+	}
+
+	for _, diff := range out.Diffs {
+		for _, sym := range diff.Symbols {
+			if sym.ChangeType == history.ChangeUnchanged || sym.SymbolID == "" {
+				continue
+			}
+			compute(diff.OldHash, diff.NewHash, sym.SymbolID)
+		}
+	}
+
+	rows, err := store.DB().QueryContext(ctx, `
+		SELECT symbol_id, params_json
+		FROM review_doc_snippets
+		WHERE directive = 'codebase-diff' AND symbol_id != ''
+	`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var symbolID, paramsJSON string
+		if err := rows.Scan(&symbolID, &paramsJSON); err != nil {
+			return err
+		}
+		params := map[string]string{}
+		_ = json.Unmarshal([]byte(paramsJSON), &params)
+		oldHash := resolveExportCommitRef(params["from"], out.Commits)
+		newHash := resolveExportCommitRef(params["to"], out.Commits)
+		compute(oldHash, newHash, symbolID)
+	}
+	return rows.Err()
+}
+
+func resolveExportCommitRef(ref string, commits []CommitLite) string {
+	if ref == "" || len(commits) == 0 {
+		return ""
+	}
+	if ref == "HEAD" {
+		return commits[len(commits)-1].Hash
+	}
+	if strings.HasPrefix(ref, "HEAD~") {
+		var offset int
+		if _, err := fmt.Sscanf(ref, "HEAD~%d", &offset); err == nil {
+			idx := len(commits) - 1 - offset
+			if idx >= 0 && idx < len(commits) {
+				return commits[idx].Hash
+			}
+		}
+	}
+	for _, c := range commits {
+		if c.Hash == ref || c.ShortHash == ref || strings.HasPrefix(c.Hash, ref) {
+			return c.Hash
+		}
+	}
+	return ""
 }
 
 func computeImpacts(ctx context.Context, store *Store, loaded *browser.Loaded, out *PrecomputedReview) error {

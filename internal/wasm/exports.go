@@ -162,6 +162,17 @@ func RegisterExports() {
 		return js.ValueOf(string(globalCtx.GetImpact(symbolID, direction, depth)))
 	})
 
+	// getSymbolBodyDiff(oldHash, newHash, symbolID) → JSON string
+	register("getSymbolBodyDiff", func(this js.Value, args []js.Value) interface{} {
+		if globalCtx == nil {
+			return js.ValueOf("null")
+		}
+		if len(args) < 3 {
+			return js.ValueOf("null")
+		}
+		return js.ValueOf(string(globalCtx.GetSymbolBodyDiff(args[0].String(), args[1].String(), args[2].String())))
+	})
+
 	// getReviewDocs() → JSON string
 	register("getReviewDocs", func(this js.Value, args []js.Value) interface{} {
 		if globalCtx == nil {

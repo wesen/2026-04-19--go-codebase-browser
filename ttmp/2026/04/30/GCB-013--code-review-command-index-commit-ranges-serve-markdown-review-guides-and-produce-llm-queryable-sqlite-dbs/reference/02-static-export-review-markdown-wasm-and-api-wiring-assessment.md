@@ -800,3 +800,19 @@ python3 -m http.server 8772 --directory /tmp/review-static-export
 Browser validation opened `/#/review/pr-static`; Playwright's `/api/` network filter returned no requests, and `codebase-diff-stats from=HEAD~1 to=HEAD` rendered from WASM-backed static data.
 
 The remaining recommendations still apply for body-level diffs, richer impact payloads, source-tree export size, and optional sql.js.
+
+## Addendum — body-diff static support completed on 2026-05-01
+
+A second repair pass added static support for `codebase-diff` body diffs.
+
+Changes:
+
+1. `PrecomputedReview` now includes `bodyDiffs`.
+2. Export precomputes body diffs for changed symbols in adjacent commit diffs and for explicit `codebase-diff` snippets found in review docs.
+3. WASM exposes `getSymbolBodyDiff(oldHash, newHash, symbolID)`.
+4. Static `historyApi` now resolves `/symbol-body-diff?...` through WASM instead of reporting `STATIC_NOT_PRECOMPUTED`.
+5. `internal/history/bodydiff.go` no longer panics when tests use short synthetic commit hashes.
+
+Validation opened a static review doc containing both `codebase-diff` and `codebase-diff-stats`; Playwright observed no `/api/` requests, the body diff rendered with the Diffs widget, diff stats rendered, and no error elements were present.
+
+Remaining caution: body diffs are still precomputed selectively, not for all symbols/all commit pairs. That is intentional for artifact size, but it should be documented as an export limitation.

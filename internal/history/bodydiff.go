@@ -40,7 +40,7 @@ WHERE  commit_hash = ? AND id = ?`, oldHash, symbolID).Scan(
 		&oldSym.startLine, &oldSym.endLine, &oldSym.name,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("symbol %s not found at %s: %w", symbolID, oldHash[:7], err)
+		return nil, fmt.Errorf("symbol %s not found at %s: %w", symbolID, shortHashForError(oldHash), err)
 	}
 
 	err = s.db.QueryRowContext(ctx, `
@@ -51,7 +51,7 @@ WHERE  commit_hash = ? AND id = ?`, newHash, symbolID).Scan(
 		&newSym.startLine, &newSym.endLine, &newSym.name,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("symbol %s not found at %s: %w", symbolID, newHash[:7], err)
+		return nil, fmt.Errorf("symbol %s not found at %s: %w", symbolID, shortHashForError(newHash), err)
 	}
 
 	// We can't read from cache without a repoRoot, so return what we can.
@@ -106,12 +106,12 @@ FROM   snapshot_symbols s
 JOIN   snapshot_files f ON f.commit_hash = s.commit_hash AND f.id = s.file_id
 WHERE  s.commit_hash = ? AND s.id = ?`, commitHash, symbolID).Scan(&filePath, &startOffset, &endOffset)
 	if err != nil {
-		return "", fmt.Errorf("lookup %s at %s: %w", symbolID, commitHash[:7], err)
+		return "", fmt.Errorf("lookup %s at %s: %w", symbolID, shortHashForError(commitHash), err)
 	}
 
 	content, err := GetFileContent(ctx, store, repoRoot, commitHash, filePath)
 	if err != nil {
-		return "", fmt.Errorf("read %s at %s: %w", filePath, commitHash[:7], err)
+		return "", fmt.Errorf("read %s at %s: %w", filePath, shortHashForError(commitHash), err)
 	}
 
 	if startOffset < 0 || endOffset > len(content) || startOffset > endOffset {
@@ -169,6 +169,13 @@ func simpleUnifiedDiff(old, new_ string) string {
 	}
 
 	return out
+}
+
+func shortHashForError(hash string) string {
+	if len(hash) <= 7 {
+		return hash
+	}
+	return hash[:7]
 }
 
 func splitLines(s string) []string {

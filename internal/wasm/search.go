@@ -9,17 +9,17 @@ import (
 // SearchCtx holds the deserialized index + pre-computed data structures.
 // Allocated in WASM linear memory; JS glue reads/writes via memory.buffer.
 type SearchCtx struct {
-	Index        *Index
-	RawIndex     []byte               // original index.json bytes
-	byPackageID  map[string]*Package
-	byFileID     map[string]*File
-	bySymbolID   map[string]*Symbol
-	SearchIndex  map[string][]string    // lowercase name → symbol IDs
-	XrefIndex    map[string]*XrefData   // symbol ID → pre-computed xref
-	Snippets     map[string]string      // symID:kind → text
-	DocHTML      map[string]string      // slug → pre-rendered HTML
-	DocManifest  []PageMeta             // pages list
-	ReviewData   *ReviewData            // optional review data (nil if not in review mode)
+	Index       *Index
+	RawIndex    []byte // original index.json bytes
+	byPackageID map[string]*Package
+	byFileID    map[string]*File
+	bySymbolID  map[string]*Symbol
+	SearchIndex map[string][]string  // lowercase name → symbol IDs
+	XrefIndex   map[string]*XrefData // symbol ID → pre-computed xref
+	Snippets    map[string]string    // symID:kind → text
+	DocHTML     map[string]string    // slug → pre-rendered HTML
+	DocManifest []PageMeta           // pages list
+	ReviewData  *ReviewData          // optional review data (nil if not in review mode)
 }
 
 // PageMeta mirrors docs.PageMeta.
@@ -45,9 +45,9 @@ type RefSummary struct {
 
 // UseTarget is a deduplicated "uses" entry (what this symbol calls).
 type UseTarget struct {
-	ToSymbolID string `json:"toSymbolId"`
-	Kind       string `json:"kind"`
-	Count      int    `json:"count"`
+	ToSymbolID  string          `json:"toSymbolId"`
+	Kind        string          `json:"kind"`
+	Count       int             `json:"count"`
 	Occurrences []RefOccurrence `json:"occurrences"`
 }
 
@@ -266,8 +266,18 @@ func (s *SearchCtx) GetImpact(symbolID, direction string, depth int) []byte {
 	if s.ReviewData == nil {
 		return []byte("null")
 	}
-	key := symbolID + "|" + direction + "|" + string(rune('0'+depth))
+	key := symbolID + "|" + direction + "|" + itoa(depth)
 	data, _ := json.Marshal(s.ReviewData.Impacts[key])
+	return data
+}
+
+// GetSymbolBodyDiff returns the pre-computed body diff for a symbol between commits.
+func (s *SearchCtx) GetSymbolBodyDiff(oldHash, newHash, symbolID string) []byte {
+	if s.ReviewData == nil {
+		return []byte("null")
+	}
+	key := oldHash + ".." + newHash + "|" + symbolID
+	data, _ := json.Marshal(s.ReviewData.BodyDiffs[key])
 	return data
 }
 
@@ -301,4 +311,27 @@ func (s *SearchCtx) GetCommits() []byte {
 	}
 	data, _ := json.Marshal(s.ReviewData.Commits)
 	return data
+}
+
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	neg := false
+	if n < 0 {
+		neg = true
+		n = -n
+	}
+	buf := [20]byte{}
+	i := len(buf)
+	for n > 0 {
+		i--
+		buf[i] = byte('0' + n%10)
+		n /= 10
+	}
+	if neg {
+		i--
+		buf[i] = '-'
+	}
+	return string(buf[i:])
 }
