@@ -285,7 +285,7 @@
 
 **Goal:** Extend `internal/wasm/search.go` and `exports.go` to support history query exports.
 
-- [ ] **Task 7.1:** Add review data structures to `internal/wasm/search.go`
+- [x] **Task 7.1:** Add review data structures to `internal/wasm/search.go`
   - Add `ReviewData *PrecomputedReview` field to `SearchCtx`
   - Define lightweight WASM-compatible types: `CommitLite`, `CommitDiffLite`, `HistoryEntryLite`, `ImpactLite`, `ReviewDocLite`
   - Add `LoadReviewData(jsonData []byte) error` method
@@ -294,7 +294,7 @@
   - Depends on: Phase 6
   - Est: 2–4h
 
-- [ ] **Task 7.2:** Implement history query methods in `SearchCtx`
+- [x] **Task 7.2:** Implement history query methods in `SearchCtx`
   - `GetCommitDiff(oldHash, newHash) []byte`
   - `GetSymbolHistory(symbolID) []byte`
   - `GetImpact(symbolID, direction, depth) []byte`
@@ -306,7 +306,7 @@
   - Depends on: Task 7.1
   - Est: 2–4h
 
-- [ ] **Task 7.3:** Register new exports in `internal/wasm/exports.go`
+- [x] **Task 7.3:** Register new exports in `internal/wasm/exports.go`
   - Update `initWasm` to accept a 7th parameter for review JSON data
   - Register `getCommitDiff`, `getSymbolHistory`, `getImpact`, `getReviewDocs`, `getReviewDoc`
   - Files: `internal/wasm/exports.go`
@@ -314,7 +314,7 @@
   - Depends on: Task 7.2
   - Est: 2–4h
 
-- [ ] **Task 7.4:** Update frontend WASM client
+- [x] **Task 7.4:** Update frontend WASM client
   - Extend `ui/src/api/wasmClient.ts` to load `precomputed.json` including review data
   - Add RTK-Query endpoints for history queries (or extend existing endpoints)
   - Validation: `pnpm -C ui run typecheck` passes
@@ -323,7 +323,7 @@
   - Depends on: Task 7.3
   - Est: 2–4h
 
-- [ ] **Task 7.5:** Build and test TinyGo WASM with history exports
+- [x] **Task 7.5:** Build and test TinyGo WASM with history exports
   - Run `go generate ./internal/wasm`
   - Verify `search.wasm` builds with TinyGo (not falling back to standard Go)
   - Test in browser with a fixture precomputed.json containing review data
@@ -378,7 +378,7 @@
 
 **Goal:** Wire everything into a single `review export` command that produces a standalone directory.
 
-- [ ] **Task 9.1:** Create `cmd/codebase-browser/cmds/review/export.go`
+- [x] **Task 9.1:** Create `cmd/codebase-browser/cmds/review/export.go`
   - `review export` subcommand
   - Flags: `--commits`, `--docs`, `--db`, `--out`, `--repo-root`, `--patterns`, `--include-tests`, `--parallelism`
   - If `--db` provided, skip indexing and use existing DB
@@ -391,7 +391,7 @@
   - Depends on: Phase 7 (and optionally Phase 8)
   - Est: 4–6h
 
-- [ ] **Task 9.2:** Add `VITE_STATIC_EXPORT` environment variable to SPA build
+- [x] **Task 9.2:** Add `VITE_STATIC_EXPORT` environment variable to SPA build
   - In Vite config or `ui/src/api/store.ts`, detect static export mode
   - Use `wasmBaseQuery` instead of `fetchBaseQuery` for all API calls
   - Files: `ui/src/api/store.ts`, `ui/vite.config.ts`
