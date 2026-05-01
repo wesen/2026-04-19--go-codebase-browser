@@ -80,7 +80,7 @@
   - Depends on: Task 2.1
   - Est: 4–6h
 
-- [ ] **Task 2.3:** Implement doc indexing in `internal/review/indexer.go`
+- [x] **Task 2.3:** Implement doc indexing in `internal/review/indexer.go`
   - `indexDoc(ctx, store, path, loaded)` function
   - Read markdown file, derive slug from basename
   - Call `docs.Render()` with the reconstructed `Loaded` index
@@ -93,7 +93,7 @@
   - Depends on: Task 2.2
   - Est: 4–6h
 
-- [ ] **Task 2.4:** Add `IndexOptions.SkipDocs` and `IndexCommitsOnly`
+- [x] **Task 2.4:** Add `IndexOptions.SkipDocs` and `IndexCommitsOnly`
   - Support `db create` skipping the doc phase entirely
   - Validation: `codebase-browser review db create --commits HEAD~2..HEAD --db /tmp/test.db` produces DB with no `review_docs` table rows
   - Files: `internal/review/indexer.go`
@@ -172,7 +172,7 @@
   - Depends on: Task 4.4
   - Est: 0.5h
 
-- [ ] **Task 4.6:** Integration test — full CLI workflow
+- [x] **Task 4.6:** Integration test — full CLI workflow
   - Create temp git repo with 3 commits
   - Write a markdown review file with `codebase-snippet` directive
   - Run `review index`, `review serve`, `review db create`
@@ -427,7 +427,7 @@
   - Depends on: Phases 6–9
   - Est: 4–6h
 
-- [ ] **Task 10.3:** End-to-end test — sql.js console (if Phase 8 implemented)
+- [x] **Task 10.3:** End-to-end test — sql.js console (if Phase 8 implemented)
   - Skipped: Phase 8 (sql.js) is optional and not implemented
   - Open SQL console in exported artifact
   - Run: `SELECT COUNT(*) FROM commits;`

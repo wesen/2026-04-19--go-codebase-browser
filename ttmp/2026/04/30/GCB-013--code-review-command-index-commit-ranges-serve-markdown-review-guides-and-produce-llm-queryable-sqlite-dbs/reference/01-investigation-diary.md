@@ -547,3 +547,31 @@ User asked to build the ticket task by task, committing at appropriate intervals
 ### Commits
 - Total commits for GCB-013 implementation: 14
 - Final commit: `675c8c9`
+
+---
+
+## Step 13: Review doc rendering in static export
+
+### What I did
+- Added `reviewDoc:` and `reviewDocs` endpoints to `wasmBaseQuery` in `ui/src/api/wasmClient.ts`
+- Added `listReviewDocs` and `getReviewDoc` endpoints to `docApi` in `ui/src/api/docApi.ts` (HTTP first, WASM fallback)
+- Created `ui/src/features/review/ReviewDocPage.tsx` — renders review doc HTML with snippet stub hydration (same pattern as regular `DocPage`)
+- Added `ReviewDocList` component for sidebar navigation
+- Added `/review/:slug` route to `App.tsx`
+- Added "Review docs" section to sidebar above "Docs"
+- **Fixed critical bug in `cmd/codebase-browser/cmds/review/export.go`:** The export was copying SPA assets from `dist/` (stale bundler output) instead of `ui/dist/public/` (fresh `pnpm build` output). This meant new UI code never appeared in exports. Fixed by copying directly from `ui/dist/public/` and replicating bundler steps (WASM, wasm_exec.js, source tree, injection).
+
+### Validation
+- Created test review doc `/tmp/reviews/pr-42.md` with `codebase-snippet`, `codebase-diff-stats`, `codebase-impact` directives
+- Indexed with `review index --commits HEAD~1..HEAD --docs /tmp/reviews/ --db /tmp/review-with-docs.db`
+- Exported with `review export --db /tmp/review-with-docs.db --out /tmp/review-export-with-docs`
+- Served with `python3 -m http.server`
+- Browser screenshot confirms:
+  - Sidebar shows "Review docs" with "PR #42: Add review export command"
+  - Main content renders markdown HTML: title, Motivation, Changes, Impact
+  - Doc error stubs render correctly for unresolved symbols
+  - Diff stats widget attempts to load (fails due to single-commit test DB, as expected)
+
+### Technical details
+- Commit: `d701eb3`
+- The export bundler fix is critical: any future UI changes for review export will now be properly included
