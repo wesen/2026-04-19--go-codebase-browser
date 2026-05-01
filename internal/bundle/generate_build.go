@@ -155,8 +155,14 @@ func injectWasmExec(indexPath string) error {
 	}
 	html := string(data)
 
+	// If wasm_exec.js is already referenced (e.g. copied by Vite from ui/public/),
+	// don't inject a duplicate.
+	if strings.Contains(html, "wasm_exec.js") {
+		return nil
+	}
+
 	// Inject wasm_exec.js before the first script tag
-	inject := `<script src="/wasm_exec.js"></script>`
+	inject := `<script src="wasm_exec.js"></script>`
 	if strings.Contains(html, `<script type="module"`) {
 		html = strings.Replace(html, `<script type="module"`, inject+`
   <script type="module"`, 1)

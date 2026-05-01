@@ -36,12 +36,12 @@ export function getInitError(): string | null {
 
 export async function getPrecomputed(): Promise<Record<string, unknown>> {
   if (precomputedCache) return precomputedCache;
-  const resp = await fetch('/precomputed.json');
+  const resp = await fetch('precomputed.json');
   precomputedCache = await resp.json();
   return precomputedCache!;
 }
 
-export async function initWasm(wasmPath = '/search.wasm'): Promise<void> {
+export async function initWasm(wasmPath = 'search.wasm'): Promise<void> {
   if (wasmReady) return;
   if (!window.Go) {
     throw new Error('Go WASM runtime not loaded. Include wasm_exec.js before loading this module.');
@@ -72,7 +72,7 @@ export async function initWasm(wasmPath = '/search.wasm'): Promise<void> {
   }
 
   // Load precomputed data
-  const precomputed = await fetch('/precomputed.json').then((r) => r.json());
+  const precomputed = await fetch('precomputed.json').then((r) => r.json());
 
   const result = window.codebaseBrowser.initWasm(
     JSON.stringify(precomputed.indexJSON || {}),
