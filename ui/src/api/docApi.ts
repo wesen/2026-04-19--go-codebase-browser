@@ -27,6 +27,11 @@ export interface PageMeta {
   path: string;
 }
 
+export interface ReviewDocMeta {
+  slug: string;
+  title: string;
+}
+
 export const docApi = createApi({
   reducerPath: 'docApi',
   baseQuery: wasmBaseQuery,
@@ -53,7 +58,35 @@ export const docApi = createApi({
         return wasmBaseQuery(`docPage:${slug}`, api as any, extraOptions as any) as any;
       },
     }),
+    listReviewDocs: b.query<ReviewDocMeta[], void>({
+      queryFn: async (_arg, api, extraOptions) => {
+        // Prefer server-backed review docs API, fall back to WASM.
+        try {
+          const resp = await fetch('/api/review/docs');
+          if (resp.ok) {
+            const data = await resp.json();
+            // Server returns DocMeta[] with slug, title, path, indexedAt
+            return { data: data.map((d: any) => ({ slug: d.slug, title: d.title })) };
+          }
+        } catch {}
+        const result = await wasmBaseQuery('reviewDocs', api as any, extraOptions as any) as any;
+        if (result.data) {
+          // WASM returns ReviewDocLite[] — map to ReviewDocMeta
+          return { data: result.data.map((d: any) => ({ slug: d.slug, title: d.title })) };
+        }
+        return result;
+      },
+    }),
+    getReviewDoc: b.query<DocPage, string>({
+      queryFn: async (slug, api, extraOptions) => {
+        try {
+          const resp = await fetch(`/api/review/docs/${encodeURIComponent(slug)}`);
+          if (resp.ok) return { data: await resp.json() };
+        } catch {}
+        return wasmBaseQuery(`reviewDoc:${slug}`, api as any, extraOptions as any) as any;
+      },
+    }),
   }),
 });
 
-export const { useListDocsQuery, useGetDocQuery } = docApi;
+export const { useListDocsQuery, useGetDocQuery, useListReviewDocsQuery, useGetReviewDocQuery } = docApi;

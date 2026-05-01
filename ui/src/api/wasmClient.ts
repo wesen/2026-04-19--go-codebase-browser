@@ -134,6 +134,10 @@ export const wasmBaseQuery: BaseQueryFn<string, unknown, { status: string; data?
           result = window.codebaseBrowser.getDocPages();
         } else if (endpoint.startsWith('docPage:')) {
           result = window.codebaseBrowser.getDocPage(endpoint.slice(8));
+        } else if (endpoint.startsWith('reviewDoc:')) {
+          result = window.codebaseBrowser.getReviewDoc(endpoint.slice(10));
+        } else if (endpoint === 'reviewDocs') {
+          result = window.codebaseBrowser.getReviewDocs();
         } else {
           return { error: { status: 'UNKNOWN_ENDPOINT', data: endpoint } };
         }

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/wesen/codebase-browser/internal/review"
@@ -112,10 +113,51 @@ Examples:
 				return fmt.Errorf("create output dir: %w", err)
 			}
 
-			// Copy dist contents
-			distDir := "dist"
-			if err := copyTree(distDir, outDir); err != nil {
-				return fmt.Errorf("copy dist: %w", err)
+			// Copy SPA build output (ui/dist/public) → outDir
+			spaDir := "ui/dist/public"
+			if err := copyTree(spaDir, outDir); err != nil {
+				return fmt.Errorf("copy SPA build: %w", err)
+			}
+
+			// Copy WASM module
+			wasmSrc := "internal/wasm/embed/search.wasm"
+			wasmDst := filepath.Join(outDir, "search.wasm")
+			if err := copyFile(wasmSrc, wasmDst); err != nil {
+				return fmt.Errorf("copy search.wasm: %w", err)
+			}
+
+			// Copy wasm_exec.js (prefer TinyGo's, fallback to Go's)
+			wasmExecSrc := ""
+			for _, candidate := range []string{
+				"ui/public/wasm_exec.js",
+				"internal/wasm/embed/wasm_exec.js",
+				filepath.Join(os.Getenv("GOROOT"), "lib", "wasm", "wasm_exec.js"),
+				"/usr/local/go/lib/wasm/wasm_exec.js",
+			} {
+				if _, err := os.Stat(candidate); err == nil {
+					wasmExecSrc = candidate
+					break
+				}
+			}
+			if wasmExecSrc == "" {
+				return fmt.Errorf("wasm_exec.js not found")
+			}
+			wasmExecDst := filepath.Join(outDir, "wasm_exec.js")
+			if err := copyFile(wasmExecSrc, wasmExecDst); err != nil {
+				return fmt.Errorf("copy wasm_exec.js: %w", err)
+			}
+
+			// Copy source tree
+			sourceSrc := "internal/sourcefs/embed/source"
+			sourceDst := filepath.Join(outDir, "source")
+			if err := copyTree(sourceSrc, sourceDst); err != nil {
+				return fmt.Errorf("copy source tree: %w", err)
+			}
+
+			// Inject wasm_exec.js into index.html (if not already present)
+			indexPath := filepath.Join(outDir, "index.html")
+			if err := injectWasmExec(indexPath); err != nil {
+				return fmt.Errorf("inject wasm_exec.js: %w", err)
 			}
 
 			// Write merged precomputed.json
@@ -192,4 +234,31 @@ func copyFile(src, dst string) error {
 	defer out.Close()
 	_, err = io.Copy(out, in)
 	return err
+}
+
+func injectWasmExec(indexPath string) error {
+	data, err := os.ReadFile(indexPath)
+	if err != nil {
+		return err
+	}
+	html := string(data)
+
+	// If wasm_exec.js is already referenced, don't inject a duplicate.
+	if strings.Contains(html, "wasm_exec.js") {
+		return nil
+	}
+
+	// Inject wasm_exec.js before the first script tag
+	inject := `<script src="wasm_exec.js"></script>`
+	if strings.Contains(html, `<script type="module"`) {
+		html = strings.Replace(html, `<script type="module"`, inject+`
+  <script type="module"`, 1)
+	} else if strings.Contains(html, `<script`) {
+		html = strings.Replace(html, `<script`, inject+`
+  <script`, 1)
+	} else {
+		html = strings.Replace(html, "</body>", inject+"\n</body>", 1)
+	}
+
+	return os.WriteFile(indexPath, []byte(html), 0644)
 }

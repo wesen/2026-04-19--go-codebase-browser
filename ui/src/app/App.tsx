@@ -9,6 +9,7 @@ import { SymbolPage } from '../features/symbol/SymbolPage';
 import { SourcePage } from '../features/source/SourcePage';
 import { SearchPanel } from '../features/tree/SearchPanel';
 import { DocPage, DocList } from '../features/doc/DocPage';
+import { ReviewDocPage, ReviewDocList } from '../features/review/ReviewDocPage';
 import { QueryConceptsPage } from '../features/query/QueryConceptsPage';
 import { HistoryPage } from '../features/history/HistoryPage';
 import { useGetIndexQuery } from '../api/indexApi';
@@ -32,6 +33,7 @@ export function App() {
                 History
               </Link>
             </div>
+            <ReviewDocList />
             <details open style={{ marginBottom: 12 }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600, padding: '4px 0' }}>Docs</summary>
               <DocList />
@@ -45,6 +47,7 @@ export function App() {
               <Route path="/symbol/:id" element={<SymbolPage />} />
               <Route path="/source/*" element={<SourcePage />} />
               <Route path="/doc/:slug" element={<DocPage />} />
+              <Route path="/review/:slug" element={<ReviewDocPage />} />
               <Route path="/queries" element={<QueryConceptsPage />} />
               <Route path="/queries/*" element={<QueryConceptsPage />} />
               <Route path="/history" element={<HistoryPage />} />
