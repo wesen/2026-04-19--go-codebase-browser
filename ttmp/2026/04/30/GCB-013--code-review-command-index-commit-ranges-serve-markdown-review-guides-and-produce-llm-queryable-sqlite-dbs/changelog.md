@@ -40,3 +40,14 @@ Created comprehensive task list with 35 tasks across 10 phases — from schema/s
 
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/04/30/GCB-013--code-review-command-index-commit-ranges-serve-markdown-review-guides-and-produce-llm-queryable-sqlite-dbs/tasks.md — Task list document
 
+
+## 2026-05-01
+
+Added a static export review document reassessing markdown rendering, WASM query wiring, server-bound API leaks, symbol-reference errors, and required repair plan after browser validation showed /api/* 404s in static export.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/04/30/GCB-013--code-review-command-index-commit-ranges-serve-markdown-review-guides-and-produce-llm-queryable-sqlite-dbs/reference/02-static-export-review-markdown-wasm-and-api-wiring-assessment.md — New detailed review deliverable
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/docApi.ts — Primary source of static export /api/doc and /api/review/docs probes
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/historyApi.ts — Primary source of static export /api/history calls
+
