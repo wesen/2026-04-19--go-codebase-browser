@@ -405,7 +405,7 @@
 
 **Goal:** Verify the full workflow on real commit ranges.
 
-- [ ] **Task 10.1:** End-to-end test — server-based workflow
+- [x] **Task 10.1:** End-to-end test — server-based workflow
   - `codebase-browser review index --commits HEAD~5..HEAD --docs ./reviews/ --db /tmp/e2e.db`
   - `codebase-browser review serve --db /tmp/e2e.db --addr :3003 &`
   - Verify: `/api/review/docs`, `/api/review/docs/<slug>`, `/api/review/commits`, `/api/review/stats`
@@ -415,7 +415,7 @@
   - Depends on: Phases 1–5
   - Est: 4–6h
 
-- [ ] **Task 10.2:** End-to-end test — static export workflow
+- [x] **Task 10.2:** End-to-end test — static export workflow
   - `codebase-browser review export --commits HEAD~5..HEAD --docs ./reviews/ --out /tmp/e2e-export/`
   - Open `/tmp/e2e-export/index.html` directly in browser (file://)
   - Or serve via `python3 -m http.server`
@@ -428,6 +428,7 @@
   - Est: 4–6h
 
 - [ ] **Task 10.3:** End-to-end test — sql.js console (if Phase 8 implemented)
+  - Skipped: Phase 8 (sql.js) is optional and not implemented
   - Open SQL console in exported artifact
   - Run: `SELECT COUNT(*) FROM commits;`
   - Run: `SELECT name, signature FROM snapshot_symbols WHERE commit_hash = '...';`
@@ -437,7 +438,7 @@
   - Depends on: Phase 8
   - Est: 2–4h
 
-- [ ] **Task 10.4:** Performance benchmarking
+- [x] **Task 10.4:** Performance benchmarking
   - Measure `precomputed.json` size for various commit ranges (5, 10, 20, 50 commits)
   - Measure TinyGo `search.wasm` binary size with history exports
   - Measure initial page load time in browser
@@ -447,7 +448,7 @@
   - Depends on: Tasks 10.1–10.2
   - Est: 2–4h
 
-- [ ] **Task 10.5:** Final handoff — update ticket docs
+- [x] **Task 10.5:** Final handoff — update ticket docs
   - Update diary with what worked, what didn't, exact errors, solutions
   - Update changelog with all implementation steps
   - Run `docmgr doctor --ticket GCB-013`
