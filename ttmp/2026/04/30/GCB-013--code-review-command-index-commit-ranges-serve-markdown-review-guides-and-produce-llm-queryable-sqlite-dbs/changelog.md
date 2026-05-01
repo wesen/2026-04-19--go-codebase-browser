@@ -51,3 +51,15 @@ Added a static export review document reassessing markdown rendering, WASM query
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/docApi.ts — Primary source of static export /api/doc and /api/review/docs probes
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/historyApi.ts — Primary source of static export /api/history calls
 
+
+## 2026-05-01
+
+Implemented the first static transport repair pass: static exports now set VITE_STATIC_EXPORT, docs skip HTTP probes in static mode, history widgets route diff/history/impact queries through WASM instead of /api/history, and browser validation showed no /api requests for a review doc smoke test.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/cmd/codebase-browser/cmds/review/export.go — Builds SPA with VITE_STATIC_EXPORT=1
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/docApi.ts — Skips doc/review-doc HTTP probes in static mode
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/historyApi.ts — Static-aware history transport using WASM review helpers
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/runtimeMode.ts — Static export runtime mode helper
+

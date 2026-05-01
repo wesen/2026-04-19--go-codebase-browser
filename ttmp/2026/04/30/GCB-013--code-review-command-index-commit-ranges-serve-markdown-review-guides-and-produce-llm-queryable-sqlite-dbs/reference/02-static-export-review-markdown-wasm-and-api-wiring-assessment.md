@@ -775,3 +775,28 @@ Once that is in place, sql.js becomes a clean optional add-on for exploratory SQ
 - `design-doc/02-standalone-wasm-export-browser-side-sqlite-queries-for-code-review.md`
 - `design-doc/03-tinygo-vs-sql-js-feasibility-assessment-for-browser-side-sqlite.md`
 - `reference/01-investigation-diary.md`
+
+## Addendum — first repair pass completed on 2026-05-01
+
+After this review was written, a first repair pass implemented the highest-priority transport fixes:
+
+1. `review export` now builds the SPA with `VITE_STATIC_EXPORT=1`.
+2. `docApi` skips `/api/doc` and `/api/review/docs` probes in static mode.
+3. `historyApi` now has a static-aware base query. In static mode it routes commit lists, commit diffs, symbol histories, and impact lookups through the WASM review helpers instead of `/api/history`.
+4. Static history lookup resolves `HEAD`, `HEAD~N`, full hashes, and short hashes from `reviewData.commits`.
+5. Static diff/history/impact results are normalized into the TypeScript shapes expected by existing widgets.
+6. Symbol body diffs remain explicitly not precomputed; static mode now returns a local `STATIC_NOT_PRECOMPUTED` error instead of making an HTTP request.
+
+Validation command sequence:
+
+```bash
+pnpm -C ui run typecheck
+go build ./cmd/codebase-browser
+go run ./cmd/codebase-browser review index --commits HEAD~2..HEAD --docs /tmp/reviews/pr-static.md --db /tmp/review-static-smoke.db
+go run ./cmd/codebase-browser review export --db /tmp/review-static-smoke.db --out /tmp/review-static-export
+python3 -m http.server 8772 --directory /tmp/review-static-export
+```
+
+Browser validation opened `/#/review/pr-static`; Playwright's `/api/` network filter returned no requests, and `codebase-diff-stats from=HEAD~1 to=HEAD` rendered from WASM-backed static data.
+
+The remaining recommendations still apply for body-level diffs, richer impact payloads, source-tree export size, and optional sql.js.

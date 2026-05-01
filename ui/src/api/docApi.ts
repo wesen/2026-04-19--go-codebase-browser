@@ -1,5 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { wasmBaseQuery } from './wasmClient';
+import { isStaticExport } from './runtimeMode';
 
 export interface SnippetRef {
   stubId: string;
@@ -42,33 +43,39 @@ export const docApi = createApi({
         // In server-backed mode, prefer the live /api/doc endpoint so newly
         // added markdown pages are visible without regenerating the static
         // WASM precomputed bundle. Fall back to WASM for static deployments.
-        try {
-          const resp = await fetch('/api/doc');
-          if (resp.ok) return { data: await resp.json() };
-        } catch {}
+        if (!isStaticExport()) {
+          try {
+            const resp = await fetch('/api/doc');
+            if (resp.ok) return { data: await resp.json() };
+          } catch {}
+        }
         return wasmBaseQuery('docPages', api as any, extraOptions as any) as any;
       },
     }),
     getDoc: b.query<DocPage, string>({
       queryFn: async (slug, api, extraOptions) => {
-        try {
-          const resp = await fetch(`/api/doc/${encodeURIComponent(slug)}`);
-          if (resp.ok) return { data: await resp.json() };
-        } catch {}
+        if (!isStaticExport()) {
+          try {
+            const resp = await fetch(`/api/doc/${encodeURIComponent(slug)}`);
+            if (resp.ok) return { data: await resp.json() };
+          } catch {}
+        }
         return wasmBaseQuery(`docPage:${slug}`, api as any, extraOptions as any) as any;
       },
     }),
     listReviewDocs: b.query<ReviewDocMeta[], void>({
       queryFn: async (_arg, api, extraOptions) => {
         // Prefer server-backed review docs API, fall back to WASM.
-        try {
-          const resp = await fetch('/api/review/docs');
-          if (resp.ok) {
-            const data = await resp.json();
-            // Server returns DocMeta[] with slug, title, path, indexedAt
-            return { data: data.map((d: any) => ({ slug: d.slug, title: d.title })) };
-          }
-        } catch {}
+        if (!isStaticExport()) {
+          try {
+            const resp = await fetch('/api/review/docs');
+            if (resp.ok) {
+              const data = await resp.json();
+              // Server returns DocMeta[] with slug, title, path, indexedAt
+              return { data: data.map((d: any) => ({ slug: d.slug, title: d.title })) };
+            }
+          } catch {}
+        }
         const result = await wasmBaseQuery('reviewDocs', api as any, extraOptions as any) as any;
         if (result.data) {
           // WASM returns ReviewDocLite[] — map to ReviewDocMeta
@@ -79,10 +86,12 @@ export const docApi = createApi({
     }),
     getReviewDoc: b.query<DocPage, string>({
       queryFn: async (slug, api, extraOptions) => {
-        try {
-          const resp = await fetch(`/api/review/docs/${encodeURIComponent(slug)}`);
-          if (resp.ok) return { data: await resp.json() };
-        } catch {}
+        if (!isStaticExport()) {
+          try {
+            const resp = await fetch(`/api/review/docs/${encodeURIComponent(slug)}`);
+            if (resp.ok) return { data: await resp.json() };
+          } catch {}
+        }
         return wasmBaseQuery(`reviewDoc:${slug}`, api as any, extraOptions as any) as any;
       },
     }),

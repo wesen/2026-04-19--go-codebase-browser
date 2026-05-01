@@ -575,3 +575,37 @@ User asked to build the ticket task by task, committing at appropriate intervals
 ### Technical details
 - Commit: `d701eb3`
 - The export bundler fix is critical: any future UI changes for review export will now be properly included
+
+---
+
+## Step 14: Static export transport repair pass
+
+### What I did
+- Added `ui/src/api/runtimeMode.ts` with `isStaticExport()` based on `VITE_STATIC_EXPORT`.
+- Changed `review export` to run the Vite build with `VITE_STATIC_EXPORT=1`.
+- Updated `docApi` so static builds skip server probes for `/api/doc` and `/api/review/docs` and go directly to WASM.
+- Reworked `historyApi` from a hard-coded `fetchBaseQuery('/api/history')` into a static-aware base query:
+  - server mode still uses `/api/history`;
+  - static mode resolves `HEAD`, `HEAD~N`, full hashes, and short hashes from `reviewData.commits`;
+  - static mode serves commit lists, commit diffs, symbol histories, and impact data from WASM helpers;
+  - static mode returns a typed `STATIC_NOT_PRECOMPUTED` error for symbol body diffs instead of probing `/api/history/symbol-body-diff`.
+- Added normalization adapters so lower-camel WASM review JSON is converted to the PascalCase shapes expected by existing widgets.
+
+### Validation
+- `pnpm -C ui run typecheck` — PASS
+- `go build ./cmd/codebase-browser` — PASS
+- Created `/tmp/reviews/pr-static.md` with a valid short-form symbol reference and `codebase-diff-stats from=HEAD~1 to=HEAD`.
+- Ran:
+  - `go run ./cmd/codebase-browser review index --commits HEAD~2..HEAD --docs /tmp/reviews/pr-static.md --db /tmp/review-static-smoke.db`
+  - `go run ./cmd/codebase-browser review export --db /tmp/review-static-smoke.db --out /tmp/review-static-export`
+  - `python3 -m http.server 8772 --directory /tmp/review-static-export`
+- Browser validation with Playwright:
+  - opened `http://localhost:8772/#/review/pr-static`;
+  - Network filter `/api/` returned no requests;
+  - rendered doc showed the `newExportCmd` snippet;
+  - `codebase-diff-stats from=HEAD~1 to=HEAD` rendered chips (`files +0 -0 ~0`, `symbols +0 -0 ~0`, `moved 0`) without hitting `/api/history/diff`.
+
+### Remaining caveats
+- `codebase-diff` body-level diffs are still not precomputed for static export; static mode now fails locally with `STATIC_NOT_PRECOMPUTED` instead of making an HTTP request.
+- Impact static rendering is shape-normalized enough for the current widget, but the export-side impact graph still lacks real `edges` and `local` semantics.
+- The export still copies the large source tree.

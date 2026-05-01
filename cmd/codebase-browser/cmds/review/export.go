@@ -198,6 +198,7 @@ func buildSPA() error {
 	cmd := exec.Command("pnpm", "-C", "ui", "run", "build")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), "VITE_STATIC_EXPORT=1")
 	return cmd.Run()
 }
 
