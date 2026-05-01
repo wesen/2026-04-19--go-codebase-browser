@@ -11,6 +11,7 @@ func Register(root *cobra.Command) error {
 	cmd.AddCommand(newIndexCmd())
 	cmd.AddCommand(newServeCmd())
 	cmd.AddCommand(newDBCmd())
+	cmd.AddCommand(newExportCmd())
 
 	root.AddCommand(cmd)
 	return nil
