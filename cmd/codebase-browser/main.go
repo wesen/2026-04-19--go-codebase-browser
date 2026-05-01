@@ -14,6 +14,7 @@ import (
 	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/query"
 	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/review"
 	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/symbol"
+	reviewhelp "github.com/wesen/codebase-browser/docs/help"
 	"github.com/wesen/codebase-browser/internal/concepts"
 )
 
@@ -41,6 +42,7 @@ func main() {
 	cobra.CheckErr(doc.Register(rootCmd))
 	cobra.CheckErr(history.Register(rootCmd))
 	cobra.CheckErr(review.Register(rootCmd))
+	cobra.CheckErr(reviewhelp.AddDocToHelpSystem(helpSystem))
 	registerServe(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {
