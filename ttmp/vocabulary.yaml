@@ -89,6 +89,12 @@ topics:
       description: Markdown directive processing
     - slug: performance
       description: Performance optimization
+    - slug: architecture
+      description: Architecture and system design documentation
+    - slug: review-docs
+      description: Review markdown documents and rendered review guides
+    - slug: static-export
+      description: Standalone static export bundles and static runtime behavior
 docTypes:
     - slug: index
       description: Ticket index document
