@@ -16,6 +16,12 @@ declare global {
       getIndexSummary: () => string;
       getDocPages: () => string;
       getDocPage: (slug: string) => string;
+      getCommitDiff: (oldHash: string, newHash: string) => string;
+      getSymbolHistory: (symbolID: string) => string;
+      getImpact: (symbolID: string, direction: string, depth: string) => string;
+      getReviewDocs: () => string;
+      getReviewDoc: (slug: string) => string;
+      getCommits: () => string;
     };
   }
 }
@@ -80,7 +86,8 @@ export async function initWasm(wasmPath = 'search.wasm'): Promise<void> {
     JSON.stringify(precomputed.xrefIndex || {}),
     JSON.stringify(precomputed.snippets || {}),
     JSON.stringify(precomputed.docManifest || []),
-    JSON.stringify(precomputed.docHTML || {})
+    JSON.stringify(precomputed.docHTML || {}),
+    JSON.stringify(precomputed.reviewData || {})
   );
 
   if (result !== 'ok') {
@@ -139,3 +146,41 @@ export const wasmBaseQuery: BaseQueryFn<string, unknown, { status: string; data?
     return { error: { status: 'WASM_ERROR', data: String(err) } };
   }
 };
+
+// ── Review query helpers ────────────────────────────────────────────────────
+
+export async function getCommitDiff(oldHash: string, newHash: string): Promise<unknown> {
+  if (!wasmReady) await initWasm();
+  if (!window.codebaseBrowser) throw new Error('WASM not initialized');
+  return JSON.parse(window.codebaseBrowser.getCommitDiff(oldHash, newHash));
+}
+
+export async function getSymbolHistory(symbolID: string): Promise<unknown> {
+  if (!wasmReady) await initWasm();
+  if (!window.codebaseBrowser) throw new Error('WASM not initialized');
+  return JSON.parse(window.codebaseBrowser.getSymbolHistory(symbolID));
+}
+
+export async function getImpact(symbolID: string, direction: string, depth: number): Promise<unknown> {
+  if (!wasmReady) await initWasm();
+  if (!window.codebaseBrowser) throw new Error('WASM not initialized');
+  return JSON.parse(window.codebaseBrowser.getImpact(symbolID, direction, String(depth)));
+}
+
+export async function getReviewDocs(): Promise<unknown> {
+  if (!wasmReady) await initWasm();
+  if (!window.codebaseBrowser) throw new Error('WASM not initialized');
+  return JSON.parse(window.codebaseBrowser.getReviewDocs());
+}
+
+export async function getReviewDoc(slug: string): Promise<unknown> {
+  if (!wasmReady) await initWasm();
+  if (!window.codebaseBrowser) throw new Error('WASM not initialized');
+  return JSON.parse(window.codebaseBrowser.getReviewDoc(slug));
+}
+
+export async function getCommits(): Promise<unknown> {
+  if (!wasmReady) await initWasm();
+  if (!window.codebaseBrowser) throw new Error('WASM not initialized');
+  return JSON.parse(window.codebaseBrowser.getCommits());
+}

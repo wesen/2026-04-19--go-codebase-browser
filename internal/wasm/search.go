@@ -19,6 +19,7 @@ type SearchCtx struct {
 	Snippets     map[string]string      // symID:kind → text
 	DocHTML      map[string]string      // slug → pre-rendered HTML
 	DocManifest  []PageMeta             // pages list
+	ReviewData   *ReviewData            // optional review data (nil if not in review mode)
 }
 
 // PageMeta mirrors docs.PageMeta.
@@ -58,7 +59,8 @@ type RefOccurrence struct {
 
 // Init loads all index data from JSON byte slices.
 // Called once from JS after WASM loads.
-func Init(jsonIndex, jsonSearchIdx, jsonXrefIdx, jsonSnippets, jsonDocManifest, jsonDocHTML []byte) (*SearchCtx, error) {
+// jsonReviewData is optional — pass nil or empty if not in review mode.
+func Init(jsonIndex, jsonSearchIdx, jsonXrefIdx, jsonSnippets, jsonDocManifest, jsonDocHTML, jsonReviewData []byte) (*SearchCtx, error) {
 	var idx Index
 	if err := json.Unmarshal(jsonIndex, &idx); err != nil {
 		return nil, err
@@ -89,6 +91,14 @@ func Init(jsonIndex, jsonSearchIdx, jsonXrefIdx, jsonSnippets, jsonDocManifest, 
 		return nil, err
 	}
 
+	var reviewData *ReviewData
+	if len(jsonReviewData) > 0 {
+		reviewData = &ReviewData{}
+		if err := json.Unmarshal(jsonReviewData, reviewData); err != nil {
+			return nil, err
+		}
+	}
+
 	ctx := &SearchCtx{
 		Index:       &idx,
 		RawIndex:    jsonIndex,
@@ -100,6 +110,7 @@ func Init(jsonIndex, jsonSearchIdx, jsonXrefIdx, jsonSnippets, jsonDocManifest, 
 		Snippets:    snippets,
 		DocHTML:     docHTML,
 		DocManifest: docManifest,
+		ReviewData:  reviewData,
 	}
 
 	for i := range idx.Packages {
@@ -227,4 +238,67 @@ func (s *SearchCtx) docPageTitle(slug string) string {
 		}
 	}
 	return slug
+}
+
+// ── Review query methods ────────────────────────────────────────────────────
+
+// GetCommitDiff returns the pre-computed diff between two commits.
+func (s *SearchCtx) GetCommitDiff(oldHash, newHash string) []byte {
+	if s.ReviewData == nil {
+		return []byte("null")
+	}
+	key := oldHash + ".." + newHash
+	data, _ := json.Marshal(s.ReviewData.Diffs[key])
+	return data
+}
+
+// GetSymbolHistory returns the pre-computed history for a symbol.
+func (s *SearchCtx) GetSymbolHistory(symbolID string) []byte {
+	if s.ReviewData == nil {
+		return []byte("null")
+	}
+	data, _ := json.Marshal(s.ReviewData.Histories[symbolID])
+	return data
+}
+
+// GetImpact returns the pre-computed impact graph for a symbol.
+func (s *SearchCtx) GetImpact(symbolID, direction string, depth int) []byte {
+	if s.ReviewData == nil {
+		return []byte("null")
+	}
+	key := symbolID + "|" + direction + "|" + string(rune('0'+depth))
+	data, _ := json.Marshal(s.ReviewData.Impacts[key])
+	return data
+}
+
+// GetReviewDocs returns the list of review docs.
+func (s *SearchCtx) GetReviewDocs() []byte {
+	if s.ReviewData == nil {
+		return []byte("null")
+	}
+	data, _ := json.Marshal(s.ReviewData.Docs)
+	return data
+}
+
+// GetReviewDoc returns a single review doc by slug.
+func (s *SearchCtx) GetReviewDoc(slug string) []byte {
+	if s.ReviewData == nil {
+		return []byte("null")
+	}
+	for _, doc := range s.ReviewData.Docs {
+		if doc.Slug == slug {
+			data, _ := json.Marshal(doc)
+			return data
+		}
+	}
+	return []byte("null")
+}
+
+// GetCommits returns the list of commits in the review range.
+func (s *SearchCtx) GetCommits() []byte {
+	if s.ReviewData == nil {
+		return []byte("null")
+	}
+	data, _ := json.Marshal(s.ReviewData.Commits)
+	return data
 }
