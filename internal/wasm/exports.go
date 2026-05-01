@@ -145,7 +145,7 @@ func RegisterExports() {
 		return js.ValueOf(string(globalCtx.GetSymbolHistory(args[0].String())))
 	})
 
-	// getImpact(symbolID, direction, depth) → JSON string
+	// getImpact(symbolID, direction, depth, commit?) → JSON string
 	register("getImpact", func(this js.Value, args []js.Value) interface{} {
 		if globalCtx == nil {
 			return js.ValueOf("null")
@@ -159,7 +159,11 @@ func RegisterExports() {
 		if d, err := strconv.Atoi(args[2].String()); err == nil {
 			depth = d
 		}
-		return js.ValueOf(string(globalCtx.GetImpact(symbolID, direction, depth)))
+		commit := ""
+		if len(args) >= 4 {
+			commit = args[3].String()
+		}
+		return js.ValueOf(string(globalCtx.GetImpact(symbolID, direction, depth, commit)))
 	})
 
 	// getSymbolBodyDiff(oldHash, newHash, symbolID) → JSON string

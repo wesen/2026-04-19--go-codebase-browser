@@ -641,3 +641,46 @@ User asked to build the ticket task by task, committing at appropriate intervals
 ### Remaining caveats
 - Body diffs are precomputed for changed symbols and explicit `codebase-diff` snippets only, not every possible symbol pair.
 - The export still assumes `repoRoot="."` when falling back to git content reads; cached `file_contents` should cover normal indexed files, but this should become an explicit export option.
+
+---
+
+## Step 16: Enriched static impact payloads
+
+### What I did
+- Replaced the simplified static `ImpactLite` shape with a server-compatible impact response shape:
+  - `root`
+  - `direction`
+  - `depth`
+  - `commit`
+  - `nodes[]`
+  - per-node `edges[]`
+  - per-node `local`
+- Reimplemented export-time impact precomputation to mirror the server BFS over `snapshot_refs`:
+  - `usedby` walks incoming references (`to_symbol_id = current`);
+  - `uses` walks outgoing references (`from_symbol_id = current`);
+  - nodes carry depth, compatibility, local/external metadata, and the concrete reference edges that reached them.
+- Export now honors explicit `codebase-impact` snippet parameters:
+  - `dir`
+  - `depth`
+  - `commit`
+- Kept the prior default behavior of precomputing `usedby depth=2` for all snippet symbols.
+- Extended WASM/static transport so `getImpact` can receive an optional commit hash and prefer commit-specific impact payloads.
+
+### Validation
+- `go test ./internal/review ./internal/wasm` — PASS
+- `pnpm -C ui run typecheck` — PASS
+- `go build ./cmd/codebase-browser` — PASS
+- `GOOS=js GOARCH=wasm go build ./cmd/wasm` — PASS
+- `go generate ./internal/wasm` regenerated the TinyGo WASM artifact.
+- Created `/tmp/reviews/pr-impact.md` with `codebase-impact sym=github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/review.newExportCmd dir=uses depth=2`.
+- Indexed/exported a static review DB and verified `reviewData.impacts` contains both default and commit-specific impact keys.
+- Verified the enriched `uses` payload contained 92 nodes and 200 edges for the smoke test.
+- Browser validation with Playwright:
+  - opened `http://localhost:8774/#/review/pr-impact`;
+  - observed no `/api/` requests;
+  - impact widget rendered `uses · depth 2`, local/external counts, depth groups, and per-node edge counts;
+  - no `[data-part=error]` elements were present.
+
+### Remaining caveats
+- Impact precomputation is still selective: all snippet symbols receive default `usedby depth=2`, while explicit `codebase-impact` snippets receive the exact requested direction/depth/commit.
+- Compatibility remains `unknown`, matching the existing server placeholder.

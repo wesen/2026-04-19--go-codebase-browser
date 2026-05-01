@@ -87,18 +87,29 @@ type BodyDiffResult struct {
 }
 
 type ImpactLite struct {
-	RootSymbol string       `json:"rootSymbol"`
+	Root       string       `json:"root"`
+	RootSymbol string       `json:"rootSymbol,omitempty"`
 	Direction  string       `json:"direction"`
 	Depth      int          `json:"depth"`
+	Commit     string       `json:"commit"`
 	Nodes      []ImpactNode `json:"nodes"`
 }
 
+type ImpactEdge struct {
+	FromSymbolID string `json:"fromSymbolId"`
+	ToSymbolID   string `json:"toSymbolId"`
+	Kind         string `json:"kind"`
+	FileID       string `json:"fileId"`
+}
+
 type ImpactNode struct {
-	SymbolID      string `json:"symbolId"`
-	Name          string `json:"name"`
-	Kind          string `json:"kind"`
-	Depth         int    `json:"depth"`
-	Compatibility string `json:"compatibility"`
+	SymbolID      string       `json:"symbolId"`
+	Name          string       `json:"name"`
+	Kind          string       `json:"kind"`
+	Depth         int          `json:"depth"`
+	Edges         []ImpactEdge `json:"edges"`
+	Compatibility string       `json:"compatibility"`
+	Local         bool         `json:"local"`
 }
 
 type ReviewDocLite struct {

@@ -18,7 +18,7 @@ declare global {
       getDocPage: (slug: string) => string;
       getCommitDiff: (oldHash: string, newHash: string) => string;
       getSymbolHistory: (symbolID: string) => string;
-      getImpact: (symbolID: string, direction: string, depth: string) => string;
+      getImpact: (symbolID: string, direction: string, depth: string, commit?: string) => string;
       getSymbolBodyDiff: (oldHash: string, newHash: string, symbolID: string) => string;
       getReviewDocs: () => string;
       getReviewDoc: (slug: string) => string;
@@ -166,10 +166,10 @@ export async function getSymbolHistory(symbolID: string): Promise<unknown> {
   return JSON.parse(window.codebaseBrowser.getSymbolHistory(symbolID));
 }
 
-export async function getImpact(symbolID: string, direction: string, depth: number): Promise<unknown> {
+export async function getImpact(symbolID: string, direction: string, depth: number, commit?: string): Promise<unknown> {
   if (!wasmReady) await initWasm();
   if (!window.codebaseBrowser) throw new Error('WASM not initialized');
-  return JSON.parse(window.codebaseBrowser.getImpact(symbolID, direction, String(depth)));
+  return JSON.parse(window.codebaseBrowser.getImpact(symbolID, direction, String(depth), commit ?? ''));
 }
 
 export async function getSymbolBodyDiff(oldHash: string, newHash: string, symbolID: string): Promise<unknown> {

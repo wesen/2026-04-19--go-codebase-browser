@@ -54,18 +54,29 @@ type HistoryEntryLite struct {
 }
 
 type ImpactLite struct {
-	RootSymbol string       `json:"rootSymbol"`
+	Root       string       `json:"root"`
+	RootSymbol string       `json:"rootSymbol,omitempty"`
 	Direction  string       `json:"direction"`
 	Depth      int          `json:"depth"`
+	Commit     string       `json:"commit"`
 	Nodes      []ImpactNode `json:"nodes"`
 }
 
+type ImpactEdge struct {
+	FromSymbolID string `json:"fromSymbolId"`
+	ToSymbolID   string `json:"toSymbolId"`
+	Kind         string `json:"kind"`
+	FileID       string `json:"fileId"`
+}
+
 type ImpactNode struct {
-	SymbolID      string `json:"symbolId"`
-	Name          string `json:"name"`
-	Kind          string `json:"kind"`
-	Depth         int    `json:"depth"`
-	Compatibility string `json:"compatibility"`
+	SymbolID      string       `json:"symbolId"`
+	Name          string       `json:"name"`
+	Kind          string       `json:"kind"`
+	Depth         int          `json:"depth"`
+	Edges         []ImpactEdge `json:"edges"`
+	Compatibility string       `json:"compatibility"`
+	Local         bool         `json:"local"`
 }
 
 type ReviewDocLite struct {
@@ -292,125 +303,215 @@ func resolveExportCommitRef(ref string, commits []CommitLite) string {
 }
 
 func computeImpacts(ctx context.Context, store *Store, loaded *browser.Loaded, out *PrecomputedReview) error {
-	// Find symbols referenced in review doc snippets.
+	latestHash, err := latestExportCommit(ctx, store)
+	if err != nil {
+		return err
+	}
+
+	type impactQuery struct {
+		root      string
+		direction string
+		depth     int
+		commit    string
+	}
+	queries := map[string]impactQuery{}
+	addQuery := func(root, direction string, depth int, commit string) {
+		if root == "" {
+			return
+		}
+		if direction != "uses" && direction != "usedby" {
+			direction = "usedby"
+		}
+		if depth < 1 {
+			depth = 2
+		}
+		if depth > 5 {
+			depth = 5
+		}
+		if commit == "" {
+			commit = latestHash
+		}
+		key := impactKey(root, direction, depth, commit)
+		queries[key] = impactQuery{root: root, direction: direction, depth: depth, commit: commit}
+	}
+
+	// Keep the old default behavior: every snippet symbol gets usedby depth=2.
 	rows, err := store.DB().QueryContext(ctx, `
 		SELECT DISTINCT symbol_id FROM review_doc_snippets WHERE symbol_id != ''
 	`)
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
-
-	var symbolIDs []string
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
+			rows.Close()
 			return err
 		}
-		symbolIDs = append(symbolIDs, id)
+		addQuery(id, "usedby", 2, latestHash)
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+
+	// Also honor explicit codebase-impact parameters so static exports match
+	// server widgets for direction, depth, and commit-specific impact views.
+	rows, err = store.DB().QueryContext(ctx, `
+		SELECT symbol_id, params_json
+		FROM review_doc_snippets
+		WHERE directive = 'codebase-impact' AND symbol_id != ''
+	`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var rootID, paramsJSON string
+		if err := rows.Scan(&rootID, &paramsJSON); err != nil {
+			return err
+		}
+		params := map[string]string{}
+		_ = json.Unmarshal([]byte(paramsJSON), &params)
+		depth := 2
+		if raw := params["depth"]; raw != "" {
+			_, _ = fmt.Sscanf(raw, "%d", &depth)
+		}
+		commit := latestHash
+		if raw := params["commit"]; raw != "" {
+			if resolved := resolveExportCommitRef(raw, out.Commits); resolved != "" {
+				commit = resolved
+			}
+		}
+		addQuery(rootID, params["dir"], depth, commit)
 	}
 	if err := rows.Err(); err != nil {
 		return err
 	}
 
-	// For each symbol, compute usedBy impact up to depth 2.
-	for _, rootID := range symbolIDs {
-		impact, err := computeImpact(ctx, store, rootID, "usedby", 2)
+	for key, query := range queries {
+		impact, err := computeImpact(ctx, store, query.commit, query.root, query.direction, query.depth)
 		if err != nil {
 			return err
 		}
-		out.Impacts[rootID+"|usedby|2"] = impact
+		out.Impacts[key] = impact
+		defaultKey := query.root + "|" + query.direction + "|" + fmt.Sprint(query.depth)
+		if query.commit == latestHash {
+			out.Impacts[defaultKey] = impact
+		}
 	}
 
 	return nil
 }
 
-func computeImpact(ctx context.Context, store *Store, rootID, direction string, maxDepth int) (*ImpactLite, error) {
-	// BFS over snapshot_refs at the latest commit.
-	latestHash := ""
-	for _, c := range []CommitLite{} {
-		_ = c
-	}
-	// Get latest commit hash.
-	row := store.DB().QueryRowContext(ctx, `SELECT hash FROM commits ORDER BY author_time DESC LIMIT 1`)
-	_ = row.Scan(&latestHash)
+func latestExportCommit(ctx context.Context, store *Store) (string, error) {
+	var hash string
+	err := store.DB().QueryRowContext(ctx, `SELECT hash FROM commits WHERE error = '' ORDER BY author_time DESC LIMIT 1`).Scan(&hash)
+	return hash, err
+}
 
-	type queueItem struct {
-		symID string
-		depth int
+func impactKey(root, direction string, depth int, commit string) string {
+	if commit == "" {
+		return root + "|" + direction + "|" + fmt.Sprint(depth)
 	}
+	return root + "|" + direction + "|" + fmt.Sprint(depth) + "|" + commit
+}
 
+func computeImpact(ctx context.Context, store *Store, commitHash, rootID, direction string, maxDepth int) (*ImpactLite, error) {
+	response := &ImpactLite{Root: rootID, RootSymbol: rootID, Direction: direction, Depth: maxDepth, Commit: commitHash, Nodes: []ImpactNode{}}
 	visited := map[string]bool{rootID: true}
-	queue := []queueItem{{symID: rootID, depth: 0}}
-	var nodes []ImpactNode
+	type queueItem struct {
+		symbolID string
+		depth    int
+	}
+	queue := []queueItem{{symbolID: rootID, depth: 0}}
+	nodeByID := map[string]*ImpactNode{}
 
 	for len(queue) > 0 {
 		item := queue[0]
 		queue = queue[1:]
-
-		if item.depth > 0 {
-			// Lookup symbol name/kind.
-			var name, kind string
-			store.DB().QueryRowContext(ctx,
-				`SELECT name, kind FROM snapshot_symbols WHERE id = ? AND commit_hash = ? LIMIT 1`,
-				item.symID, latestHash).Scan(&name, &kind)
-
-			nodes = append(nodes, ImpactNode{
-				SymbolID:      item.symID,
-				Name:          name,
-				Kind:          kind,
-				Depth:         item.depth,
-				Compatibility: "unknown",
-			})
-		}
-
 		if item.depth >= maxDepth {
 			continue
 		}
 
-		var nextIDs []string
-		if direction == "usedby" {
-			// Find callers.
-			rows, _ := store.DB().QueryContext(ctx,
-				`SELECT DISTINCT from_symbol_id FROM snapshot_refs WHERE to_symbol_id = ? AND commit_hash = ?`,
-				item.symID, latestHash)
-			if rows != nil {
-				for rows.Next() {
-					var id string
-					rows.Scan(&id)
-					nextIDs = append(nextIDs, id)
-				}
-				rows.Close()
-			}
-		} else {
-			// Find callees.
-			rows, _ := store.DB().QueryContext(ctx,
-				`SELECT DISTINCT to_symbol_id FROM snapshot_refs WHERE from_symbol_id = ? AND commit_hash = ?`,
-				item.symID, latestHash)
-			if rows != nil {
-				for rows.Next() {
-					var id string
-					rows.Scan(&id)
-					nextIDs = append(nextIDs, id)
-				}
-				rows.Close()
-			}
+		edges, err := impactOneHop(ctx, store, commitHash, item.symbolID, direction)
+		if err != nil {
+			return nil, err
 		}
-
-		for _, nextID := range nextIDs {
+		for _, edge := range edges {
+			nextID := edge.FromSymbolID
+			if direction == "uses" {
+				nextID = edge.ToSymbolID
+			}
+			nextDepth := item.depth + 1
+			node := nodeByID[nextID]
+			if node == nil {
+				name, kind, local, err := impactSymbolMeta(ctx, store, commitHash, nextID)
+				if err != nil {
+					name, kind, local = impactFallbackName(nextID), "external", false
+				}
+				node = &ImpactNode{SymbolID: nextID, Name: name, Kind: kind, Depth: nextDepth, Edges: []ImpactEdge{}, Compatibility: "unknown", Local: local}
+				nodeByID[nextID] = node
+				response.Nodes = append(response.Nodes, *node)
+			}
+			node.Edges = append(node.Edges, edge)
+			for i := range response.Nodes {
+				if response.Nodes[i].SymbolID == nextID {
+					response.Nodes[i] = *node
+					break
+				}
+			}
 			if !visited[nextID] {
 				visited[nextID] = true
-				queue = append(queue, queueItem{symID: nextID, depth: item.depth + 1})
+				queue = append(queue, queueItem{symbolID: nextID, depth: nextDepth})
 			}
 		}
 	}
+	return response, nil
+}
 
-	return &ImpactLite{
-		RootSymbol: rootID,
-		Direction:  direction,
-		Depth:      maxDepth,
-		Nodes:      nodes,
-	}, nil
+func impactOneHop(ctx context.Context, store *Store, commitHash, symbolID, direction string) ([]ImpactEdge, error) {
+	query := `
+SELECT from_symbol_id, to_symbol_id, kind, file_id
+FROM   snapshot_refs
+WHERE  commit_hash = ? AND to_symbol_id = ?
+ORDER BY from_symbol_id, kind`
+	if direction == "uses" {
+		query = `
+SELECT from_symbol_id, to_symbol_id, kind, file_id
+FROM   snapshot_refs
+WHERE  commit_hash = ? AND from_symbol_id = ?
+ORDER BY to_symbol_id, kind`
+	}
+	rows, err := store.DB().QueryContext(ctx, query, commitHash, symbolID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var edges []ImpactEdge
+	for rows.Next() {
+		var edge ImpactEdge
+		if err := rows.Scan(&edge.FromSymbolID, &edge.ToSymbolID, &edge.Kind, &edge.FileID); err != nil {
+			return nil, err
+		}
+		edges = append(edges, edge)
+	}
+	return edges, rows.Err()
+}
+
+func impactSymbolMeta(ctx context.Context, store *Store, commitHash, symbolID string) (string, string, bool, error) {
+	var name, kind string
+	err := store.DB().QueryRowContext(ctx, `
+SELECT name, kind FROM snapshot_symbols WHERE commit_hash = ? AND id = ?`, commitHash, symbolID).Scan(&name, &kind)
+	return name, kind, err == nil, err
+}
+
+func impactFallbackName(symbolID string) string {
+	trimmed := strings.TrimPrefix(symbolID, "sym:")
+	lastDot := strings.LastIndex(trimmed, ".")
+	if lastDot >= 0 && lastDot+1 < len(trimmed) {
+		return trimmed[lastDot+1:]
+	}
+	return trimmed
 }
 
 func renderReviewDocs(ctx context.Context, store *Store, loaded *browser.Loaded, out *PrecomputedReview) error {

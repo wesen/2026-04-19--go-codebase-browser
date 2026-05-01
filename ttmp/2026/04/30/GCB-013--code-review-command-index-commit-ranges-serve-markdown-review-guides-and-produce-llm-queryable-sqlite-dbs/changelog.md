@@ -76,3 +76,15 @@ Added static body-diff support for codebase-diff: review export now precomputes 
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/wasm/search.go — WASM body-diff lookup
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/historyApi.ts — Static /symbol-body-diff transport
 
+
+## 2026-05-01
+
+Enriched static impact payloads: review export now mirrors server BFS with commit, edges, and local/external node metadata, honors explicit codebase-impact dir/depth/commit parameters, and static WASM getImpact supports commit-specific lookups.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/review/export.go — Server-compatible impact BFS and keyed precomputation
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/wasm/review_types.go — Impact response includes commit
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/wasm/search.go — Commit-aware getImpact lookup
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/historyApi.ts — Static impact transport passes resolved commit
+

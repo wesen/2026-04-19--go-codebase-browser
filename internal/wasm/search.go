@@ -262,11 +262,17 @@ func (s *SearchCtx) GetSymbolHistory(symbolID string) []byte {
 }
 
 // GetImpact returns the pre-computed impact graph for a symbol.
-func (s *SearchCtx) GetImpact(symbolID, direction string, depth int) []byte {
+func (s *SearchCtx) GetImpact(symbolID, direction string, depth int, commit string) []byte {
 	if s.ReviewData == nil {
 		return []byte("null")
 	}
 	key := symbolID + "|" + direction + "|" + itoa(depth)
+	if commit != "" {
+		if impact := s.ReviewData.Impacts[key+"|"+commit]; impact != nil {
+			data, _ := json.Marshal(impact)
+			return data
+		}
+	}
 	data, _ := json.Marshal(s.ReviewData.Impacts[key])
 	return data
 }

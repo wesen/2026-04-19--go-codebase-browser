@@ -202,7 +202,8 @@ async function staticHistoryBaseQuery(arg: string): Promise<{ data?: unknown; er
     const sym = params.get('sym') ?? '';
     const dir = params.get('dir') ?? 'usedby';
     const depth = Number.parseInt(params.get('depth') ?? '2', 10);
-    const impact = await getImpact(sym, dir, Number.isFinite(depth) ? depth : 2) as any;
+    const commit = resolveCommitRef(params.get('commit') ?? '', commits) ?? '';
+    const impact = await getImpact(sym, dir, Number.isFinite(depth) ? depth : 2, commit) as any;
     if (!impact) return staticNotFound(`impact not precomputed: ${sym}`);
     return { data: normalizeImpact(impact, commits) };
   }
