@@ -189,7 +189,7 @@
 
 **Goal:** Write and embed Glazed help entries for the review feature.
 
-- [ ] **Task 5.1:** Create `docs/help/embed.go`
+- [x] **Task 5.1:** Create `docs/help/embed.go`
   - `//go:embed *.md` for help markdown files
   - `AddDocToHelpSystem(helpSystem)` registration function
   - Files: `docs/help/embed.go`
@@ -197,7 +197,7 @@
   - Depends on: —
   - Est: 1–2h
 
-- [ ] **Task 5.2:** Write `docs/help/review-reference.md`
+- [x] **Task 5.2:** Write `docs/help/review-reference.md`
   - Glazed frontmatter with Slug: `review-db-reference`, SectionType: `GeneralTopic`
   - Sections: overview, history tables, review tables, common SQL queries, symbol ID scheme, commit range syntax
   - Troubleshooting table and See Also cross-references
@@ -206,7 +206,7 @@
   - Depends on: Task 5.1
   - Est: 2–4h
 
-- [ ] **Task 5.3:** Write `docs/help/review-user-guide.md`
+- [x] **Task 5.3:** Write `docs/help/review-user-guide.md`
   - Glazed frontmatter with Slug: `review-user-guide`, SectionType: `Tutorial`
   - Sections: quick start, writing review markdown files, available directives, commit ranges, sharing DBs, LLM queries
   - Troubleshooting table and See Also cross-references
@@ -215,7 +215,7 @@
   - Depends on: Task 5.2
   - Est: 2–4h
 
-- [ ] **Task 5.4:** Wire help entries into `main.go`
+- [x] **Task 5.4:** Wire help entries into `main.go`
   - Import `reviewhelp "github.com/wesen/codebase-browser/docs/help"`
   - Add `cobra.CheckErr(reviewhelp.AddDocToHelpSystem(helpSystem))`
   - Validation: `codebase-browser help review-db-reference` and `codebase-browser help review-user-guide` render correctly
@@ -230,7 +230,7 @@
 
 **Goal:** Extend the existing GCB-006 static build to support history-aware data and fix paths for `file://` usage.
 
-- [ ] **Task 6.1:** Fix bundler paths for `file://` compatibility
+- [x] **Task 6.1:** Fix bundler paths for `file://` compatibility
   - Change `internal/bundle/generate_build.go` to use relative paths in HTML/JS output
   - Replace absolute `/search.wasm`, `/precomputed.json`, `/source/` with relative paths
   - Switch React `BrowserRouter` to `HashRouter` in `App.tsx` for file:// support
@@ -240,7 +240,7 @@
   - Depends on: —
   - Est: 2–4h
 
-- [ ] **Task 6.2:** Create `internal/review/export.go` — build-time pre-computation
+- [x] **Task 6.2:** Create `internal/review/export.go` — build-time pre-computation
   - Define `PrecomputedReview` struct with Commits, Diffs, Histories, Impacts, Docs
   - Implement `LoadForExport(dbPath) (*PrecomputedReview, error)`
   - Query review.db for commits, then compute diffs/histories/impacts
@@ -251,7 +251,7 @@
   - Depends on: Phase 2 (review indexer produces the DB)
   - Est: 4–6h
 
-- [ ] **Task 6.3:** Pre-compute diffs at export time
+- [x] **Task 6.3:** Pre-compute diffs at export time
   - For each adjacent commit pair in the review range, run diff computation
   - Reuse `internal/history/diff.go` logic or add diff caching during `review index`
   - Store in `PrecomputedReview.Diffs` keyed by `"oldHash..newHash"`
@@ -261,7 +261,7 @@
   - Depends on: Task 6.2
   - Est: 4–6h
 
-- [ ] **Task 6.4:** Pre-compute symbol histories at export time
+- [x] **Task 6.4:** Pre-compute symbol histories at export time
   - For each symbol that appears in >1 commit, build timeline of body_hash/signature changes
   - Store in `PrecomputedReview.Histories`
   - Validation: export JSON contains history for symbols that changed
@@ -270,7 +270,7 @@
   - Depends on: Task 6.3
   - Est: 2–4h
 
-- [ ] **Task 6.5:** Pre-compute impact analysis at export time
+- [x] **Task 6.5:** Pre-compute impact analysis at export time
   - For each symbol referenced in review docs, run BFS over `snapshot_refs`
   - Store in `PrecomputedReview.Impacts`
   - Validation: export JSON contains impact nodes

@@ -407,3 +407,46 @@ User asked to build the ticket task by task, committing at appropriate intervals
 - Commit: `92a3103`
 - Files changed: `internal/history/loader.go`, `internal/review/indexer.go`
 - Next task: Phase 5 — Glazed help entries
+
+---
+
+## Step 8: Tasks 5.1–5.4 — Glazed help entries
+
+### What I did
+- Created `docs/help/embed.go` with `//go:embed *.md` and `AddDocToHelpSystem`
+- Wrote `docs/help/review-reference.md` — 9KB reference guide with schema tables, common SQL queries, symbol ID scheme, troubleshooting
+- Wrote `docs/help/review-user-guide.md` — 7KB tutorial with quick start, directive catalog, commit range syntax, LLM query examples, workflow tips
+- Wired help entries into `cmd/codebase-browser/main.go`
+
+### Validation
+- `go run ./cmd/codebase-browser help review-db-reference` — renders correctly
+- `go run ./cmd/codebase-browser help review-user-guide` — renders correctly
+
+### Technical details
+- Commit: `80c008f`
+
+---
+
+## Step 9: Tasks 6.1–6.5 — Static export foundation
+
+### What I did
+- **Task 6.1:** Fixed bundler paths for `file://` compatibility
+  - Added `base: './'` to `ui/vite.config.ts` so Vite generates relative asset paths
+  - Changed `wasmClient.ts` to use `fetch('precomputed.json')` and `fetch('search.wasm')` instead of absolute `/precomputed.json`
+  - Fixed bundler `injectWasmExec` to use relative `wasm_exec.js` and skip injection if already present
+  - Verified `dist/index.html` has only relative paths (`./assets/...`, `./wasm_exec.js`)
+- **Tasks 6.2–6.5:** Created `internal/review/export.go`
+  - `LoadForExport(dbPath)` — reads review DB, pre-computes all export data
+  - `computeHistories` — builds timeline for every symbol appearing in >1 commit
+  - `computeImpacts` — BFS over snapshot_refs for symbols referenced in review docs
+  - `renderReviewDocs` — renders all review docs to HTML using `docs.Render`
+  - `WritePrecomputed` — marshals to JSON file
+  - Added `export_test.go` with test verifying diff detection for signature changes
+
+### Validation
+- `go test ./internal/review -run TestLoadForExport -v` — PASS
+- Tested on real review DB: 2 commits, 1 diff, 810 histories, 0 impacts (no doc snippets in test DB), 0 docs
+
+### Technical details
+- Commit: `8e97caa`
+- Commits so far: `9c527f6`, `0ed3b04`, `4cf1483`, `0e9966f`, `d3d730e`, `92a3103`, `debc204`, `80c008f`, `eab9f06`, `8e97caa`
