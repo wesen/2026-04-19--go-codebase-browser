@@ -63,13 +63,13 @@ export const sourceApi = createApi({
       queryFn: ({ sym, kind = 'declaration' }) => providerResult(() => getSqlJsProvider().getSnippet(sym, kind)),
     }),
     getSnippetRefs: b.query<SnippetRefView[], string>({
-      queryFn: async () => ({ data: [] }),
+      queryFn: (sym) => providerResult(() => getSqlJsProvider().getSnippetRefs(sym)),
     }),
     getSourceRefs: b.query<SourceRefView[], string>({
-      queryFn: async () => ({ data: [] }),
+      queryFn: (path) => providerResult(() => getSqlJsProvider().getSourceRefs(path)),
     }),
     getFileXref: b.query<FileXrefResponse, string>({
-      queryFn: async (path) => ({ data: { path, usedBy: [], uses: [] } }),
+      queryFn: (path) => providerResult(() => getSqlJsProvider().getFileXref(path)),
     }),
   }),
 });

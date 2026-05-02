@@ -27,8 +27,8 @@ export function QueryConceptsPage() {
       <div>
         <h1 style={{ marginTop: 0 }}>Structured query concepts</h1>
         <p data-part="error">
-          This page needs the server-backed query API. Run the site through <code>codebase-browser serve</code>{' '}
-          with the SQLite DB available.
+          Structured query concepts are not packaged in this static export. Re-export the bundle with
+          concept metadata once that feature is available.
         </p>
       </div>
     );
@@ -42,9 +42,8 @@ export function QueryConceptsPage() {
     <div>
       <h1 style={{ marginTop: 0 }}>Structured query concepts</h1>
       <p style={{ color: 'var(--cb-color-muted)' }}>
-        These are named SQL concepts backed by the SQLite codebase index. Pick one to inspect its
-        parameters, preview the rendered SQL, execute it against <code>codebase.db</code>, and jump from
-        the results back into packages, source files, and symbols.
+        Structured query concepts are an optional packaged feature. This static export does not include
+        any concepts yet, but the underlying <code>db/codebase.db</code> can still be queried directly with SQL.
       </p>
       <div
         style={{

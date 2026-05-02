@@ -1,4 +1,5 @@
 import type { DocPage, ReviewDocMeta, SnippetRef } from './docApi';
+import type { FileXrefResponse, FileXrefUseTarget, SnippetRefView, SourceRefView } from './sourceApi';
 import type { File, IndexSummary, Package, PackageLite, Symbol } from './types';
 import type { RefRecord, XrefResponse, XrefUseTarget } from './xrefApi';
 import type {
@@ -48,6 +49,8 @@ type SymbolHistorySQL = SqlRow & {
 type BodyMetaSQL = SqlRow & {
   symbolId: string;
   name: string;
+  fileId: string;
+  signature: string;
   startOffset: number;
   endOffset: number;
   startLine: number;
@@ -61,6 +64,7 @@ type ContentSQL = SqlRow & {
 };
 
 type FileContentMetaSQL = SqlRow & {
+  fileId: string;
   contentHash: string;
 };
 
@@ -214,9 +218,56 @@ export class SqlJsQueryProvider {
   async getSnippet(symbolId: string, kind = 'declaration', commitRef = 'HEAD'): Promise<string> {
     const commit = await this.resolveCommitRef(commitRef);
     const meta = await this.getBodyMeta(commit, symbolId);
-    if (kind === 'signature') return meta.name;
+    if (kind === 'signature') return meta.signature || meta.name;
     const bytes = await this.getContentBytes(meta.contentHash);
     return extractUtf8Range(bytes, meta.startOffset, meta.endOffset);
+  }
+
+  async getSnippetRefs(symbolId: string, commitRef = 'HEAD'): Promise<SnippetRefView[]> {
+    const commit = await this.resolveCommitRef(commitRef);
+    const meta = await this.getBodyMeta(commit, symbolId);
+    const refs = await this.getRefRecordsInFileRange(commit, meta.fileId, meta.startOffset, meta.endOffset);
+    return refs.map((ref) => ({
+      toSymbolId: ref.toSymbolId,
+      kind: ref.kind,
+      offsetInSnippet: Math.max(0, ref.range.startOffset - meta.startOffset),
+      length: Math.max(0, ref.range.endOffset - ref.range.startOffset),
+    }));
+  }
+
+  async getSourceRefs(path: string, commitRef = 'HEAD'): Promise<SourceRefView[]> {
+    const commit = await this.resolveCommitRef(commitRef);
+    const meta = await this.getFileContentMeta(path, commit);
+    const refs = await this.getRefRecordsInFile(commit, meta.fileId);
+    return refs.map((ref) => ({
+      toSymbolId: ref.toSymbolId,
+      kind: ref.kind,
+      offset: ref.range.startOffset,
+      length: Math.max(0, ref.range.endOffset - ref.range.startOffset),
+    }));
+  }
+
+  async getFileXref(path: string, commitRef = 'HEAD'): Promise<FileXrefResponse> {
+    const commit = await this.resolveCommitRef(commitRef);
+    const meta = await this.getFileContentMeta(path, commit);
+    const [usedBy, usesFlat] = await Promise.all([
+      this.getRefRecordsToFileSymbols(commit, meta.fileId),
+      this.getRefRecordsFromFileSymbols(commit, meta.fileId),
+    ]);
+    const usesByTarget = new Map<string, FileXrefUseTarget>();
+    for (const ref of usesFlat) {
+      const key = `${ref.toSymbolId}|${ref.kind}`;
+      const target = usesByTarget.get(key) ?? {
+        toSymbolId: ref.toSymbolId,
+        kind: ref.kind,
+        count: 0,
+        occurrences: [],
+      };
+      target.count++;
+      target.occurrences.push(ref);
+      usesByTarget.set(key, target);
+    }
+    return { path, usedBy, uses: [...usesByTarget.values()] };
   }
 
   async getXref(symbolId: string, commitRef = 'HEAD'): Promise<XrefResponse> {
@@ -509,7 +560,8 @@ export class SqlJsQueryProvider {
   private async getFileContentMeta(path: string, commit: string): Promise<FileContentMetaSQL> {
     const db = await getStaticDb();
     const row = queryOne<FileContentMetaSQL>(db, `
-      SELECT COALESCE(NULLIF(content_hash, ''), sha256) AS contentHash
+      SELECT id AS fileId,
+             COALESCE(NULLIF(content_hash, ''), sha256) AS contentHash
       FROM snapshot_files
       WHERE commit_hash = ? AND path = ?
     `, [commit, path]);
@@ -526,6 +578,8 @@ export class SqlJsQueryProvider {
              s.end_offset AS endOffset,
              s.start_line AS startLine,
              s.end_line AS endLine,
+             s.file_id AS fileId,
+             s.signature AS signature,
              f.path AS filePath,
              COALESCE(NULLIF(f.content_hash, ''), f.sha256) AS contentHash
       FROM snapshot_symbols s
@@ -583,6 +637,57 @@ export class SqlJsQueryProvider {
     `, [commit, symbolId]).map(toRefRecord);
   }
 
+  private async getRefRecordsInFile(commit: string, fileId: string): Promise<RefRecord[]> {
+    const db = await getStaticDb();
+    return queryAll<RefRecordSQL>(db, refRecordSelectSQL + `
+      WHERE commit_hash = ? AND file_id = ?
+      ORDER BY start_offset, end_offset
+    `, [commit, fileId]).map(toRefRecord);
+  }
+
+  private async getRefRecordsInFileRange(commit: string, fileId: string, startOffset: number, endOffset: number): Promise<RefRecord[]> {
+    const db = await getStaticDb();
+    return queryAll<RefRecordSQL>(db, refRecordSelectSQL + `
+      WHERE commit_hash = ?
+        AND file_id = ?
+        AND start_offset >= ?
+        AND end_offset <= ?
+      ORDER BY start_offset, end_offset
+    `, [commit, fileId, startOffset, endOffset]).map(toRefRecord);
+  }
+
+  private async getRefRecordsToFileSymbols(commit: string, fileId: string): Promise<RefRecord[]> {
+    const db = await getStaticDb();
+    return queryAll<RefRecordSQL>(db, refRecordSelectSQLWithAlias + `
+      JOIN snapshot_symbols target
+        ON target.commit_hash = r.commit_hash
+       AND target.id = r.to_symbol_id
+      LEFT JOIN snapshot_symbols source
+        ON source.commit_hash = r.commit_hash
+       AND source.id = r.from_symbol_id
+      WHERE r.commit_hash = ?
+        AND target.file_id = ?
+        AND COALESCE(source.file_id, '') != ?
+      ORDER BY r.from_symbol_id, r.kind
+    `, [commit, fileId, fileId]).map(toRefRecord);
+  }
+
+  private async getRefRecordsFromFileSymbols(commit: string, fileId: string): Promise<RefRecord[]> {
+    const db = await getStaticDb();
+    return queryAll<RefRecordSQL>(db, refRecordSelectSQLWithAlias + `
+      JOIN snapshot_symbols source
+        ON source.commit_hash = r.commit_hash
+       AND source.id = r.from_symbol_id
+      LEFT JOIN snapshot_symbols target
+        ON target.commit_hash = r.commit_hash
+       AND target.id = r.to_symbol_id
+      WHERE r.commit_hash = ?
+        AND source.file_id = ?
+        AND COALESCE(target.file_id, '') != ?
+      ORDER BY r.to_symbol_id, r.kind
+    `, [commit, fileId, fileId]).map(toRefRecord);
+  }
+
   private async getSymbolMeta(symbolId: string, commit: string): Promise<SymbolMetaSQL | null> {
     const db = await getStaticDb();
     return queryOne<SymbolMetaSQL>(db, `
@@ -593,18 +698,36 @@ export class SqlJsQueryProvider {
   }
 }
 
+const refRecordColumnsSQL = `
+  from_symbol_id AS fromSymbolId,
+  to_symbol_id AS toSymbolId,
+  kind,
+  file_id AS fileId,
+  start_line AS startLine,
+  start_col AS startCol,
+  end_line AS endLine,
+  end_col AS endCol,
+  start_offset AS startOffset,
+  end_offset AS endOffset
+`;
+
 const refRecordSelectSQL = `
-  SELECT from_symbol_id AS fromSymbolId,
-         to_symbol_id AS toSymbolId,
-         kind,
-         file_id AS fileId,
-         start_line AS startLine,
-         start_col AS startCol,
-         end_line AS endLine,
-         end_col AS endCol,
-         start_offset AS startOffset,
-         end_offset AS endOffset
+  SELECT ${refRecordColumnsSQL}
   FROM snapshot_refs
+`;
+
+const refRecordSelectSQLWithAlias = `
+  SELECT r.from_symbol_id AS fromSymbolId,
+         r.to_symbol_id AS toSymbolId,
+         r.kind,
+         r.file_id AS fileId,
+         r.start_line AS startLine,
+         r.start_col AS startCol,
+         r.end_line AS endLine,
+         r.end_col AS endCol,
+         r.start_offset AS startOffset,
+         r.end_offset AS endOffset
+  FROM snapshot_refs r
 `;
 
 function toRefRecord(row: RefRecordSQL): RefRecord {

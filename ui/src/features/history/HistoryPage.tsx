@@ -28,8 +28,8 @@ export function HistoryPage() {
       <div>
         <h1 style={{ marginTop: 0 }}>Codebase history</h1>
         <p data-part="error">
-          This page needs the server-backed history API. Run{' '}
-          <code>codebase-browser serve --history-db history.db</code> after scanning commits.
+          Failed to load commit history from the exported SQLite database. Re-run <code>review index</code>{' '}
+          and <code>review export</code>, then refresh this static bundle.
         </p>
       </div>
     );
