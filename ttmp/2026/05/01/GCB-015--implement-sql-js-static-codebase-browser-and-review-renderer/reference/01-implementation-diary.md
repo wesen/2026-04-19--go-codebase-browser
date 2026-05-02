@@ -16,7 +16,11 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: Makefile
-      Note: Removed generate-static/build-static targets in Step 18 (commit e0e7e60)
+      Note: |-
+        Removed generate-static/build-static targets in Step 18 (commit e0e7e60)
+        Removed serve/dev-backend/web generation paths in Step 19 (commit 05f3ffe)
+    - Path: README.md
+      Note: Updated quick start and layout for static sql.js export in Step 19 (commit 05f3ffe)
     - Path: cmd/codebase-browser/cmds/review/db.go
       Note: Removed review db create --worktrees flag in Step 15 (commit c8ee93d)
     - Path: cmd/codebase-browser/cmds/review/export.go
@@ -31,6 +35,10 @@ RelatedFiles:
       Note: Removed review serve command registration in Step 10 (commit 45de723)
     - Path: cmd/codebase-browser/cmds/review/serve.go
       Note: Deleted deprecated review runtime server command in Step 10 (commit 45de723)
+    - Path: cmd/codebase-browser/cmds/serve/run.go
+      Note: Deleted obsolete serve command in Step 19 (commit 05f3ffe)
+    - Path: cmd/codebase-browser/main.go
+      Note: Removed serve command registration in Step 19 (commit 05f3ffe)
     - Path: cmd/wasm/main.go
       Note: Deleted obsolete TinyGo WASM entrypoint in Step 18 (commit e0e7e60)
     - Path: docs/help/review-reference.md
@@ -49,6 +57,8 @@ RelatedFiles:
       Note: Auto-selects worktrees for multi-commit review indexing in Step 15 (commit c8ee93d)
     - Path: internal/review/server.go
       Note: Deleted deprecated review HTTP wrapper in Step 10 (commit 45de723)
+    - Path: internal/server
+      Note: Deleted obsolete Go HTTP runtime in Step 19 (commit 05f3ffe)
     - Path: internal/static
       Note: Deleted obsolete precomputed static data package in Step 18 (commit e0e7e60)
     - Path: internal/staticapp/export.go
@@ -67,6 +77,8 @@ RelatedFiles:
       Note: Deleted WASM ReviewData model in Step 11 (commit 12d31ec)
     - Path: internal/wasm/search.go
       Note: Removed reviewData field and review query methods in Step 11 (commit 12d31ec)
+    - Path: internal/web
+      Note: Deleted obsolete embedded web runtime package in Step 19 (commit 05f3ffe)
     - Path: internal/web/generate_build.go
       Note: Stopped copying/injecting search.wasm
     - Path: ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/design-doc/01-sql-js-static-frontend-architecture-and-implementation-guide.md
@@ -119,12 +131,15 @@ RelatedFiles:
         Deleted unpackaged structured concepts page in Step 17 (commit 714708c)
     - Path: ui/src/packages/ui/src/theme/base.css
       Note: Added package tree styling in Step 13 (commit cc18c22)
+    - Path: ui/vite.config.ts
+      Note: Removed stale /api proxy in Step 19 (commit 05f3ffe)
 ExternalSources: []
 Summary: Chronological implementation diary for the static-only sql.js frontend cleanup.
 LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -2572,4 +2587,129 @@ index.json/snippets/xrefs/docs
   -> precomputed.json
   -> TinyGo search.wasm + wasm_exec.js
   -> JS calls WASM query exports
+```
+
+## Step 19: Remove the obsolete Go server runtime
+
+After deleting the TinyGo/precomputed runtime, I continued the cleanup by removing the old Go HTTP server runtime as well. This matches the GCB-015 cutoff: the browser is a standalone static export, and Go is an offline indexer/exporter rather than a runtime web server.
+
+### Prompt Context
+
+**User prompt (verbatim):** "clean remove old code not useful anymore. sever the ties"
+
+**Assistant interpretation:** Continue past the WASM cleanup and delete the old `/api/*` Go server path because it is no longer part of the selected static/sql.js architecture.
+
+**Inferred user intent:** Avoid carrying misleading command paths, embedded web generation, and stale `/api/*` docs now that the product direction is static-only.
+
+**Commit (code):** 05f3ffe — "Remove obsolete Go server runtime"
+
+### What I did
+
+- Removed the top-level `serve` command registration:
+  - deleted `cmd/codebase-browser/cmds/serve/run.go`;
+  - deleted `cmd/codebase-browser/serve_stub.go`;
+  - removed `registerServe(rootCmd)` from `cmd/codebase-browser/main.go`;
+  - updated the root CLI description.
+- Deleted the old Go HTTP server package:
+  - `internal/server/api_*.go`
+  - `internal/server/server.go`
+  - `internal/server/spa.go`
+  - `internal/server/*_test.go`
+- Deleted the old embedded web package:
+  - `internal/web/embed.go`
+  - `internal/web/embed_none.go`
+  - `internal/web/generate.go`
+  - `internal/web/generate_build.go`
+  - `internal/web/embed/public/.keep`
+- Removed server/web package generation from:
+  - `Makefile`
+  - `cmd/codebase-browser/cmds/index/build.go`
+  - `internal/sourcefs/generate_build.go`
+- Updated the README away from `codebase-browser serve` and toward the active flow:
+  - build CLI;
+  - `review db create`;
+  - `review export`;
+  - serve the export with any static file server.
+- Removed stale embedded documentation pages that described `/api/*` and server-based review demos.
+- Added a small replacement embedded doc page:
+  - `internal/docs/embed/pages/02-static-sqljs-runtime.md`
+- Removed the Vite dev-server `/api` proxy from `ui/vite.config.ts`.
+- Updated stale examples that named `internal/server` as a target package/file.
+
+### Why
+
+- The old server path could still suggest a runtime mode that no longer exists in the GCB-015 architecture.
+- The frontend no longer has HTTP API fallbacks, so keeping `/api/*` handlers was misleading.
+- The embedded web generator only served the deleted Go server and was no longer needed by `review export`, which uses `internal/staticapp`.
+
+### What worked
+
+- `go test ./...` passed.
+- `pnpm -C ui run typecheck` passed.
+- `go build ./cmd/codebase-browser` passed.
+- `go run ./cmd/codebase-browser --help` no longer lists a `serve` command.
+- `review export` still succeeded and still omitted the old runtime files:
+  - `search.wasm`
+  - `wasm_exec.js`
+  - `precomputed.json`
+
+### What didn't work
+
+- `go build ./cmd/codebase-browser` without `-o` wrote a local `./codebase-browser` binary; I removed that untracked artifact before committing.
+
+### What I learned
+
+- The old general server was not just a command; it also pulled in an embedded web package, Makefile targets, stale docs, Vite proxy config, and index-build package patterns.
+- Removing it made the CLI help much clearer: the remaining command tree now reflects indexing, querying, review DB creation, and static export.
+
+### What was tricky to build
+
+- Several stale docs under `internal/docs/embed/pages` referenced deleted server symbols. Those docs were not part of the review export path, but leaving them would create broken examples and bad search hits.
+- The source/index generators had hard-coded package lists/exclusions that mentioned `internal/server` and `internal/web`; those had to be updated so future generation does not point at deleted packages.
+
+### What warrants a second pair of eyes
+
+- Check whether any user-facing workflows still expected `codebase-browser serve`; if so, they now need to use `review export` plus an ordinary static file server.
+- Review the new README quick start for accuracy.
+- Review whether the remaining `doc` command and embedded docs still matter now that review docs are the primary UI narrative.
+
+### What should be done in the future
+
+- Add a regression check that `codebase-browser --help` does not list `serve`.
+- Add a grep-based check that active code does not reference the old `/api/*` runtime, except as a statement that static exports do not use it.
+- Consider a small static-export smoke target in the Makefile once the test DB/review fixture story is settled.
+
+### Code review instructions
+
+- Start with `cmd/codebase-browser/main.go` and confirm the command tree intentionally excludes `serve`.
+- Review `Makefile` and README together; both should describe the static-export flow.
+- Review `internal/staticapp` as the only static export implementation.
+- Confirm `internal/server` and `internal/web` are gone.
+- Validate with:
+  - `go test ./...`
+  - `pnpm -C ui run typecheck`
+  - `go build ./cmd/codebase-browser`
+  - `go run ./cmd/codebase-browser --help`
+  - `go run ./cmd/codebase-browser review export --db /tmp/gcb015-auto-worktrees.db --out /tmp/gcb015-clean-export`
+
+### Technical details
+
+Deleted runtime:
+
+```text
+codebase-browser serve
+  -> internal/server /api/* handlers
+  -> internal/web embedded SPA
+  -> browser fetches application data from Go
+```
+
+Remaining runtime/export model:
+
+```text
+review db create / review index
+  -> SQLite database
+review export
+  -> staticapp copies DB + SPA + manifest
+browser
+  -> sql.js opens db/codebase.db locally
 ```

@@ -267,3 +267,18 @@ Step 18: Deleted obsolete TinyGo/precomputed static runtime packages, generated 
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/web/generate_build.go — Removed old runtime asset copy/injection
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 18
 
+
+## 2026-05-01
+
+Step 19: Deleted obsolete Go serve command, internal/server HTTP API runtime, internal/web embed package, and stale server docs/proxy config; README/Makefile now point to review export plus static file serving (commit 05f3ffe).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/Makefile — Removed server build/dev paths
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/README.md — Updated static export quick start
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/cmd/codebase-browser/main.go — Removed serve registration
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/server — Deleted old HTTP runtime
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/web — Deleted old web embed runtime
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 19
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/vite.config.ts — Removed /api proxy
+
