@@ -71,13 +71,13 @@ This ticket is a clean-cut implementation of a static-only runtime:
 
 ### Phase 6 — Commit diff, refs, and impact from SQL
 
-- [ ] T06.1 Implement `getCommitDiff(from, to)` file diffs using SQLite-compatible `UNION ALL` queries.
-- [ ] T06.2 Implement `getCommitDiff(from, to)` symbol diffs using SQLite-compatible `UNION ALL` queries.
-- [ ] T06.3 Compute diff stats in TypeScript from SQL rows.
-- [ ] T06.4 Implement `getRefsFrom(symbolId, commit)` from `snapshot_refs`.
-- [ ] T06.5 Implement `getRefsTo(symbolId, commit)` from `snapshot_refs`.
-- [ ] T06.6 Implement `getImpact({ symbolId, direction, depth, commit })` as TypeScript BFS over refs.
-- [ ] T06.7 Refactor impact widgets to use SQL provider output only.
+- [x] T06.1 Implement `getCommitDiff(from, to)` file diffs using SQLite-compatible `UNION ALL` queries.
+- [x] T06.2 Implement `getCommitDiff(from, to)` symbol diffs using SQLite-compatible `UNION ALL` queries.
+- [x] T06.3 Compute diff stats in TypeScript from SQL rows.
+- [x] T06.4 Implement `getRefsFrom(symbolId, commit)` from `snapshot_refs`.
+- [x] T06.5 Implement `getRefsTo(symbolId, commit)` from `snapshot_refs`.
+- [x] T06.6 Implement `getImpact({ symbolId, direction, depth, commit })` as TypeScript BFS over refs.
+- [x] T06.7 Refactor impact widgets to use SQL provider output only.
 
 ### Phase 7 — Generic browser SQL coverage
 

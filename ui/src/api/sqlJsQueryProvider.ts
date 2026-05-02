@@ -3,7 +3,11 @@ import type {
   CommitDiff,
   CommitRow,
   DiffStats,
+  FileDiff,
+  ImpactEdge,
+  ImpactNode,
   ImpactResponse,
+  SymbolDiff,
   SymbolHistoryEntry,
 } from './historyApi';
 import { QueryError } from './queryErrors';
@@ -51,6 +55,18 @@ type BodyMetaSQL = SqlRow & {
 
 type ContentSQL = SqlRow & {
   content: Uint8Array;
+};
+
+type FileDiffSQL = SqlRow & FileDiff;
+
+type SymbolDiffSQL = SqlRow & SymbolDiff;
+
+type ImpactEdgeSQL = SqlRow & ImpactEdge;
+
+type SymbolMetaSQL = SqlRow & {
+  id: string;
+  name: string;
+  kind: string;
 };
 
 export class SqlJsQueryProvider {
@@ -168,12 +184,15 @@ export class SqlJsQueryProvider {
   async getCommitDiff(from: string, to: string): Promise<CommitDiff> {
     const oldHash = await this.resolveCommitRef(from);
     const newHash = await this.resolveCommitRef(to);
+    const db = await getStaticDb();
+    const files = queryAll<FileDiffSQL>(db, fileDiffSQL, [oldHash, newHash, newHash, oldHash, oldHash, newHash]);
+    const symbols = queryAll<SymbolDiffSQL>(db, symbolDiffSQL, [oldHash, newHash, newHash, oldHash, oldHash, newHash]);
     return {
       OldHash: oldHash,
       NewHash: newHash,
-      Files: [],
-      Symbols: [],
-      Stats: emptyDiffStats(),
+      Files: files.map((row) => ({ ...row })),
+      Symbols: symbols.map((row) => ({ ...row })),
+      Stats: diffStats(files, symbols),
     };
   }
 
@@ -184,12 +203,49 @@ export class SqlJsQueryProvider {
     commit?: string;
   }): Promise<ImpactResponse> {
     const commit = await this.resolveCommitRef(options.commit ?? 'HEAD');
+    const direction = options.direction;
+    const maxDepth = Math.max(1, Math.min(options.depth, 5));
+    const visited = new Set<string>([options.symbolId]);
+    const queue: Array<{ symbolId: string; depth: number }> = [{ symbolId: options.symbolId, depth: 0 }];
+    const nodeByID = new Map<string, ImpactNode>();
+
+    while (queue.length > 0) {
+      const item = queue.shift();
+      if (!item || item.depth >= maxDepth) continue;
+      const edges = direction === 'uses'
+        ? await this.getRefsFrom(item.symbolId, commit)
+        : await this.getRefsTo(item.symbolId, commit);
+      for (const edge of edges) {
+        const nextID = direction === 'uses' ? edge.toSymbolId : edge.fromSymbolId;
+        const nextDepth = item.depth + 1;
+        let node = nodeByID.get(nextID);
+        if (!node) {
+          const meta = await this.getSymbolMeta(nextID, commit);
+          node = {
+            symbolId: nextID,
+            name: meta?.name ?? fallbackName(nextID),
+            kind: meta?.kind ?? 'external',
+            depth: nextDepth,
+            edges: [],
+            compatibility: 'unknown',
+            local: !!meta,
+          };
+          nodeByID.set(nextID, node);
+        }
+        node.edges.push(edge);
+        if (!visited.has(nextID)) {
+          visited.add(nextID);
+          queue.push({ symbolId: nextID, depth: nextDepth });
+        }
+      }
+    }
+
     return {
       root: options.symbolId,
-      direction: options.direction,
-      depth: options.depth,
+      direction,
+      depth: maxDepth,
       commit,
-      nodes: [],
+      nodes: [...nodeByID.values()],
     };
   }
 
@@ -224,10 +280,157 @@ export class SqlJsQueryProvider {
     if (!row) throw new QueryError('NOT_FOUND', `file content not found: ${contentHash}`);
     return sqlBlobToBytes(row.content);
   }
+
+  private async getRefsFrom(symbolId: string, commit: string): Promise<ImpactEdge[]> {
+    const db = await getStaticDb();
+    return queryAll<ImpactEdgeSQL>(db, `
+      SELECT from_symbol_id AS fromSymbolId,
+             to_symbol_id AS toSymbolId,
+             kind,
+             file_id AS fileId
+      FROM snapshot_refs
+      WHERE commit_hash = ? AND from_symbol_id = ?
+      ORDER BY to_symbol_id, kind
+    `, [commit, symbolId]).map((row) => ({ ...row }));
+  }
+
+  private async getRefsTo(symbolId: string, commit: string): Promise<ImpactEdge[]> {
+    const db = await getStaticDb();
+    return queryAll<ImpactEdgeSQL>(db, `
+      SELECT from_symbol_id AS fromSymbolId,
+             to_symbol_id AS toSymbolId,
+             kind,
+             file_id AS fileId
+      FROM snapshot_refs
+      WHERE commit_hash = ? AND to_symbol_id = ?
+      ORDER BY from_symbol_id, kind
+    `, [commit, symbolId]).map((row) => ({ ...row }));
+  }
+
+  private async getSymbolMeta(symbolId: string, commit: string): Promise<SymbolMetaSQL | null> {
+    const db = await getStaticDb();
+    return queryOne<SymbolMetaSQL>(db, `
+      SELECT id, name, kind
+      FROM snapshot_symbols
+      WHERE commit_hash = ? AND id = ?
+    `, [commit, symbolId]);
+  }
 }
 
-function emptyDiffStats(): DiffStats {
-  return {
+const fileDiffSQL = `
+  SELECT b.id AS FileID,
+         b.path AS Path,
+         'added' AS ChangeType,
+         '' AS OldSHA256,
+         b.sha256 AS NewSHA256
+  FROM snapshot_files b
+  LEFT JOIN snapshot_files a
+    ON a.commit_hash = ? AND a.id = b.id
+  WHERE b.commit_hash = ? AND a.id IS NULL
+
+  UNION ALL
+
+  SELECT a.id AS FileID,
+         a.path AS Path,
+         'removed' AS ChangeType,
+         a.sha256 AS OldSHA256,
+         '' AS NewSHA256
+  FROM snapshot_files a
+  LEFT JOIN snapshot_files b
+    ON b.commit_hash = ? AND b.id = a.id
+  WHERE a.commit_hash = ? AND b.id IS NULL
+
+  UNION ALL
+
+  SELECT b.id AS FileID,
+         b.path AS Path,
+         'modified' AS ChangeType,
+         a.sha256 AS OldSHA256,
+         b.sha256 AS NewSHA256
+  FROM snapshot_files a
+  JOIN snapshot_files b
+    ON b.id = a.id
+  WHERE a.commit_hash = ?
+    AND b.commit_hash = ?
+    AND a.sha256 != b.sha256
+  ORDER BY Path
+`;
+
+const symbolDiffSQL = `
+  SELECT b.id AS SymbolID,
+         b.name AS Name,
+         b.kind AS Kind,
+         b.package_id AS PackageID,
+         'added' AS ChangeType,
+         0 AS OldStartLine,
+         0 AS OldEndLine,
+         b.start_line AS NewStartLine,
+         b.end_line AS NewEndLine,
+         '' AS OldSignature,
+         b.signature AS NewSignature,
+         '' AS OldBodyHash,
+         b.body_hash AS NewBodyHash
+  FROM snapshot_symbols b
+  LEFT JOIN snapshot_symbols a
+    ON a.commit_hash = ? AND a.id = b.id
+  WHERE b.commit_hash = ? AND a.id IS NULL
+
+  UNION ALL
+
+  SELECT a.id AS SymbolID,
+         a.name AS Name,
+         a.kind AS Kind,
+         a.package_id AS PackageID,
+         'removed' AS ChangeType,
+         a.start_line AS OldStartLine,
+         a.end_line AS OldEndLine,
+         0 AS NewStartLine,
+         0 AS NewEndLine,
+         a.signature AS OldSignature,
+         '' AS NewSignature,
+         a.body_hash AS OldBodyHash,
+         '' AS NewBodyHash
+  FROM snapshot_symbols a
+  LEFT JOIN snapshot_symbols b
+    ON b.commit_hash = ? AND b.id = a.id
+  WHERE a.commit_hash = ? AND b.id IS NULL
+
+  UNION ALL
+
+  SELECT b.id AS SymbolID,
+         b.name AS Name,
+         b.kind AS Kind,
+         b.package_id AS PackageID,
+         CASE
+           WHEN a.body_hash != b.body_hash AND a.body_hash != '' AND b.body_hash != '' THEN 'modified'
+           WHEN a.signature != b.signature THEN 'signature-changed'
+           WHEN a.start_line != b.start_line OR a.end_line != b.end_line THEN 'moved'
+           ELSE 'unchanged'
+         END AS ChangeType,
+         a.start_line AS OldStartLine,
+         a.end_line AS OldEndLine,
+         b.start_line AS NewStartLine,
+         b.end_line AS NewEndLine,
+         a.signature AS OldSignature,
+         b.signature AS NewSignature,
+         a.body_hash AS OldBodyHash,
+         b.body_hash AS NewBodyHash
+  FROM snapshot_symbols a
+  JOIN snapshot_symbols b
+    ON b.id = a.id
+  WHERE a.commit_hash = ?
+    AND b.commit_hash = ?
+    AND (
+      a.body_hash != b.body_hash
+      OR a.signature != b.signature
+      OR a.start_line != b.start_line
+      OR a.end_line != b.end_line
+    )
+  ORDER BY Name
+`;
+
+function diffStats(files: FileDiff[], symbols: SymbolDiff[]): DiffStats {
+  const stats: DiffStats = {
     FilesAdded: 0,
     FilesRemoved: 0,
     FilesModified: 0,
@@ -237,6 +440,25 @@ function emptyDiffStats(): DiffStats {
     SymbolsMoved: 0,
     SymbolsUnchanged: 0,
   };
+  for (const file of files) {
+    if (file.ChangeType === 'added') stats.FilesAdded++;
+    else if (file.ChangeType === 'removed') stats.FilesRemoved++;
+    else if (file.ChangeType === 'modified') stats.FilesModified++;
+  }
+  for (const symbol of symbols) {
+    if (symbol.ChangeType === 'added') stats.SymbolsAdded++;
+    else if (symbol.ChangeType === 'removed') stats.SymbolsRemoved++;
+    else if (symbol.ChangeType === 'modified') stats.SymbolsModified++;
+    else if (symbol.ChangeType === 'moved') stats.SymbolsMoved++;
+    else if (symbol.ChangeType === 'unchanged') stats.SymbolsUnchanged++;
+  }
+  return stats;
+}
+
+function fallbackName(symbolId: string): string {
+  const trimmed = symbolId.startsWith('sym:') ? symbolId.slice(4) : symbolId;
+  const lastDot = trimmed.lastIndexOf('.');
+  return lastDot >= 0 ? trimmed.slice(lastDot + 1) : trimmed;
 }
 
 function simpleUnifiedDiff(oldText: string, newText: string): string {

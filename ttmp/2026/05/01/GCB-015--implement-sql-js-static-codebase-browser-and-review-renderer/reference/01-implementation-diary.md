@@ -459,3 +459,103 @@ getSymbolBodyDiff(from, to, symbolId)
   -> TextDecoder utf-8
   -> simpleUnifiedDiff(oldBody, newBody)
 ```
+
+## Step 5: Implement SQL commit diffs, refs, and impact BFS in the provider
+
+This step fills in the first non-trivial browser-side graph and diff queries. `SqlJsQueryProvider` now computes commit file/symbol diffs with SQLite-compatible `UNION ALL` queries, computes diff stats in TypeScript, reads refs from `snapshot_refs`, and builds impact graphs with a TypeScript BFS.
+
+This moves impact and commit diff widgets away from precomputed WASM review payloads. The implementation is still blocked from full browser validation by remaining app-shell TinyGo index dependencies, but the provider methods typecheck and are wired through `historyApi`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue converting static browser behavior from precomputed/TinyGo payloads to SQL provider methods.
+
+**Inferred user intent:** Make the SQL-backed provider cover the important interactive widgets, not only history/body diff.
+
+**Commit (code):** pending — SQL diff/impact slice not committed yet
+
+### What I did
+
+- Implemented `getCommitDiff(from, to)` in `SqlJsQueryProvider`.
+- Added SQLite-compatible file diff SQL using `UNION ALL` instead of `FULL OUTER JOIN`.
+- Added SQLite-compatible symbol diff SQL using `UNION ALL` and the same change classifications as the Go reference:
+  - `added`
+  - `removed`
+  - `modified`
+  - `signature-changed`
+  - `moved`
+- Added TypeScript `diffStats(files, symbols)`.
+- Added private `getRefsFrom(symbolId, commit)` and `getRefsTo(symbolId, commit)` methods.
+- Implemented `getImpact({ symbolId, direction, depth, commit })` as BFS over refs.
+- Added `fallbackName(symbolId)` for external symbols not present in `snapshot_symbols`.
+- Marked T06.1–T06.7 complete.
+
+### Why
+
+- SQLite does not support the `FULL OUTER JOIN` shape used by the current Go diff reference, so the browser provider needs SQLite-compatible diff queries.
+- Impact should no longer be precomputed for static runtime. It can be computed on demand from `snapshot_refs`.
+- Existing impact widgets already call `historyApi.getImpact`, so moving `historyApi` to provider methods makes those widgets use SQL-backed impact once the app shell is fully migrated.
+
+### What worked
+
+- `pnpm -C ui run typecheck` passed.
+- The provider now has real SQL implementations for commit diffs and impact instead of empty placeholders.
+
+### What didn't work
+
+- I did not run a browser smoke yet because the app shell still uses `indexApi`/`wasmClient`, which expects the old precomputed/TinyGo runtime files. That will be addressed in later phases.
+
+### What I learned
+
+- The Go reference in `internal/history/diff.go` is useful for semantics, but not directly portable because SQLite lacks `FULL OUTER JOIN`.
+- A three-part `UNION ALL` is straightforward and explicit for added/removed/modified file and symbol rows.
+
+### What was tricky to build
+
+- The key correctness risk is preserving the Go diff classification order. In particular, symbol diffs should classify body hash changes as `modified` before checking signature or movement. The SQL `CASE` mirrors that order.
+- Impact nodes need to accumulate multiple edges per node while avoiding endless traversal. The provider uses a `visited` set for traversal and a `nodeByID` map for edge accumulation.
+
+### What warrants a second pair of eyes
+
+- Review the SQL parameter order for the `UNION ALL` diff queries. Each query binds old/new commit hashes multiple times.
+- Review whether impact should deduplicate duplicate refs or preserve all `snapshot_refs` rows. The current implementation preserves all returned refs as edges.
+
+### What should be done in the future
+
+- Add tests for commit diff SQL against a small fixture DB.
+- Add browser validation once package/symbol/source/index APIs are migrated off TinyGo.
+
+### Code review instructions
+
+- Review `ui/src/api/sqlJsQueryProvider.ts`:
+  - `fileDiffSQL`
+  - `symbolDiffSQL`
+  - `diffStats`
+  - `getRefsFrom`
+  - `getRefsTo`
+  - `getImpact`
+- Validate with `pnpm -C ui run typecheck`.
+
+### Technical details
+
+Commit diff is intentionally computed in the browser from SQLite:
+
+```text
+getCommitDiff(from, to)
+  -> resolve old/new refs
+  -> fileDiffSQL UNION ALL
+  -> symbolDiffSQL UNION ALL
+  -> diffStats(files, symbols)
+```
+
+Impact is runtime BFS:
+
+```text
+getImpact(root, direction, depth, commit)
+  -> queue root
+  -> getRefsFrom or getRefsTo
+  -> add edge to node
+  -> enqueue unseen neighbor until max depth
+```

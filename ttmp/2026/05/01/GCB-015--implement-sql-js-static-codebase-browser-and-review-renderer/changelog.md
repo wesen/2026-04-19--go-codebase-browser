@@ -89,3 +89,14 @@ Step 4: Added SqlJsQueryProvider skeleton, SQL-backed commit/history/body-diff m
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/queryProvider.ts — Static-only provider singleton
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqlJsQueryProvider.ts — Initial sql.js provider with commits
 
+
+## 2026-05-01
+
+Step 5: Implemented SQL-backed commit diffs, refs, and TypeScript impact BFS in SqlJsQueryProvider.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 5
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md — Marked Phase 6 SQL diff/impact tasks complete
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqlJsQueryProvider.ts — Commit diff SQL
+
