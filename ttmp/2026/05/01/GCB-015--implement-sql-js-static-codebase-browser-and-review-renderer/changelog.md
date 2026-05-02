@@ -252,3 +252,18 @@ Step 17: Removed the unpackaged structured query concepts UI/API slice from the 
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/app/App.tsx — Removed /queries routes and sidebar link
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/query/QueryConceptsPage.tsx — Deleted
 
+
+## 2026-05-01
+
+Step 18: Deleted obsolete TinyGo/precomputed static runtime packages, generated WASM/precomputed artifacts, and old bundle targets; web generation no longer copies search.wasm, wasm_exec.js, or precomputed.json (commit e0e7e60).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/Makefile — Removed WASM static build targets
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/cmd/wasm/main.go — Deleted obsolete WASM entrypoint
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/bundle — Deleted obsolete bundle generator
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/static — Deleted obsolete precomputed data package
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/wasm — Deleted obsolete TinyGo runtime package
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/web/generate_build.go — Removed old runtime asset copy/injection
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 18
+

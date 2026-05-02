@@ -15,6 +15,8 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: Makefile
+      Note: Removed generate-static/build-static targets in Step 18 (commit e0e7e60)
     - Path: cmd/codebase-browser/cmds/review/db.go
       Note: Removed review db create --worktrees flag in Step 15 (commit c8ee93d)
     - Path: cmd/codebase-browser/cmds/review/export.go
@@ -29,12 +31,16 @@ RelatedFiles:
       Note: Removed review serve command registration in Step 10 (commit 45de723)
     - Path: cmd/codebase-browser/cmds/review/serve.go
       Note: Deleted deprecated review runtime server command in Step 10 (commit 45de723)
+    - Path: cmd/wasm/main.go
+      Note: Deleted obsolete TinyGo WASM entrypoint in Step 18 (commit e0e7e60)
     - Path: docs/help/review-reference.md
       Note: Updated schema help with static export table and no review serve command in Step 10 (commit 45de723)
     - Path: docs/help/review-user-guide.md
       Note: |-
         Updated help to document static export workflow only in Step 10 (commit 45de723)
         Updated large-range guidance for automatic worktrees in Step 15 (commit c8ee93d)
+    - Path: internal/bundle
+      Note: Deleted obsolete WASM/precomputed bundle generator in Step 18 (commit e0e7e60)
     - Path: internal/review/export.go
       Note: Deleted old PrecomputedReview builder in Step 11 (commit 12d31ec)
     - Path: internal/review/export_test.go
@@ -43,6 +49,8 @@ RelatedFiles:
       Note: Auto-selects worktrees for multi-commit review indexing in Step 15 (commit c8ee93d)
     - Path: internal/review/server.go
       Note: Deleted deprecated review HTTP wrapper in Step 10 (commit 45de723)
+    - Path: internal/static
+      Note: Deleted obsolete precomputed static data package in Step 18 (commit e0e7e60)
     - Path: internal/staticapp/export.go
       Note: Step 2 static-only export packaging
     - Path: internal/staticapp/export_test.go
@@ -51,12 +59,16 @@ RelatedFiles:
       Note: Step 2 manifest schema
     - Path: internal/staticapp/reviewdocs.go
       Note: Step 3 rendered review docs into SQLite
+    - Path: internal/wasm
+      Note: Deleted obsolete TinyGo static runtime package in Step 18 (commit e0e7e60)
     - Path: internal/wasm/exports.go
       Note: Removed review JS exports and jsonReviewData init arg in Step 11 (commit 12d31ec)
     - Path: internal/wasm/review_types.go
       Note: Deleted WASM ReviewData model in Step 11 (commit 12d31ec)
     - Path: internal/wasm/search.go
       Note: Removed reviewData field and review query methods in Step 11 (commit 12d31ec)
+    - Path: internal/web/generate_build.go
+      Note: Stopped copying/injecting search.wasm
     - Path: ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/design-doc/01-sql-js-static-frontend-architecture-and-implementation-guide.md
       Note: Architecture source for implementation decisions
     - Path: ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md
@@ -113,6 +125,7 @@ LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -2403,3 +2416,160 @@ Rather than keep a route that always says "not packaged", I deleted the frontend
 - Validate with:
   - `pnpm -C ui run typecheck`
   - `rg -n "conceptsApi|QueryConcepts|Structured queries|server-backed|codebase-browser serve" ui/src || true`
+
+## Step 18: Sever obsolete WASM/precomputed static runtime ties
+
+This step deletes the old TinyGo/precomputed static runtime instead of leaving it as a parallel, unused implementation. The active static review/browser export is now the sql.js path: Vite assets, `manifest.json`, `db/codebase.db`, and sql.js WASM assets.
+
+This is intentionally a large deletion. The removed code built and shipped `search.wasm`, `wasm_exec.js`, and `precomputed.json`; those artifacts are no longer part of the static runtime and were becoming a source of confusing grep noise and stale generated behavior.
+
+### Prompt Context
+
+**User prompt (verbatim):** "clean remove old code not useful anymore. sever the ties"
+
+**Assistant interpretation:** Delete obsolete WASM/precomputed static runtime code and generator paths now that the sql.js static runtime is active.
+
+**Inferred user intent:** Make the repository reflect the chosen architecture clearly; no dead fallback runtime, no confusing old static export pipeline.
+
+**Commit (code):** e0e7e60 — "Remove obsolete WASM static runtime"
+
+### What I did
+
+- Deleted the old TinyGo WASM command:
+  - `cmd/wasm/main.go`
+- Deleted the old WASM package and generated assets:
+  - `internal/wasm/exports.go`
+  - `internal/wasm/generate.go`
+  - `internal/wasm/generate_build.go`
+  - `internal/wasm/index_types.go`
+  - `internal/wasm/search.go`
+  - `internal/wasm/search_test.go`
+  - `internal/wasm/embed/search.wasm`
+  - `internal/wasm/embed/wasm_exec.js`
+- Deleted the old precomputed static data package:
+  - `internal/static/doc_renderer.go`
+  - `internal/static/generate.go`
+  - `internal/static/generate_build.go`
+  - `internal/static/search_index.go`
+  - `internal/static/snippet_extractor.go`
+  - `internal/static/static_test.go`
+  - `internal/static/xref_index.go`
+  - `internal/static/embed/precomputed.json`
+- Deleted the old static bundle generator:
+  - `internal/bundle/generate.go`
+  - `internal/bundle/generate_build.go`
+- Updated `internal/web/generate_build.go` so the general web embed generator only copies the Vite build output and no longer copies/injects:
+  - `search.wasm`
+  - `precomputed.json`
+  - `wasm_exec.js`
+- Updated `Makefile`:
+  - removed `generate-static` target;
+  - removed `build-static` target;
+  - removed help text for the deleted WASM static build.
+- Cleaned ignored generated directories that made `go test ./...` traverse stale copied source:
+  - removed ignored `dist/`;
+  - removed ignored generated files under `internal/sourcefs/embed/source/` except `.keep`.
+
+### Why
+
+- The sql.js runtime replaced the old TinyGo/precomputed model.
+- Keeping both runtimes made the codebase harder to understand and easy to regress.
+- `review export` already asserts it does not emit old runtime files, so the old generators/packages had no product role left.
+
+### What worked
+
+- `go test ./...` passed after removing ignored stale generated source directories.
+- `pnpm -C ui run typecheck` passed.
+- `review export` still succeeded against `/tmp/gcb015-auto-worktrees.db`.
+- Export output still does not contain:
+  - `search.wasm`
+  - `wasm_exec.js`
+  - `precomputed.json`
+- Grep outside historical ticket docs and ignored/generated embeds now finds no active old runtime code for:
+  - `cmd/wasm`
+  - `internal/wasm`
+  - `internal/static`
+  - `internal/bundle`
+  - `search.wasm`
+  - `wasm_exec.js`
+  - `precomputed.json`
+
+### What didn't work
+
+- The first `go test ./...` failed because ignored/generated directories were present in the working tree:
+
+```text
+# github.com/wesen/codebase-browser/dist/source/cmd/codebase-browser/cmds/review
+dist/source/cmd/codebase-browser/cmds/review/export.go:13:2: no required module provides package github.com/wesen/codebase-browser/internal/static
+FAIL github.com/wesen/codebase-browser/dist/source/cmd/codebase-browser/cmds/review [setup failed]
+```
+
+It also traversed stale generated files under `internal/sourcefs/embed/source/...` that still referenced the deleted `internal/static` package.
+
+I fixed this by removing ignored generated artifacts:
+
+```bash
+find internal/sourcefs/embed/source -mindepth 1 ! -name .keep -exec rm -rf {} +
+rm -rf dist
+```
+
+Then `go test ./...` passed.
+
+### What I learned
+
+- The old generated source copies were ignored by git but still visible to `go test ./...`. After deleting source packages, stale ignored copies can break the test suite.
+- Removing the old packages forced the repository to become honest: if anything still imports `internal/static` or `internal/wasm`, it fails immediately instead of silently carrying dead code.
+
+### What was tricky to build
+
+- The old `internal/web/generate_build.go` was not itself part of the review export path, but it still copied the old runtime into embedded server assets. It needed to be cut loose from WASM/precomputed files rather than deleted entirely because the general embedded web generator still has a role for the older server build.
+- The deletion was large because generated `precomputed.json` and `search.wasm` were committed artifacts.
+
+### What warrants a second pair of eyes
+
+- Review whether the general `serve` command should stay long-term. This step removes old static WASM runtime code, not the general Go server.
+- Review whether `internal/web/generate_build.go` should also become staticapp/sql.js aware, or whether it should remain a simple Vite embed copy for the non-review server.
+- Review whether historical GCB-013/GCB-014 docs should be archived further or left as historical context.
+
+### What should be done in the future
+
+- Add a CI check or test that grep-blocks active references to `search.wasm`, `wasm_exec.js`, and `precomputed.json` outside historical docs/tests.
+- Add Playwright regression tests now that there is only one static runtime.
+- Consider cleaning ignored generated artifacts as part of `make clean` or before `go test ./...` in CI.
+
+### Code review instructions
+
+- Review the deletion commit as an architecture cleanup, not a refactor.
+- Confirm `internal/staticapp` is now the only static review export package.
+- Review `internal/web/generate_build.go` to confirm it only copies Vite output.
+- Review `Makefile` for removed WASM static build targets.
+- Validate with:
+  - `go test ./...`
+  - `pnpm -C ui run typecheck`
+  - `go run ./cmd/codebase-browser review export --db /tmp/gcb015-auto-worktrees.db --out /tmp/gcb015-clean-export`
+  - `test ! -e /tmp/gcb015-clean-export/search.wasm`
+  - `test ! -e /tmp/gcb015-clean-export/wasm_exec.js`
+  - `test ! -e /tmp/gcb015-clean-export/precomputed.json`
+
+### Technical details
+
+Active static runtime after this deletion:
+
+```text
+review export
+  -> build Vite SPA
+  -> copy SPA assets
+  -> copy DB to db/codebase.db
+  -> render review docs into static_review_rendered_docs
+  -> write manifest.json
+  -> browser loads db/codebase.db with sql.js
+```
+
+Deleted static runtime:
+
+```text
+index.json/snippets/xrefs/docs
+  -> precomputed.json
+  -> TinyGo search.wasm + wasm_exec.js
+  -> JS calls WASM query exports
+```
