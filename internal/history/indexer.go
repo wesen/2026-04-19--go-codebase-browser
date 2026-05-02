@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-go-golems/codebase-browser/internal/gitutil"
-	"github.com/go-go-golems/codebase-browser/internal/indexer"
+	"github.com/wesen/codebase-browser/internal/gitutil"
+	"github.com/wesen/codebase-browser/internal/indexer"
 )
 
 // IndexOptions controls how per-commit indexing runs.

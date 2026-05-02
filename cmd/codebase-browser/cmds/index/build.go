@@ -17,7 +17,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
 
-	"github.com/go-go-golems/codebase-browser/internal/indexer"
+	"github.com/wesen/codebase-browser/internal/indexer"
 )
 
 type BuildCommand struct {

@@ -8,14 +8,14 @@ import (
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/spf13/cobra"
 
-	"github.com/go-go-golems/codebase-browser/cmd/codebase-browser/cmds/doc"
-	"github.com/go-go-golems/codebase-browser/cmd/codebase-browser/cmds/history"
-	"github.com/go-go-golems/codebase-browser/cmd/codebase-browser/cmds/index"
-	"github.com/go-go-golems/codebase-browser/cmd/codebase-browser/cmds/query"
-	"github.com/go-go-golems/codebase-browser/cmd/codebase-browser/cmds/review"
-	"github.com/go-go-golems/codebase-browser/cmd/codebase-browser/cmds/symbol"
-	"github.com/go-go-golems/codebase-browser/internal/concepts"
-	helpdocs "github.com/go-go-golems/codebase-browser/pkg/doc"
+	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/doc"
+	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/history"
+	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/index"
+	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/query"
+	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/review"
+	"github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/symbol"
+	"github.com/wesen/codebase-browser/internal/concepts"
+	helpdocs "github.com/wesen/codebase-browser/pkg/doc"
 )
 
 var version = "dev"

@@ -11,10 +11,10 @@ runtime.
 
 Useful implementation entry points:
 
-```codebase-signature sym=sym:github.com/go-go-golems/codebase-browser/internal/staticapp.func.Export
+```codebase-signature sym=sym:github.com/wesen/codebase-browser/internal/staticapp.func.Export
 ```
 
-```codebase-signature sym=sym:github.com/go-go-golems/codebase-browser/internal/staticapp.func.AddRenderedReviewDocs
+```codebase-signature sym=sym:github.com/wesen/codebase-browser/internal/staticapp.func.AddRenderedReviewDocs
 ```
 
 ```codebase-signature sym=sym:ui/src/api/sqlJsQueryProvider.func.getSqlJsProvider

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/go-go-golems/codebase-browser/internal/gitutil"
+	"github.com/wesen/codebase-browser/internal/gitutil"
 )
 
 func findRepoRoot() (string, error) {

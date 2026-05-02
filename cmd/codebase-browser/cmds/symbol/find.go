@@ -12,7 +12,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
 
-	"github.com/go-go-golems/codebase-browser/internal/browser"
+	"github.com/wesen/codebase-browser/internal/browser"
 )
 
 type FindCommand struct {

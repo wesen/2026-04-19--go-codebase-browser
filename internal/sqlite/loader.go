@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/go-go-golems/codebase-browser/internal/indexer"
+	"github.com/wesen/codebase-browser/internal/indexer"
 )
 
 // LoadFromIndex bulk-loads an in-memory index into the SQLite schema.

@@ -62,7 +62,7 @@ jobs:
           curl -fsS http://127.0.0.1:8080/search.wasm >/dev/null
           curl -fsS http://127.0.0.1:8080/precomputed.json >/dev/null
           curl -fsS http://127.0.0.1:8080/ | grep -q '/wasm_exec.js'
-          curl -fsS 'http://127.0.0.1:8080/api/history/symbol-body-diff?from=c9132579687ca9b334ff81f9161ba058bffc52c4&to=e457069b75f87ddc0a07a58d5608e96334a7fcf0&symbol=sym%3Agithub.com%2Fgo-go-golems%2Fcodebase-browser%2Finternal%2Fserver.method.Server.handleSnippet' >/dev/null
+          curl -fsS 'http://127.0.0.1:8080/api/history/symbol-body-diff?from=c9132579687ca9b334ff81f9161ba058bffc52c4&to=e457069b75f87ddc0a07a58d5608e96334a7fcf0&symbol=sym%3Agithub.com%2Fwesen%2Fcodebase-browser%2Finternal%2Fserver.method.Server.handleSnippet' >/dev/null
 
       - name: Define image metadata
         run: |
@@ -123,7 +123,7 @@ jobs:
           curl -fsS http://127.0.0.1:8080/search.wasm >/dev/null
           curl -fsS http://127.0.0.1:8080/precomputed.json >/dev/null
           curl -fsS http://127.0.0.1:8080/ | grep -q '/wasm_exec.js'
-          curl -fsS 'http://127.0.0.1:8080/api/history/symbol-body-diff?from=c9132579687ca9b334ff81f9161ba058bffc52c4&to=e457069b75f87ddc0a07a58d5608e96334a7fcf0&symbol=sym%3Agithub.com%2Fgo-go-golems%2Fcodebase-browser%2Finternal%2Fserver.method.Server.handleSnippet' >/dev/null
+          curl -fsS 'http://127.0.0.1:8080/api/history/symbol-body-diff?from=c9132579687ca9b334ff81f9161ba058bffc52c4&to=e457069b75f87ddc0a07a58d5608e96334a7fcf0&symbol=sym%3Agithub.com%2Fwesen%2Fcodebase-browser%2Finternal%2Fserver.method.Server.handleSnippet' >/dev/null
           curl -fsS http://127.0.0.1:8080/doc/03-meta >/dev/null
 
   gitops-pr:

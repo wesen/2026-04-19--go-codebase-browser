@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/go-go-golems/codebase-browser/internal/review"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/wesen/codebase-browser/internal/review"
 )
 
 func TestExportCopiesDBWritesManifestAndOmitsLegacyRuntimeFiles(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/go-go-golems/codebase-browser/internal/gitutil"
+	"github.com/wesen/codebase-browser/internal/gitutil"
 )
 
 // CacheFileContents reads all files from an index's snapshot and stores their

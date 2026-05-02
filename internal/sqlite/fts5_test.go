@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-go-golems/codebase-browser/internal/indexer"
+	"github.com/wesen/codebase-browser/internal/indexer"
 )
 
 func TestEnableFTS5(t *testing.T) {

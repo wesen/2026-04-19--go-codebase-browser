@@ -51,8 +51,8 @@ Most directives take a `sym=` parameter identifying a symbol in the index.
 Full IDs are prefixed with `sym:` and are stable across renames:
 
 ```
-sym:github.com/go-go-golems/codebase-browser/internal/staticapp.func.Export
-sym:github.com/go-go-golems/codebase-browser/internal/indexer.method.Store.LoadSnapshot
+sym:github.com/wesen/codebase-browser/internal/staticapp.func.Export
+sym:github.com/wesen/codebase-browser/internal/indexer.method.Store.LoadSnapshot
 ```
 
 ### Short symbol references
@@ -368,10 +368,10 @@ sym:<importPath>.method.<Recv>.<Name>  # method
 Examples from this codebase:
 
 ```
-sym:github.com/go-go-golems/codebase-browser/internal/staticapp.func.Export
-sym:github.com/go-go-golems/codebase-browser/internal/indexer.func.Extract
-sym:github.com/go-go-golems/codebase-browser/internal/indexer.method.Store.LoadSnapshot
-sym:github.com/go-go-golems/codebase-browser/internal/indexer.type.Matcher
+sym:github.com/wesen/codebase-browser/internal/staticapp.func.Export
+sym:github.com/wesen/codebase-browser/internal/indexer.func.Extract
+sym:github.com/wesen/codebase-browser/internal/indexer.method.Store.LoadSnapshot
+sym:github.com/wesen/codebase-browser/internal/indexer.type.Matcher
 ```
 
 ## Troubleshooting

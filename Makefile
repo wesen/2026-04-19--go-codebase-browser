@@ -5,7 +5,7 @@ GOLANGCI_LINT_ARGS ?= --timeout=5m ./cmd/... ./pkg/...
 .PHONY: help frontend-check frontend-build generate build smoke clean tidy test lint lintmax docs-smoke golangci-lint-install bump-glazed
 
 BINARY := codebase-browser
-PKG    := github.com/go-go-golems/codebase-browser
+PKG    := github.com/wesen/codebase-browser
 
 help:
 	@echo "Targets:"

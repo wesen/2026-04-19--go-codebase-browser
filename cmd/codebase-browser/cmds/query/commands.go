@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/go-go-golems/codebase-browser/internal/concepts"
-	cbsqlite "github.com/go-go-golems/codebase-browser/internal/sqlite"
+	"github.com/wesen/codebase-browser/internal/concepts"
+	cbsqlite "github.com/wesen/codebase-browser/internal/sqlite"
 )
 
 func addConceptCommands(queryRoot *cobra.Command, opts *options, flagPaths []string) error {

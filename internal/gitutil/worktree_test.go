@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/go-go-golems/codebase-browser/internal/gitutil"
+	"github.com/wesen/codebase-browser/internal/gitutil"
 )
 
 func TestCreateAndRemoveWorktree(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/go-go-golems/codebase-browser/internal/indexer"
+	"github.com/wesen/codebase-browser/internal/indexer"
 )
 
 func TestLoadFromIndex(t *testing.T) {
