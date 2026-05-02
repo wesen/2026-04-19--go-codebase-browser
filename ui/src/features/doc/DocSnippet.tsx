@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useGetSymbolQuery } from '../../api/indexApi';
+import { getSqlJsProvider } from '../../api/sqlJsQueryProvider';
 import { ExpandableSymbol } from '../symbol/ExpandableSymbol';
 import { XrefPanel } from '../symbol/XrefPanel';
 import { Code } from '../../packages/ui/src/Code';
@@ -38,22 +39,22 @@ function useGetSnippetFromCommit(
     if (cache.current.has(key)) return;
     // Mark as "loading" by setting undefined (not in cache).
     // We use a sentinel to track in-flight requests.
-    const controller = new AbortController();
-    const url = `/api/snippet?sym=${encodeURIComponent(sym)}&kind=${encodeURIComponent(kind)}&commit=${encodeURIComponent(commit)}`;
-    fetch(url, { signal: controller.signal })
-      .then((resp) => {
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        return resp.text();
-      })
+    let cancelled = false;
+    getSqlJsProvider()
+      .getSnippet(sym, kind, commit)
       .then((text) => {
+        if (cancelled) return;
         cache.current.set(key, text);
         forceUpdate();
       })
       .catch(() => {
+        if (cancelled) return;
         cache.current.set(key, null);
         forceUpdate();
       });
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+    };
   }, [key, sym, kind, commit]);
 
   if (!cache.current.has(key)) return undefined; // loading

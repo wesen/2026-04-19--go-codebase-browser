@@ -1,4 +1,4 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { createApi, type BaseQueryFn } from '@reduxjs/toolkit/query/react';
 
 export interface QueryConceptParam {
   name: string;
@@ -38,33 +38,25 @@ export interface ExecuteQueryConceptResponse {
   rendered: boolean;
 }
 
-function encodeConceptPath(path: string): string {
-  return path
-    .split('/')
-    .filter(Boolean)
-    .map((segment) => encodeURIComponent(segment))
-    .join('/');
-}
+type StaticError = { status: string; data?: string };
+
+const noopBaseQuery: BaseQueryFn<void, unknown, StaticError> = async () => ({ data: undefined });
 
 export const conceptsApi = createApi({
   reducerPath: 'conceptsApi',
-  baseQuery: fetchBaseQuery({ baseUrl: '/api/' }),
+  baseQuery: noopBaseQuery,
   tagTypes: ['QueryConcept'],
   endpoints: (builder) => ({
     listQueryConcepts: builder.query<QueryConcept[], void>({
-      query: () => 'query-concepts',
+      queryFn: async () => ({ data: [] }),
       providesTags: ['QueryConcept'],
     }),
     getQueryConcept: builder.query<QueryConcept, string>({
-      query: (path) => `query-concepts/${encodeConceptPath(path)}`,
+      queryFn: async (path) => ({ error: { status: 'FEATURE_UNAVAILABLE', data: `query concept not packaged: ${path}` } }),
       providesTags: (_result, _error, path) => [{ type: 'QueryConcept', id: path }],
     }),
     executeQueryConcept: builder.mutation<ExecuteQueryConceptResponse, ExecuteQueryConceptRequest>({
-      query: ({ path, params, renderOnly }) => ({
-        url: `query-concepts/${encodeConceptPath(path)}/execute`,
-        method: 'POST',
-        body: { params: params ?? {}, renderOnly: !!renderOnly },
-      }),
+      queryFn: async ({ path }) => ({ error: { status: 'FEATURE_UNAVAILABLE', data: `query concept execution is not available in the static-only runtime: ${path}` } }),
     }),
   }),
 });

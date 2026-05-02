@@ -1,4 +1,5 @@
 import React from 'react';
+import { getSqlJsProvider } from '../../../api/sqlJsQueryProvider';
 
 interface AnnotationWidgetProps {
   sym: string;
@@ -13,19 +14,18 @@ export function AnnotationWidget({ sym, commit, lines, note }: AnnotationWidgetP
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const controller = new AbortController();
-    const params = new URLSearchParams({ sym, kind: 'declaration' });
-    if (commit) params.set('commit', commit);
-    fetch(`/api/snippet?${params.toString()}`, { signal: controller.signal })
-      .then((resp) => {
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        return resp.text();
+    let cancelled = false;
+    getSqlJsProvider()
+      .getSnippet(sym, 'declaration', commit ?? 'HEAD')
+      .then((snippet) => {
+        if (!cancelled) setText(snippet);
       })
-      .then(setText)
       .catch((err) => {
-        if (!controller.signal.aborted) setError(String(err));
+        if (!cancelled) setError(String(err));
       });
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+    };
   }, [sym, commit]);
 
   if (error) return <div data-part="error">Failed to load annotation snippet: {error}</div>;

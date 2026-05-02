@@ -127,3 +127,19 @@ Step 7: Moved index/package/symbol/search APIs from TinyGo wasmBaseQuery to SqlJ
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/indexApi.ts — Index APIs now use SQL provider queryFns
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqlJsQueryProvider.ts — Added latest package/file/symbol/index/search SQL methods
 
+
+## 2026-05-01
+
+Step 8: Deleted wasmClient and moved source/snippet/xref frontend APIs to SqlJsQueryProvider, with no /api or precomputed JSON fallback.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 8
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/conceptsApi.ts — Removed /api concept fetching from static-only runtime
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sourceApi.ts — Source/snippet APIs now use SQL provider
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqlJsQueryProvider.ts — Added source/snippet/xref SQL methods
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/wasmClient.ts — Removed old TinyGo/precomputed client
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/xrefApi.ts — Xref API now uses SQL provider
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/DocSnippet.tsx — Removed /api snippet fetch
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/AnnotationWidget.tsx — Removed /api snippet fetch
+

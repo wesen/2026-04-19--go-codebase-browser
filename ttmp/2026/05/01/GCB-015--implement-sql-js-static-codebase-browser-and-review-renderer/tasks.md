@@ -86,7 +86,7 @@ This ticket is a clean-cut implementation of a static-only runtime:
 - [x] T07.3 Implement symbols-at-commit query for browser pages.
 - [x] T07.4 Implement basic symbol search with `LIKE` against name, ID, and signature.
 - [x] T07.5 If FTS was added, switch search to `symbol_search_fts`; otherwise document why basic search is acceptable for now.
-- [ ] T07.6 Implement source file lookup from `snapshot_files` + `file_contents`.
+- [x] T07.6 Implement source file lookup from `snapshot_files` + `file_contents`.
 - [ ] T07.7 Refactor package, symbol, source, and search UI paths away from TinyGo/static JSON assumptions.
 
 ### Phase 8 — Review document SQL coverage
@@ -95,7 +95,7 @@ This ticket is a clean-cut implementation of a static-only runtime:
 - [x] T08.2 Implement `getReviewDoc(slug)` from `static_review_rendered_docs`.
 - [ ] T08.3 Update review doc hydration to use generic `data-codebase-widget` placeholders.
 - [ ] T08.4 Add a generic `CodebaseWidget` dispatcher.
-- [ ] T08.5 Ensure `codebase-snippet` uses SQL-backed symbol/source queries.
+- [x] T08.5 Ensure `codebase-snippet` uses SQL-backed symbol/source queries.
 - [ ] T08.6 Ensure `codebase-diff` uses SQL-backed body diffs.
 - [ ] T08.7 Ensure `codebase-diff-stats` uses SQL-backed commit diffs.
 - [ ] T08.8 Ensure `codebase-symbol-history` uses SQL-backed symbol history.
@@ -107,7 +107,7 @@ This ticket is a clean-cut implementation of a static-only runtime:
 - [x] T09.2 Remove static/server branching from frontend API files.
 - [x] T09.3 Remove `/api/*` endpoint-string parsing from `historyApi.ts` and `docApi.ts`.
 - [ ] T09.4 Remove `reviewData` from WASM initialization.
-- [ ] T09.5 Remove or deprecate TinyGo review query exports for commits, histories, diffs, impacts, body diffs, and review docs.
+- [x] T09.5 Remove or deprecate TinyGo review query exports for commits, histories, diffs, impacts, body diffs, and review docs.
 - [ ] T09.6 Remove `PrecomputedReview` as a static runtime data model.
 - [ ] T09.7 Decide whether any Go HTTP server code remains in the repository as dead code; if removed, delete it in a focused commit.
 - [ ] T09.8 Remove `review serve` from the CLI or clearly mark it deleted as part of the clean cutoff.

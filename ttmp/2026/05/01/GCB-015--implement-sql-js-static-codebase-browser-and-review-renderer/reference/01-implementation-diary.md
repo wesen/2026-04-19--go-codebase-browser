@@ -742,3 +742,94 @@ resolve HEAD
   -> for each package, attach fileIds and symbolIds
   -> return IndexSummary
 ```
+
+## Step 8: Remove wasmClient and move source/snippet/xref APIs to SQL
+
+This step removes the frontend `wasmClient.ts` file and cuts over the remaining visible source/snippet/xref APIs to `SqlJsQueryProvider`. Source text and snippets now come from `file_contents` in SQLite, and xrefs come from `snapshot_refs`.
+
+This is another clean-cut step: no precomputed JSON fallback, no static source-file fetch fallback, and no TinyGo snippet/xref query path in the frontend APIs.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 6)
+
+**Assistant interpretation:** Continue deleting deprecated frontend runtime paths as soon as SQL equivalents exist.
+
+**Inferred user intent:** Eliminate the old TinyGo/precomputed static runtime rather than carrying it as compatibility code.
+
+**Commit (code):** pending — source/xref SQL cutover not committed yet
+
+### What I did
+
+- Deleted `ui/src/api/wasmClient.ts`.
+- Rewrote `ui/src/api/sourceApi.ts` to use SQL provider methods only.
+- Rewrote `ui/src/api/xrefApi.ts` to use SQL provider methods only.
+- Rewrote `ui/src/api/conceptsApi.ts` to remove `/api` fetching and return static-only unavailable/empty responses for now.
+- Added provider methods:
+  - `getSource(path)`
+  - `getSnippet(symbolId, kind, commitRef)`
+  - `getXref(symbolId, commitRef)`
+- Added SQL-backed xref grouping for `usedBy` and `uses` responses.
+- Updated `DocSnippet` and `AnnotationWidget` to load snippets through `getSqlJsProvider()` instead of `/api/snippet`.
+- Marked T07.6, T08.5, and T09.5 complete.
+
+### Why
+
+- `wasmClient.ts` was the center of the old TinyGo/precomputed frontend runtime.
+- Source pages, symbol snippets, annotations, and xref panels must all use SQLite for the static-only target.
+- Keeping source fallback fetches or `/api/snippet` calls would violate the clean-cut architecture.
+
+### What worked
+
+- `pnpm -C ui run typecheck` passed.
+- No frontend code imports `wasmClient` after this step.
+
+### What didn't work
+
+- Snippet refs and source refs currently return empty arrays. This keeps code rendering functional, but clickable token-level source links are not restored yet.
+- File xref currently returns an empty structure. Symbol xrefs are SQL-backed, but file-level xref panels need a dedicated SQL implementation later.
+- Query concepts are disabled in the static-only runtime for now rather than ported to SQL.
+
+### What I learned
+
+- Most code display can work with only `snapshot_symbols`, `snapshot_files`, and `file_contents`; precomputed snippets are not structurally necessary.
+- The richer source-linking experience depends on ref-to-offset indexes that need a SQL implementation rather than JSON maps.
+
+### What was tricky to build
+
+- Xref response shape groups outgoing refs by target symbol and kind. The provider now reconstructs that grouping in TypeScript from flat `snapshot_refs` rows.
+- Commit-specific snippets are now possible through the same provider method because it accepts a commit ref and resolves it before reading symbol ranges.
+
+### What warrants a second pair of eyes
+
+- Review whether signature snippets should return `signature` rather than the symbol name. The current quick implementation returns the name for `kind === 'signature'`; this should be corrected when snippet metadata is expanded.
+- Review whether `conceptsApi` should be removed from the UI entirely or implemented as SQL-backed saved queries later.
+
+### What should be done in the future
+
+- Implement snippet/source ref queries from `snapshot_refs` so linked code navigation works again.
+- Implement file xref SQL response.
+- Remove or simplify UI routes for query concepts if they are not part of the static-only product.
+
+### Code review instructions
+
+- Review `ui/src/api/sourceApi.ts` and `ui/src/api/xrefApi.ts` for removal of WASM/fetch fallbacks.
+- Review `ui/src/api/sqlJsQueryProvider.ts` for source/snippet/xref methods.
+- Review `DocSnippet` and `AnnotationWidget` to confirm `/api/snippet` is gone.
+- Validate with `pnpm -C ui run typecheck`.
+
+### Technical details
+
+Source/snippet path:
+
+```text
+getSource(path)
+  -> snapshot_files by HEAD/path
+  -> file_contents by content hash
+  -> TextDecoder
+
+getSnippet(sym, kind, commit)
+  -> snapshot_symbols + snapshot_files
+  -> file_contents
+  -> byte range extraction
+```

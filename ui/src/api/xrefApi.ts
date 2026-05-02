@@ -1,6 +1,7 @@
-import { createApi } from '@reduxjs/toolkit/query/react';
+import { createApi, type BaseQueryFn } from '@reduxjs/toolkit/query/react';
+import { normalizeQueryError } from './queryErrors';
+import { getSqlJsProvider } from './sqlJsQueryProvider';
 import type { Range } from './types';
-import { wasmBaseQuery } from './wasmClient';
 
 export interface RefRecord {
   fromSymbolId: string;
@@ -23,13 +24,25 @@ export interface XrefResponse {
   uses: XrefUseTarget[];
 }
 
+type ProviderError = { status: string; data?: string };
+
+const noopBaseQuery: BaseQueryFn<void, unknown, ProviderError> = async () => ({ data: undefined });
+
+async function providerResult<T>(fn: () => Promise<T>): Promise<{ data: T } | { error: ProviderError }> {
+  try {
+    return { data: await fn() };
+  } catch (err) {
+    return { error: normalizeQueryError(err) };
+  }
+}
+
 export const xrefApi = createApi({
   reducerPath: 'xrefApi',
-  baseQuery: wasmBaseQuery,
+  baseQuery: noopBaseQuery,
   keepUnusedDataFor: 3600,
   endpoints: (b) => ({
     getXref: b.query<XrefResponse, string>({
-      query: (id) => `xref:${id}`,
+      queryFn: (id) => providerResult(() => getSqlJsProvider().getXref(id)),
     }),
   }),
 });

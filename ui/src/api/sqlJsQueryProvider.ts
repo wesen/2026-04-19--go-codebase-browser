@@ -1,5 +1,6 @@
 import type { DocPage, ReviewDocMeta, SnippetRef } from './docApi';
 import type { File, IndexSummary, Package, PackageLite, Symbol } from './types';
+import type { RefRecord, XrefResponse, XrefUseTarget } from './xrefApi';
 import type {
   BodyDiffResult,
   CommitDiff,
@@ -59,11 +60,26 @@ type ContentSQL = SqlRow & {
   content: Uint8Array;
 };
 
+type FileContentMetaSQL = SqlRow & {
+  contentHash: string;
+};
+
 type FileDiffSQL = SqlRow & FileDiff;
 
 type SymbolDiffSQL = SqlRow & SymbolDiff;
 
-type ImpactEdgeSQL = SqlRow & ImpactEdge;
+type RefRecordSQL = SqlRow & {
+  fromSymbolId: string;
+  toSymbolId: string;
+  kind: string;
+  fileId: string;
+  startLine: number;
+  startCol: number;
+  endLine: number;
+  endCol: number;
+  startOffset: number;
+  endOffset: number;
+};
 
 type SymbolMetaSQL = SqlRow & {
   id: string;
@@ -186,6 +202,43 @@ export class SqlJsQueryProvider {
       ORDER BY name
       LIMIT 100
     `, [commit, kind, kind, query, like, like, like]).map(toSymbol);
+  }
+
+  async getSource(path: string, commitRef = 'HEAD'): Promise<string> {
+    const commit = await this.resolveCommitRef(commitRef);
+    const meta = await this.getFileContentMeta(path, commit);
+    const bytes = await this.getContentBytes(meta.contentHash);
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+
+  async getSnippet(symbolId: string, kind = 'declaration', commitRef = 'HEAD'): Promise<string> {
+    const commit = await this.resolveCommitRef(commitRef);
+    const meta = await this.getBodyMeta(commit, symbolId);
+    if (kind === 'signature') return meta.name;
+    const bytes = await this.getContentBytes(meta.contentHash);
+    return extractUtf8Range(bytes, meta.startOffset, meta.endOffset);
+  }
+
+  async getXref(symbolId: string, commitRef = 'HEAD'): Promise<XrefResponse> {
+    const commit = await this.resolveCommitRef(commitRef);
+    const [usedBy, usesFlat] = await Promise.all([
+      this.getRefRecordsTo(symbolId, commit),
+      this.getRefRecordsFrom(symbolId, commit),
+    ]);
+    const usesByTarget = new Map<string, XrefUseTarget>();
+    for (const ref of usesFlat) {
+      const key = `${ref.toSymbolId}|${ref.kind}`;
+      const target = usesByTarget.get(key) ?? {
+        toSymbolId: ref.toSymbolId,
+        kind: ref.kind,
+        count: 0,
+        occurrences: [],
+      };
+      target.count++;
+      target.occurrences.push(ref);
+      usesByTarget.set(key, target);
+    }
+    return { id: symbolId, usedBy, uses: [...usesByTarget.values()] };
   }
 
   async listCommits(): Promise<CommitRow[]> {
@@ -453,6 +506,17 @@ export class SqlJsQueryProvider {
     `, [commit]).map(toSymbol);
   }
 
+  private async getFileContentMeta(path: string, commit: string): Promise<FileContentMetaSQL> {
+    const db = await getStaticDb();
+    const row = queryOne<FileContentMetaSQL>(db, `
+      SELECT COALESCE(NULLIF(content_hash, ''), sha256) AS contentHash
+      FROM snapshot_files
+      WHERE commit_hash = ? AND path = ?
+    `, [commit, path]);
+    if (!row) throw new QueryError('NOT_FOUND', `source file not found: ${path}`);
+    return row;
+  }
+
   private async getBodyMeta(commitHash: string, symbolId: string): Promise<BodyMetaSQL> {
     const db = await getStaticDb();
     const row = queryOne<BodyMetaSQL>(db, `
@@ -486,29 +550,37 @@ export class SqlJsQueryProvider {
   }
 
   private async getRefsFrom(symbolId: string, commit: string): Promise<ImpactEdge[]> {
-    const db = await getStaticDb();
-    return queryAll<ImpactEdgeSQL>(db, `
-      SELECT from_symbol_id AS fromSymbolId,
-             to_symbol_id AS toSymbolId,
-             kind,
-             file_id AS fileId
-      FROM snapshot_refs
-      WHERE commit_hash = ? AND from_symbol_id = ?
-      ORDER BY to_symbol_id, kind
-    `, [commit, symbolId]).map((row) => ({ ...row }));
+    return (await this.getRefRecordsFrom(symbolId, commit)).map(({ fromSymbolId, toSymbolId, kind, fileId }) => ({
+      fromSymbolId,
+      toSymbolId,
+      kind,
+      fileId,
+    }));
   }
 
   private async getRefsTo(symbolId: string, commit: string): Promise<ImpactEdge[]> {
+    return (await this.getRefRecordsTo(symbolId, commit)).map(({ fromSymbolId, toSymbolId, kind, fileId }) => ({
+      fromSymbolId,
+      toSymbolId,
+      kind,
+      fileId,
+    }));
+  }
+
+  private async getRefRecordsFrom(symbolId: string, commit: string): Promise<RefRecord[]> {
     const db = await getStaticDb();
-    return queryAll<ImpactEdgeSQL>(db, `
-      SELECT from_symbol_id AS fromSymbolId,
-             to_symbol_id AS toSymbolId,
-             kind,
-             file_id AS fileId
-      FROM snapshot_refs
+    return queryAll<RefRecordSQL>(db, refRecordSelectSQL + `
+      WHERE commit_hash = ? AND from_symbol_id = ?
+      ORDER BY to_symbol_id, kind
+    `, [commit, symbolId]).map(toRefRecord);
+  }
+
+  private async getRefRecordsTo(symbolId: string, commit: string): Promise<RefRecord[]> {
+    const db = await getStaticDb();
+    return queryAll<RefRecordSQL>(db, refRecordSelectSQL + `
       WHERE commit_hash = ? AND to_symbol_id = ?
       ORDER BY from_symbol_id, kind
-    `, [commit, symbolId]).map((row) => ({ ...row }));
+    `, [commit, symbolId]).map(toRefRecord);
   }
 
   private async getSymbolMeta(symbolId: string, commit: string): Promise<SymbolMetaSQL | null> {
@@ -519,6 +591,37 @@ export class SqlJsQueryProvider {
       WHERE commit_hash = ? AND id = ?
     `, [commit, symbolId]);
   }
+}
+
+const refRecordSelectSQL = `
+  SELECT from_symbol_id AS fromSymbolId,
+         to_symbol_id AS toSymbolId,
+         kind,
+         file_id AS fileId,
+         start_line AS startLine,
+         start_col AS startCol,
+         end_line AS endLine,
+         end_col AS endCol,
+         start_offset AS startOffset,
+         end_offset AS endOffset
+  FROM snapshot_refs
+`;
+
+function toRefRecord(row: RefRecordSQL): RefRecord {
+  return {
+    fromSymbolId: row.fromSymbolId,
+    toSymbolId: row.toSymbolId,
+    kind: row.kind,
+    fileId: row.fileId,
+    range: {
+      startLine: row.startLine,
+      startCol: row.startCol,
+      endLine: row.endLine,
+      endCol: row.endCol,
+      startOffset: row.startOffset,
+      endOffset: row.endOffset,
+    },
+  };
 }
 
 const symbolSelectSQL = `
