@@ -79,12 +79,17 @@ RelatedFiles:
       Note: Step 1 sql.js and DB singleton loader
     - Path: ui/src/api/sqljs/sqlRows.ts
       Note: Step 1 prepared statement and BLOB utilities
+    - Path: ui/src/app/App.tsx
+      Note: Added route scroll reset and collapsible package tree in Step 13 (commit cc18c22)
+    - Path: ui/src/packages/ui/src/theme/base.css
+      Note: Added package tree styling in Step 13 (commit cc18c22)
 ExternalSources: []
 Summary: Chronological implementation diary for the static-only sql.js frontend cleanup.
 LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -1763,4 +1768,133 @@ for _, legacy := range []string{"precomputed.json", "search.wasm", "wasm_exec.js
         t.Fatalf("legacy runtime file %s should not be exported", legacy)
     }
 }
+```
+
+## Step 13: Improve static browser navigation shell
+
+This step addresses a usability issue found while validating the static sql.js browser: navigating to routes such as `#/history` could leave the viewport scrolled far down the previous page, and the left sidebar rendered every package as a flat expanded list. On this repository that made the review/history pages feel like they started in the middle of a huge package list.
+
+I added route-change scroll reset and replaced the flat package list with a collapsible package tree grouped by import-path segments. This keeps the static review pages usable while preserving direct links to all packages.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue. also, when going to #/history or in general, we should scroll back to the top, and maybe use a tree widget for the coebase structure on th eleft, because it makes for a really long page, because all the packages are expanded.
+
+continuekeeping a detailed diary and committing at appropriate intervals."
+
+**Assistant interpretation:** Continue implementation, but first fix static browser navigation ergonomics: reset scroll position on route changes and make the package sidebar collapsible/tree-shaped instead of one long expanded list.
+
+**Inferred user intent:** Make the sql.js static browser more pleasant to use during review validation, especially for deep links and long codebases.
+
+**Commit (code):** cc18c22 — "Improve static browser navigation shell"
+
+### What I did
+
+- Updated `ui/src/app/App.tsx`.
+- Added `ScrollToTop`, mounted inside `HashRouter`.
+- `ScrollToTop` watches `pathname`, `search`, and `hash` via `useLocation()` and resets:
+  - `window.scrollTo({ top: 0 })`
+  - `[data-part="main"].scrollTo({ top: 0 })`
+- Replaced the old flat `PackageList` with `PackageTree`.
+- `PackageTree`:
+  - computes the common package path prefix;
+  - displays that prefix once as a muted root label;
+  - groups packages into nested `<details>` branches;
+  - keeps branches collapsed by default;
+  - opens the active package path automatically;
+  - highlights active package and active ancestor path;
+  - preserves click navigation through React Router.
+- Updated `ui/src/packages/ui/src/theme/base.css` with:
+  - active/active-path tree node styling;
+  - root label styling;
+  - nested package tree list cleanup;
+  - `min-width: 0` on the main panel.
+
+### Why
+
+- Static review docs can be long, and route changes should start at the top of the newly selected page.
+- The flat package list was making every page visually start after a long sidebar list, especially when the browser restored scroll state.
+- A collapsible tree better represents codebase structure and avoids showing every package at once.
+
+### What worked
+
+- `pnpm -C ui run typecheck` passed.
+- `review export` rebuilt the frontend successfully.
+- Playwright confirmed the package sidebar now renders as a package tree after a reload:
+  - `document.querySelectorAll('[data-role="package-tree"] details').length === 12`
+  - `document.querySelectorAll('[data-role="package-tree"] a').length === 61`
+- The visible body text now shows the compact package root and top-level branches instead of the full expanded package list:
+  - `Packages (61)`
+  - `github.com/wesen/codebase-browser`
+  - `cmd`
+  - `internal`
+- Playwright confirmed scroll reset:
+  - before route change: `window.scrollY = 2055`
+  - after navigating to `#/history?...`: `window.scrollY = 0`
+- Browser console had zero errors.
+- Network inspection still showed no `/api/*` requests.
+
+### What didn't work
+
+- The first Playwright check still appeared to show the old flat sidebar because the browser had the previous JS asset loaded. A hard reload loaded the new hashed Vite asset (`index-CJR76yH2.js`) and showed the new package tree. This is normal for an already-open static page after rebuilding the export.
+
+### What I learned
+
+- For hash-router SPAs, route changes do not automatically reset scroll position; we need a small location-aware component.
+- Because `[data-part="main"]` can also be a scroll container, resetting only `window.scrollY` is not enough for future layout changes. Resetting both window and main is safer.
+- Grouping by common import-path prefix makes the sidebar much shorter for Go module paths, where most packages share `github.com/wesen/codebase-browser`.
+
+### What was tricky to build
+
+- Package IDs and import paths are different: navigation uses package IDs, while the useful tree shape comes from import paths. The tree builder stores the full `Package` on leaf nodes so links still use `pkg:<importPath>` IDs.
+- Some tree nodes can be both a branch and a package. The component supports this by showing an `Open package` link inside branch nodes that also have a package.
+- Browser cache/state after rebuilding a static export can make validation look stale until the page reloads.
+
+### What warrants a second pair of eyes
+
+- Review whether the package tree should remember user-expanded branches across navigation. Current behavior opens the active path but otherwise defaults collapsed.
+- Review whether the common-prefix root label should be clickable or collapsible.
+- Review accessibility of nested `<details>` / `<summary>` with links inside branch nodes.
+
+### What should be done in the future
+
+- Consider extracting `PackageTree` into a reusable UI component or replacing the simple tree with the package library's `TreeNav` if it grows nested/collapsible support.
+- Add a Playwright assertion for route-change scroll reset.
+- Add a Playwright assertion that the package sidebar is collapsed enough for large exports.
+
+### Code review instructions
+
+- Review `ui/src/app/App.tsx`:
+  - `ScrollToTop`
+  - `PackageTree`
+  - `PackageTreeNodeView`
+  - `buildPackageTree`
+- Review `ui/src/packages/ui/src/theme/base.css` tree styles.
+- Validate with:
+  - `pnpm -C ui run typecheck`
+  - `go run ./cmd/codebase-browser review export --db /tmp/gcb015-sqljs-smoke.db --out /tmp/gcb015-sqljs-export`
+  - serve export and open `/#/review/static-smoke`
+  - scroll down, navigate to `/#/history?...`, confirm scroll resets to top.
+
+### Technical details
+
+Package tree construction:
+
+```text
+packages[]
+  -> split importPath on '/'
+  -> compute common prefix
+  -> display common prefix once
+  -> insert remaining path segments into nested Map nodes
+  -> render branch nodes as <details>, leaf nodes as package links
+```
+
+Scroll reset:
+
+```ts
+const { pathname, search, hash } = useLocation();
+React.useEffect(() => {
+  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  document.querySelector<HTMLElement>('[data-part="main"]')?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+}, [pathname, search, hash]);
 ```
