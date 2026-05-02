@@ -29,6 +29,10 @@ RelatedFiles:
       Note: Updated schema help with static export table and no review serve command in Step 10 (commit 45de723)
     - Path: docs/help/review-user-guide.md
       Note: Updated help to document static export workflow only in Step 10 (commit 45de723)
+    - Path: internal/review/export.go
+      Note: Deleted old PrecomputedReview builder in Step 11 (commit 12d31ec)
+    - Path: internal/review/export_test.go
+      Note: Deleted tests for removed PrecomputedReview builder in Step 11 (commit 12d31ec)
     - Path: internal/review/server.go
       Note: Deleted deprecated review HTTP wrapper in Step 10 (commit 45de723)
     - Path: internal/staticapp/export.go
@@ -37,10 +41,18 @@ RelatedFiles:
       Note: Step 2 manifest schema
     - Path: internal/staticapp/reviewdocs.go
       Note: Step 3 rendered review docs into SQLite
+    - Path: internal/wasm/exports.go
+      Note: Removed review JS exports and jsonReviewData init arg in Step 11 (commit 12d31ec)
+    - Path: internal/wasm/review_types.go
+      Note: Deleted WASM ReviewData model in Step 11 (commit 12d31ec)
+    - Path: internal/wasm/search.go
+      Note: Removed reviewData field and review query methods in Step 11 (commit 12d31ec)
     - Path: ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/design-doc/01-sql-js-static-frontend-architecture-and-implementation-guide.md
       Note: Architecture source for implementation decisions
     - Path: ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md
       Note: Task checklist that drives diary steps
+    - Path: ui/index.html
+      Note: Removed wasm_exec.js script tag in Step 11 (commit 12d31ec)
     - Path: ui/package.json
       Note: Step 1 added sql.js dependencies
     - Path: ui/pnpm-lock.yaml
@@ -49,6 +61,8 @@ RelatedFiles:
       Note: Step 9 added after browser requested sql-wasm-browser.wasm
     - Path: ui/public/sql-wasm.wasm
       Note: Step 1 browser sql.js WASM runtime asset
+    - Path: ui/public/wasm_exec.js
+      Note: Deleted unused Go WASM loader from static sql.js frontend in Step 11 (commit 12d31ec)
     - Path: ui/src/api/docApi.ts
       Note: Step 6 SQL-only review doc API
     - Path: ui/src/api/historyApi.ts
@@ -69,6 +83,7 @@ LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -1480,4 +1495,149 @@ Validated routes:
 ```text
 http://localhost:8781/#/review/static-smoke
 http://localhost:8781/#/history?symbol=sym:github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/review.func.Register
+```
+
+## Step 11: Remove TinyGo review-data runtime model
+
+This step removes the old review-specific TinyGo/precomputed runtime model now that the visible review/history/static smoke path is SQL-backed. The generic TinyGo package still exists for older generated/embedded paths, but it no longer accepts or exposes `reviewData`.
+
+The important architectural deletion is that `PrecomputedReview` and the WASM `ReviewData` object are gone. The static review browser no longer has a parallel review-data model; review docs, histories, diffs, body diffs, and impact are expected to come from SQLite through `SqlJsQueryProvider`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 10)
+
+**Assistant interpretation:** Continue focused clean-cut migration after validating the sql.js static runtime smoke.
+
+**Inferred user intent:** Delete old precomputed/WASM review runtime code rather than keeping it as a fallback.
+
+**Commit (code):** 12d31ec — "Remove TinyGo review data runtime model"
+
+### What I did
+
+- Deleted the old review precompute builder:
+  - `internal/review/export.go`
+  - `internal/review/export_test.go`
+- Deleted the WASM review-data type file:
+  - `internal/wasm/review_types.go`
+- Removed `ReviewData` from `internal/wasm.SearchCtx`.
+- Changed `internal/wasm.Init(...)` from seven JSON inputs to six JSON inputs by removing `jsonReviewData`.
+- Removed review-data unmarshalling from `internal/wasm/search.go`.
+- Removed review-specific WASM query methods from `internal/wasm/search.go`:
+  - `GetCommitDiff`
+  - `GetSymbolHistory`
+  - `GetImpact`
+  - `GetSymbolBodyDiff`
+  - `GetReviewDocs`
+  - `GetReviewDoc`
+  - `GetCommits`
+- Removed review-specific JS exports from `internal/wasm/exports.go`.
+- Removed the unused `strconv` import from `internal/wasm/exports.go`.
+- Removed the old Go WASM loader script from the frontend public directory:
+  - `ui/public/wasm_exec.js`
+- Removed the hard-coded `<script src="/wasm_exec.js"></script>` from `ui/index.html`.
+- Marked T09.4 and T09.6 complete in `tasks.md`.
+
+### Why
+
+- The target static runtime is sql.js, not TinyGo reviewData.
+- Keeping `PrecomputedReview` after the frontend cutover would invite accidental fallback behavior and confuse future maintenance.
+- The static export no longer writes `precomputed.json`, so the review precompute builder was dead runtime code.
+- Vite was still copying `wasm_exec.js` from `ui/public`; deleting it ensures the exported sql.js app does not ship an unused Go WASM loader.
+
+### What worked
+
+- `go test ./internal/review ./internal/wasm ./internal/staticapp ./cmd/codebase-browser` passed.
+- `GOOS=js GOARCH=wasm go build ./cmd/wasm` passed after removing review exports.
+- `pnpm -C ui run typecheck` passed.
+- `review export` still succeeded.
+- The exported static bundle no longer contains:
+  - `wasm_exec.js`
+  - `precomputed.json`
+- Playwright opened `http://localhost:8781/#/review/static-smoke` successfully after this deletion.
+- Browser console had zero errors after the deletion.
+- Network inspection still showed no `/api/*` requests.
+
+### What didn't work
+
+I tried to run:
+
+```bash
+GOOS=js GOARCH=wasm go test ./internal/wasm
+```
+
+It failed with:
+
+```text
+fork/exec /tmp/go-build3220019683/b001/wasm.test: exec format error
+FAIL	github.com/wesen/codebase-browser/internal/wasm	0.001s
+FAIL
+```
+
+This is expected for a plain host shell: Go built a JS/WASM test binary and then tried to execute it without a wasm test runner. I switched to:
+
+```bash
+GOOS=js GOARCH=wasm go build ./cmd/wasm
+```
+
+which validates that the WASM target still compiles without trying to execute it.
+
+### What I learned
+
+- The review-specific TinyGo exports were fully disconnected from the active frontend after the SQL provider cutover; removing them did not affect the static smoke.
+- `ui/public` is copied by Vite into the export, so stale public assets are runtime artifacts even if no code imports them.
+- A normal `go test` command is not a valid execution test for `GOOS=js GOARCH=wasm` unless a wasm execution environment is configured.
+
+### What was tricky to build
+
+- The generic `internal/wasm` package still contains older index/search/doc-page functionality, so this was not a wholesale TinyGo removal. The safe deletion boundary for this step was review-specific data and exports only.
+- `exports.go` and `search.go` had to be edited together because the JS export layer called methods removed from `SearchCtx`.
+
+### What warrants a second pair of eyes
+
+- Decide whether to delete the remaining generic TinyGo path entirely in a later commit. Current active static export does not use it, but old generators and embedded assets still reference it.
+- Review whether `internal/bundle/generate_build.go`, `internal/web/generate_build.go`, and `internal/static/generate_build.go` should be removed or rewritten to avoid old `search.wasm` / `precomputed.json` behavior.
+- Confirm that deleting `ui/public/wasm_exec.js` is acceptable for every remaining frontend build mode.
+
+### What should be done in the future
+
+- Remove or rewrite old static/bundle/web generators that still copy `search.wasm`, `wasm_exec.js`, or `precomputed.json` if they are no longer used.
+- Regenerate or retire stale embedded source/index artifacts that still contain old review server and precomputed runtime references.
+- Add explicit tests that `review export` output does not contain `wasm_exec.js`, `search.wasm`, or `precomputed.json`.
+
+### Code review instructions
+
+- Review deleted files first:
+  - `internal/review/export.go`
+  - `internal/review/export_test.go`
+  - `internal/wasm/review_types.go`
+  - `ui/public/wasm_exec.js`
+- Then review `internal/wasm/search.go` and `internal/wasm/exports.go` to confirm only review-data code was removed.
+- Review `ui/index.html` to confirm the Go WASM script tag is gone.
+- Validate with:
+  - `go test ./internal/review ./internal/wasm ./internal/staticapp ./cmd/codebase-browser`
+  - `GOOS=js GOARCH=wasm go build ./cmd/wasm`
+  - `pnpm -C ui run typecheck`
+  - `go run ./cmd/codebase-browser review export --db /tmp/gcb015-sqljs-smoke.db --out /tmp/gcb015-sqljs-export`
+  - `test ! -f /tmp/gcb015-sqljs-export/wasm_exec.js`
+  - `test ! -f /tmp/gcb015-sqljs-export/precomputed.json`
+
+### Technical details
+
+Active static export after this step is expected to contain sql.js assets only:
+
+```text
+manifest.json
+db/codebase.db
+sql-wasm.wasm
+sql-wasm-browser.wasm
+assets/*.js
+assets/*.css
+```
+
+The old review-data initialization shape is gone:
+
+```text
+before: initWasm(index, search, xref, snippets, docManifest, docHTML, reviewData)
+after:  initWasm(index, search, xref, snippets, docManifest, docHTML)
 ```

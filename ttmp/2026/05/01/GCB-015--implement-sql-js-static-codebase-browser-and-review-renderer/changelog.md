@@ -168,3 +168,18 @@ Step 10: Validated sql.js static smoke with zero /api requests, verified direct 
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/review/server.go — Deleted deprecated review HTTP server wrapper
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 10
 
+
+## 2026-05-01
+
+Step 11: Removed PrecomputedReview, WASM ReviewData, review-specific TinyGo exports, and the frontend wasm_exec.js runtime artifact; static sql.js smoke still loads with zero /api requests (commit 12d31ec).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/review/export.go — Deleted old PrecomputedReview builder
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/wasm/exports.go — Removed review JS exports
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/wasm/review_types.go — Deleted WASM ReviewData model
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/wasm/search.go — Removed reviewData runtime state and review query methods
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 11
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/index.html — Removed Go WASM loader script tag
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/public/wasm_exec.js — Deleted unused Go WASM loader asset
+
