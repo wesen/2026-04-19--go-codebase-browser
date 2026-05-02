@@ -106,9 +106,9 @@ This ticket is a clean-cut implementation of a static-only runtime:
 - [x] T09.1 Remove or stop using `ui/src/api/runtimeMode.ts`.
 - [x] T09.2 Remove static/server branching from frontend API files.
 - [x] T09.3 Remove `/api/*` endpoint-string parsing from `historyApi.ts` and `docApi.ts`.
-- [ ] T09.4 Remove `reviewData` from WASM initialization.
+- [x] T09.4 Remove `reviewData` from WASM initialization.
 - [x] T09.5 Remove or deprecate TinyGo review query exports for commits, histories, diffs, impacts, body diffs, and review docs.
-- [ ] T09.6 Remove `PrecomputedReview` as a static runtime data model.
+- [x] T09.6 Remove `PrecomputedReview` as a static runtime data model.
 - [x] T09.7 Decide whether any Go HTTP server code remains in the repository as dead code; if removed, delete it in a focused commit.
 - [x] T09.8 Remove `review serve` from the CLI or clearly mark it deleted as part of the clean cutoff.
 

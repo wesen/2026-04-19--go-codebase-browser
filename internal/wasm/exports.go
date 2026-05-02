@@ -4,10 +4,7 @@
 // Uses TinyGo's syscall/js for direct JS object access.
 package wasm
 
-import (
-	"strconv"
-	"syscall/js"
-)
+import "syscall/js"
 
 // globalCtx is the loaded search context. Set by initWasm() from JS.
 var globalCtx *SearchCtx
@@ -26,7 +23,7 @@ func RegisterExports() {
 		exports.Set(name, f)
 	}
 
-	// initWasm(jsonIndex, jsonSearchIdx, jsonXrefIdx, jsonSnippets, jsonDocManifest, jsonDocHTML, jsonReviewData)
+	// initWasm(jsonIndex, jsonSearchIdx, jsonXrefIdx, jsonSnippets, jsonDocManifest, jsonDocHTML)
 	register("initWasm", func(this js.Value, args []js.Value) interface{} {
 		if len(args) < 6 {
 			return js.ValueOf("error: expected at least 6 JSON string arguments")
@@ -37,13 +34,8 @@ func RegisterExports() {
 		jsonSnippets := []byte(args[3].String())
 		jsonDocManifest := []byte(args[4].String())
 		jsonDocHTML := []byte(args[5].String())
-		var jsonReviewData []byte
-		if len(args) > 6 {
-			jsonReviewData = []byte(args[6].String())
-		}
-
 		var err error
-		globalCtx, err = Init(jsonIndex, jsonSearchIdx, jsonXrefIdx, jsonSnippets, jsonDocManifest, jsonDocHTML, jsonReviewData)
+		globalCtx, err = Init(jsonIndex, jsonSearchIdx, jsonXrefIdx, jsonSnippets, jsonDocManifest, jsonDocHTML)
 		if err != nil {
 			return js.ValueOf("error: " + err.Error())
 		}
@@ -122,83 +114,6 @@ func RegisterExports() {
 			return js.ValueOf("null")
 		}
 		return js.ValueOf(string(globalCtx.GetDocPage(args[0].String())))
-	})
-
-	// ── Review exports ──
-
-	// getCommitDiff(oldHash, newHash) → JSON string
-	register("getCommitDiff", func(this js.Value, args []js.Value) interface{} {
-		if globalCtx == nil {
-			return js.ValueOf("null")
-		}
-		if len(args) < 2 {
-			return js.ValueOf("null")
-		}
-		return js.ValueOf(string(globalCtx.GetCommitDiff(args[0].String(), args[1].String())))
-	})
-
-	// getSymbolHistory(symbolID) → JSON string
-	register("getSymbolHistory", func(this js.Value, args []js.Value) interface{} {
-		if globalCtx == nil {
-			return js.ValueOf("null")
-		}
-		return js.ValueOf(string(globalCtx.GetSymbolHistory(args[0].String())))
-	})
-
-	// getImpact(symbolID, direction, depth, commit?) → JSON string
-	register("getImpact", func(this js.Value, args []js.Value) interface{} {
-		if globalCtx == nil {
-			return js.ValueOf("null")
-		}
-		if len(args) < 3 {
-			return js.ValueOf("null")
-		}
-		symbolID := args[0].String()
-		direction := args[1].String()
-		depth := 0
-		if d, err := strconv.Atoi(args[2].String()); err == nil {
-			depth = d
-		}
-		commit := ""
-		if len(args) >= 4 {
-			commit = args[3].String()
-		}
-		return js.ValueOf(string(globalCtx.GetImpact(symbolID, direction, depth, commit)))
-	})
-
-	// getSymbolBodyDiff(oldHash, newHash, symbolID) → JSON string
-	register("getSymbolBodyDiff", func(this js.Value, args []js.Value) interface{} {
-		if globalCtx == nil {
-			return js.ValueOf("null")
-		}
-		if len(args) < 3 {
-			return js.ValueOf("null")
-		}
-		return js.ValueOf(string(globalCtx.GetSymbolBodyDiff(args[0].String(), args[1].String(), args[2].String())))
-	})
-
-	// getReviewDocs() → JSON string
-	register("getReviewDocs", func(this js.Value, args []js.Value) interface{} {
-		if globalCtx == nil {
-			return js.ValueOf("null")
-		}
-		return js.ValueOf(string(globalCtx.GetReviewDocs()))
-	})
-
-	// getReviewDoc(slug) → JSON string
-	register("getReviewDoc", func(this js.Value, args []js.Value) interface{} {
-		if globalCtx == nil {
-			return js.ValueOf("null")
-		}
-		return js.ValueOf(string(globalCtx.GetReviewDoc(args[0].String())))
-	})
-
-	// getCommits() → JSON string
-	register("getCommits", func(this js.Value, args []js.Value) interface{} {
-		if globalCtx == nil {
-			return js.ValueOf("null")
-		}
-		return js.ValueOf(string(globalCtx.GetCommits()))
 	})
 
 	js.Global().Set("codebaseBrowser", exports)
