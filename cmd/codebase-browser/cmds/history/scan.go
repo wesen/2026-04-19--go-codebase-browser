@@ -34,7 +34,7 @@ files, symbols, refs) in the history database.
 Examples:
   codebase-browser history scan --range "HEAD~5..HEAD" --worktrees
   codebase-browser history scan --range "main..feature-branch" --worktrees --incremental
-  codebase-browser history scan --range "HEAD~10..HEAD" --worktrees --filter internal/server/`,
+  codebase-browser history scan --range "HEAD~10..HEAD" --worktrees --filter internal/staticapp/`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 

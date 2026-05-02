@@ -61,27 +61,24 @@ embedded review guides.
 ## Quick start
 
 Prerequisites: Go 1.22+ and optional Docker for the hermetic Dagger build path.
-Node 22+ and pnpm 10.x are only needed if you want to work on the frontend
-or the TypeScript indexer directly.
+Node 22+ and pnpm 10.x are needed when building the static browser frontend or
+working on the TypeScript indexer directly.
 
 ```bash
 # 1) Optional: install UI deps for local frontend / indexer work
 pnpm -C ui install
 pnpm -C tools/ts-indexer install
 
-# 2) Build index + frontend bundle, embed, and compile the binary
-make build              # runs `go generate` on the generator packages, then `go build -tags embed`
+# 2) Build the CLI
+make build
 
-# 3) Run
-./bin/codebase-browser serve --addr :3001
-# open http://localhost:3001
-```
+# 3) Create a review SQLite database and export the standalone browser
+./bin/codebase-browser review db create --range "HEAD~10..HEAD" --db /tmp/codebase.db --reviews ./reviews
+./bin/codebase-browser review export --db /tmp/codebase.db --out /tmp/codebase-browser-export
 
-For the tight dev loop (no embedding, hot reload):
-
-```bash
-make dev-backend        # :3001 — serves from disk
-make dev-frontend       # :3000 — Vite + proxy to :3001
+# 4) Serve the export with any static file server
+python3 -m http.server 8784 --directory /tmp/codebase-browser-export
+# open http://localhost:8784/#/
 ```
 
 ## Building the index
@@ -97,15 +94,10 @@ make dev-frontend       # :3000 — Vite + proxy to :3001
    (default `ui`). Dagger orchestrates a `node:22` container with a
    pnpm `CacheVolume`; set `BUILD_TS_LOCAL=1` to fall back to local
    `pnpm + node` when Docker isn't available.
-3. `go generate ./internal/web` builds the Vite SPA in a Dagger
-   container and copies the generated `ui/dist/public` assets into
-   `internal/web/embed/public/`; set `BUILD_WEB_LOCAL=1` to fall back to
-   local `pnpm` when Docker isn't available.
-4. Calls `indexer.Merge` to stitch both parts together, detecting
+3. Calls `indexer.Merge` to stitch both parts together, detecting
    duplicate IDs rather than silently dropping records.
-5. Writes `internal/indexfs/embed/index.json`, picked up by the
-   `//go:embed` in `internal/indexfs/embed.go` on the next
-   `go build -tags embed`.
+4. Writes `internal/indexfs/embed/index.json`, picked up by the
+   `//go:embed` in `internal/indexfs/embed.go` on the next build.
 
 Separately, `go generate ./internal/sourcefs` mirrors the repository
 source tree into `internal/sourcefs/embed/source/`, excluding build
@@ -146,12 +138,12 @@ package (common in TS — multiple `*.stories.tsx` with `const meta`).
 ## Repo layout
 
 ```
-cmd/codebase-browser/     Main CLI (glazed commands: serve, index, doc, symbol)
+cmd/codebase-browser/     Main CLI (glazed commands: review, index, doc, symbol)
 cmd/build-ts-index/       Dagger orchestrator for the Node TS extractor
 internal/indexer/         Go AST → Index JSON + Merge
-internal/browser/         Index loader shared by server + CLI
-internal/server/          /api/* HTTP handlers
-internal/web/             Vite build embed (SPA assets)
+internal/browser/         Index loader shared by CLI/indexing paths
+internal/review/          Git/review document indexing into SQLite
+internal/staticapp/       Standalone sql.js export packaging
 internal/sourcefs/        Source tree embed (for snippet slicing)
 internal/indexfs/         index.json embed + go:generate wiring
 internal/docs/            Markdown renderer + embedded doc pages
@@ -163,10 +155,10 @@ ttmp/                     Ticket workspaces (docmgr)
 ## Testing
 
 ```bash
-make test                 # go test ./... (server, indexer, docs, merge)
+make test                 # go test ./... (indexer, docs, review, static export)
 pnpm -C ui run typecheck  # tsc --noEmit for the SPA
 pnpm -C tools/ts-indexer test  # vitest (extractor + xref + JSX fixtures)
-make smoke                # build embed binary, curl /api/index
+make smoke                # build the CLI and run --help
 ```
 
 ## Documentation

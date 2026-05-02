@@ -74,7 +74,7 @@ Review guides are regular markdown files with special fenced code blocks that th
 | `codebase-snippet` | Full symbol body | `` ```codebase-snippet sym=indexer.Extract``` `` |
 | `codebase-signature` | Just the signature | `` ```codebase-signature sym=indexer.Extract``` `` |
 | `codebase-doc` | Godoc/TSDoc comment | `` ```codebase-doc sym=indexer.Extract``` `` |
-| `codebase-file` | Whole or partial file | `` ```codebase-file path=internal/server/server.go range=28-44``` `` |
+| `codebase-file` | Whole or partial file | `` ```codebase-file path=internal/staticapp/export.go range=1-80``` `` |
 | `codebase-diff` | Symbol body diff between commits | `` ```codebase-diff sym=indexer.Extract from=HEAD~1 to=HEAD``` `` |
 | `codebase-symbol-history` | Timeline of commits touching a symbol | `` ```codebase-symbol-history sym=indexer.Merge limit=8``` `` |
 | `codebase-impact` | Transitive caller/callee list | `` ```codebase-impact sym=indexer.Extract dir=usedby depth=2``` `` |

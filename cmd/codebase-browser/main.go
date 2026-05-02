@@ -22,7 +22,7 @@ var version = "dev"
 
 var rootCmd = &cobra.Command{
 	Use:     "codebase-browser",
-	Short:   "Index, query, and serve the Go source of this very binary",
+	Short:   "Index, query, review, and export Go codebase data",
 	Version: version,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return logging.InitLoggerFromCobra(cmd)
@@ -43,7 +43,6 @@ func main() {
 	cobra.CheckErr(history.Register(rootCmd))
 	cobra.CheckErr(review.Register(rootCmd))
 	cobra.CheckErr(reviewhelp.AddDocToHelpSystem(helpSystem))
-	registerServe(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
