@@ -29,8 +29,8 @@
 
 - [ ] Add `CodebaseQueryProvider` interface.
 - [ ] Add `SqlJsQueryProvider` implementation.
-- [ ] Add or adapt `ServerQueryProvider` for development/server mode.
-- [ ] Add provider factory based on `VITE_STATIC_EXPORT`.
+- [ ] Do not add a `ServerQueryProvider`; the target runtime has only `SqlJsQueryProvider`.
+- [ ] Add a simple provider singleton for the SQL provider; remove runtime-mode branching.
 - [ ] Add structured `QueryError` handling and RTK Query result normalization.
 
 ### Phase 5 — Core history and body diff support
@@ -63,7 +63,7 @@
 - [ ] Remove `reviewData` from WASM initialization.
 - [ ] Remove or stop using WASM review exports for commits, histories, diffs, impacts, body diffs, and review docs.
 - [ ] Remove `PrecomputedReview` as the static runtime data model.
-- [ ] Remove static-mode `/api/history` endpoint parsing from frontend API files.
+- [ ] Remove all `/api/history` endpoint parsing from frontend API files; no application API exists in the target runtime.
 
 ### Phase 9 — Tests and validation
 

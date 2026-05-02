@@ -26,7 +26,7 @@ RelatedFiles:
     - Path: internal/review/schema.go
       Note: Defines review document tables used by the SQL-backed review renderer
     - Path: internal/review/server.go
-      Note: Reference for current review API behavior to expose through the query provider
+      Note: Historical Go review server slated for removal from the target runtime; useful only as a behavior reference while porting queries to SQL
     - Path: ui/package.json
       Note: Frontend dependencies need sql.js and possibly sql.js type declarations
     - Path: ui/src/api/historyApi.ts
@@ -38,22 +38,26 @@ RelatedFiles:
     - Path: ui/src/features/review/ReviewDocPage.tsx
       Note: Review document renderer to hydrate generic provider-backed widgets
 ExternalSources: []
-Summary: 'Design and implementation guide for a clean sql.js-backed static frontend: Go performs indexing/export, the browser opens the exported SQLite DB with sql.js, and both the generic codebase browser and rich review markdown renderer use the same SQL query provider.'
+Summary: 'Design and implementation guide for a static-only sql.js frontend: Go performs indexing/export only, the browser opens the exported SQLite DB with sql.js, and both the generic codebase browser and rich review markdown renderer query that DB directly.'
 LastUpdated: 2026-05-01T19:40:00-04:00
-WhatFor: Use this as the primary implementation guide for replacing the current TinyGo/precomputed-review static path with a sql.js static codebase browser and review renderer.
-WhenToUse: Use before implementing static export, static frontend data access, sql.js integration, review widgets, history pages, or browser-side SQLite queries.
+WhatFor: Use this as the primary implementation guide for replacing the current Go-server/TinyGo/precomputed-review runtime paths with a static-only sql.js codebase browser and review renderer.
+WhenToUse: Use before implementing static export, frontend data access, sql.js integration, review widgets, history pages, or browser-side SQLite queries. Do not use this ticket to add new Go HTTP server behavior.
 ---
 
 
 # Sql.js static frontend architecture and implementation guide
 
+## Revision v2 — static-only runtime
+
+This revision removes the remaining Go server mode from the target architecture. The Go binary is now described only as an offline indexer/exporter. The browser runtime always uses `sql.js` against `db/codebase.db`; there is no `ServerQueryProvider`, no `/api/*` application API, and no dynamic Go-backed reload path.
+
 ## Executive Summary
 
 This ticket replaces the previous static export direction with a cleaner architecture:
 
-> Go indexes the repository and writes a SQLite database. The static frontend ships that SQLite database and opens it in the browser with `sql.js`. Both the generic codebase browser and the rich review markdown renderer query that same database through a TypeScript `CodebaseQueryProvider`.
+> Go indexes the repository and writes a SQLite database. The exported frontend ships that SQLite database and opens it in the browser with `sql.js`. Both the generic codebase browser and the rich review markdown renderer query that same database through a TypeScript `SqlJsQueryProvider`. There is no runtime Go web server in the target architecture.
 
-This is a deliberate clean cutoff. The app is not used externally, so we do not need backward compatibility with the current `precomputed.json` / TinyGo review-data transport. We should remove the prototype-specific static path rather than wrap it.
+This is a deliberate clean cutoff. The app is not used externally, so we do not need backward compatibility with the current `precomputed.json` / TinyGo review-data transport or the Go HTTP server mode. We should remove prototype-specific runtime paths rather than wrap them.
 
 The previous direction tried to convert the SQLite database into a parallel universe of precomputed JSON maps:
 
@@ -99,7 +103,7 @@ The new architecture is:
 | Browser runtime                                                |
 |                                                               |
 |  React UI                                                      |
-|  SqlJsQueryProvider                                            |
+|  SqlJsQueryProvider only                                       |
 |  sql.js opens db/codebase.db                                   |
 |  widgets and pages call semantic provider methods              |
 +---------------------------------------------------------------+
@@ -118,7 +122,7 @@ The two main product features are separate but share the same provider:
    - cross-links into the generic browser;
    - runs without a Go server.
 
-The SQLite database also remains the **LLM/query artifact**. The same file can be inspected by humans, scripts, and LLMs with SQL. That is a strength of this design: the static browser runtime and the LLM artifact converge on one source of truth.
+The SQLite database also remains the **LLM/query artifact**. The same file can be inspected by humans, scripts, and LLMs with SQL. That is a strength of this design: the browser runtime and the LLM artifact converge on one source of truth. The Go binary is a compiler/indexer/exporter, not a runtime application server.
 
 ## Problem Statement
 
@@ -128,7 +132,7 @@ The current GCB-013 prototype created a review command tree and a static export 
 
 - `review db create`
 - `review index`
-- `review serve`
+- historical `review serve` / Go server mode, which this ticket removes from the target runtime
 - `review export`
 
 The database contains both history tables and review document tables:
@@ -172,7 +176,7 @@ GetReviewDoc(slug string)
 GetCommits()
 ```
 
-The frontend then has static-specific logic in files such as:
+The frontend then has static/server-specific logic in files such as:
 
 ```text
 ui/src/api/historyApi.ts
@@ -233,21 +237,21 @@ So the revised decision is:
 
 ### Product goals
 
-- A static export can be hosted by any ordinary static file server.
+- A static export can be hosted by any ordinary static file server; no Go server is required.
 - The generic codebase browser works without a Go backend.
 - The rich review markdown renderer works without a Go backend.
 - Review docs can link to browser pages such as `/history?symbol=...`.
 - The same SQLite DB can be used by the browser and by LLM/script workflows.
-- Static mode makes zero `/api/*` requests.
+- The frontend makes zero `/api/*` requests because no application API exists in the target runtime.
 
 ### Engineering goals
 
 - Keep Go responsible for indexing, schema creation, database population, and static export packaging.
 - Keep the browser responsible for interactive navigation and SQL queries through `sql.js`.
 - Create one semantic frontend query provider used by all pages and widgets.
-- Avoid static/server branching inside React components.
+- Avoid runtime-mode branching inside React components.
 - Remove the TinyGo review-data transport and `reviewData` blob.
-- Use SQL queries that mirror or replace existing server handlers.
+- Use SQL queries that replace existing server handlers for the browser runtime.
 - Add explicit tests for static browser routes and review widgets.
 
 ### Non-goals for the first implementation
@@ -293,7 +297,6 @@ When the user asks for history, we compare the same symbol ID across snapshots.
 
 The DB is the source of truth. It is created by Go. It is read by:
 
-- Go server mode;
 - static browser mode through `sql.js`;
 - LLMs and scripts through ordinary SQLite tools.
 
@@ -340,7 +343,7 @@ The impact is:
 ```
 ```
 
-At export or serve time, markdown is rendered into HTML with widget placeholders. React hydrates those placeholders into actual widgets. The widgets use the same query provider as the generic browser.
+At index/export time, markdown is rendered into HTML with widget placeholders. React hydrates those placeholders into actual widgets. The widgets use the same SQL query provider as the generic browser.
 
 ### sql.js
 
@@ -377,7 +380,7 @@ const rows = queryAll(db, `SELECT * FROM commits ORDER BY author_time DESC`);
                              |
                              v
 +---------------------------------------------------------------+
-| CodebaseQueryProvider                                         |
+| SqlJsQueryProvider                                             |
 |                                                               |
 |  listCommits()                                                |
 |  getSymbolHistory(symbolId)                                   |
@@ -385,23 +388,22 @@ const rows = queryAll(db, `SELECT * FROM commits ORDER BY author_time DESC`);
 |  getImpact(symbolId, dir, depth, commit)                      |
 |  getReviewDoc(slug)                                           |
 |  ...                                                          |
+|                                                               |
+|  This is the only frontend data provider in the target app.    |
+|  There is no ServerQueryProvider and no /api fallback.         |
 +----------------------------+----------------------------------+
                              |
-              +--------------+--------------+
-              |                             |
-              v                             v
-+---------------------------+   +-------------------------------+
-| ServerQueryProvider       |   | SqlJsQueryProvider            |
-|                           |   |                               |
-| fetch('/api/...')         |   | db.exec / db.prepare          |
-| used in dev/server mode   |   | used in static export mode    |
-+---------------------------+   +-------------------------------+
-                                            |
-                                            v
-                                  +-------------------+
-                                  | db/codebase.db    |
-                                  | opened by sql.js  |
-                                  +-------------------+
+                             v
+                   +-------------------------------+
+                   | sql.js Database               |
+                   | db.exec / db.prepare          |
+                   +---------------+---------------+
+                                   |
+                                   v
+                         +-------------------+
+                         | db/codebase.db    |
+                         | opened by sql.js  |
+                         +-------------------+
 ```
 
 ### Export directory layout
@@ -458,16 +460,17 @@ Even though SQLite is the runtime data source, we still need a small manifest. I
   },
   "runtime": {
     "queryEngine": "sql.js",
-    "requiresHttpServer": true
+    "requiresStaticHttpServer": true,
+    "hasGoRuntimeServer": false
   }
 }
 ```
 
-The manifest is not a replacement for SQL. It is boot metadata.
+The manifest is not a replacement for SQL. It is boot metadata. `requiresStaticHttpServer` means an ordinary static file server is the supported way to serve the bundle; it does not mean a Go application server.
 
 ## Build-time Responsibilities in Go
 
-Go remains essential. The browser should not index source code. Go does the hard indexing work before export.
+Go remains essential as an offline build tool. The browser should not index source code. Go does the hard indexing work before export and then exits.
 
 ### Go indexing flow
 
@@ -496,7 +499,7 @@ cmd/codebase-browser/cmds/review/export.go
 
 ### What Go should no longer do for static runtime
 
-Go should no longer precompute a parallel `reviewData` blob for runtime browser navigation:
+Go should not host runtime browser APIs and should no longer precompute a parallel `reviewData` blob for runtime browser navigation:
 
 - no `BodyDiffs` map needed for normal body diffing;
 - no `Impacts` map needed for normal impact queries;
@@ -985,14 +988,13 @@ export function blobToText(value: unknown): string {
 }
 ```
 
-## CodebaseQueryProvider
+## SqlJsQueryProvider
 
 Create:
 
 ```text
-ui/src/api/queryProvider.ts
-ui/src/api/sqlJsQueryProvider.ts
-ui/src/api/serverQueryProvider.ts
+ui/src/api/queryProvider.ts       # optional interface/type definitions, useful for tests
+ui/src/api/sqlJsQueryProvider.ts  # the only runtime provider
 ui/src/api/queryErrors.ts
 ```
 
@@ -1033,20 +1035,15 @@ export interface CodebaseQueryProvider {
 }
 ```
 
-### Provider factory
+### Provider singleton
+
+There is only one runtime provider. Keep the interface if it helps tests, but do not add a server implementation.
 
 ```ts
 let provider: CodebaseQueryProvider | null = null;
 
 export function getQueryProvider(): CodebaseQueryProvider {
-  if (provider) return provider;
-
-  if (import.meta.env.VITE_STATIC_EXPORT === '1') {
-    provider = new SqlJsQueryProvider();
-  } else {
-    provider = new ServerQueryProvider('/api');
-  }
-
+  if (!provider) provider = new SqlJsQueryProvider();
   return provider;
 }
 ```
@@ -1632,42 +1629,38 @@ function CodebaseWidget(props: WidgetProps) {
 
 The widgets call provider-backed hooks. They do not know if data came from HTTP or sql.js.
 
-## Server Mode vs Static Mode
+## Static-only Runtime: No Go Server Mode
 
-We still keep server mode for development and live serving. But server mode and static mode should be implementation details behind the provider.
+The target app has no runtime Go web server. Development, testing, and production all exercise the same frontend data path:
 
 ```text
 React component
-  -> useGetSymbolHistoryQuery
-  -> queryFn calls getQueryProvider().getSymbolHistory
-  -> ServerQueryProvider or SqlJsQueryProvider
+  -> RTK Query hook or direct hook
+  -> queryFn calls getQueryProvider().getSymbolHistory(...)
+  -> SqlJsQueryProvider
+  -> sql.js
+  -> db/codebase.db
 ```
 
-### ServerQueryProvider
+There is no `ServerQueryProvider`, no `/api/history/*`, and no `/api/review/*` fallback in the target architecture. The Go binary is an offline compiler/indexer/exporter. If the source code, commit range, or review markdown changes, rerun the Go indexing/export command and reload the browser.
 
-Uses existing APIs:
-
-```text
-/api/history/commits
-/api/history/diff
-/api/history/symbols/:id/history
-/api/history/symbol-body-diff
-/api/history/impact
-/api/review/docs
-```
-
-### SqlJsQueryProvider
-
-Uses SQL against `db/codebase.db`.
-
-This means old static endpoint parsing in `historyApi.ts` should be removed:
+This means old static/server endpoint parsing in `historyApi.ts` should be removed:
 
 ```ts
 // remove this style
 if (arg.startsWith('/symbol-body-diff?')) { ... }
 ```
 
-Replace with semantic `queryFn` calls.
+Replace it with semantic provider calls:
+
+```ts
+getSymbolBodyDiff: builder.query<BodyDiffResult, Args>({
+  queryFn: async (args) =>
+    providerResult(() => getQueryProvider().getSymbolBodyDiff(args.from, args.to, args.symbolId)),
+})
+```
+
+For local development, use Vite plus a generated fixture export/database. Do not add new Go HTTP endpoints to support frontend development.
 
 ## Export Command Design
 
@@ -1801,7 +1794,7 @@ Use existing renderer:
 internal/docs/renderer.go
 ```
 
-Existing server path renders docs on demand in:
+Historical server path renders docs on demand in:
 
 ```text
 internal/review/server.go
@@ -1865,7 +1858,7 @@ SELECT COUNT(*) FROM commits;
 Acceptance:
 
 - static export loads DB in browser;
-- no `/api/*` request is made for the DB;
+- no `/api/*` request is made at all;
 - console can print commit count.
 
 ### Phase 2: Implement `SqlJsQueryProvider` commits/history/body diff
@@ -2031,7 +2024,7 @@ First implementation should use plain sql.js. It fetches the whole DB and loads 
 Good:
 
 - simple;
-- works with ordinary static servers;
+- works with ordinary static file servers;
 - easy to debug;
 - no range request complexity.
 
@@ -2069,7 +2062,7 @@ Pros:
 
 Cons:
 
-- static server needs range requests;
+- static file server needs range requests;
 - more moving parts;
 - not a good first milestone.
 
@@ -2143,7 +2136,7 @@ Assert:
 - history entries render;
 - selecting a changed transition renders body diff;
 - no `STATIC_NOT_PRECOMPUTED` appears;
-- no `/api/*` requests.
+- no `/api/*` requests because no application API exists.
 
 ## Implementation Checklist
 
@@ -2164,7 +2157,7 @@ Assert:
 
 - [ ] Add `CodebaseQueryProvider` interface.
 - [ ] Add `SqlJsQueryProvider`.
-- [ ] Add `ServerQueryProvider` or adapt existing API calls behind provider.
+- [ ] Remove server/static provider branching; the only runtime provider is `SqlJsQueryProvider`.
 - [ ] Add provider factory based on `VITE_STATIC_EXPORT`.
 
 ### Phase 4 — Core history support
@@ -2219,7 +2212,7 @@ Rationale:
 
 Rationale:
 
-- TinyGo does not let us reuse the existing Go SQLite server code in the browser.
+- TinyGo does not let us reuse the existing Go SQLite code in the browser, and the target architecture has no Go runtime server anyway.
 - sql.js is purpose-built for browser SQLite.
 - It avoids precompute coverage gaps for normal navigation.
 
@@ -2279,7 +2272,7 @@ The ticket is complete when:
 
 1. Static export ships `db/codebase.db` and opens it with sql.js.
 2. Static frontend uses `SqlJsQueryProvider` for browser and review widgets.
-3. Static mode makes zero `/api/*` requests.
+3. The frontend makes zero `/api/*` requests.
 4. `/history?symbol=sym:...Register` works and computes body diffs on demand.
 5. Review docs render from static SQL-backed data.
 6. `codebase-diff`, `codebase-diff-stats`, `codebase-symbol-history`, and `codebase-impact` widgets work in static mode.
@@ -2298,7 +2291,7 @@ The ticket is complete when:
 - `internal/history/bodydiff.go` — current body diff logic; useful reference for SQL provider.
 - `internal/review/schema.go` — review document tables.
 - `internal/review/indexer.go` — review indexing flow.
-- `internal/review/server.go` — server review routes; useful reference for provider methods.
+- `internal/review/server.go` — historical server review routes; useful only as behavioral reference before removal.
 - `cmd/codebase-browser/cmds/review/export.go` — current export command to replace/simplify.
 
 ### Current static/TinyGo path to remove or simplify
@@ -2313,7 +2306,7 @@ The ticket is complete when:
 
 - `ui/src/api/historyApi.ts` — refactor to provider query functions.
 - `ui/src/api/docApi.ts` — refactor review docs to provider methods.
-- `ui/src/api/runtimeMode.ts` — likely replaced by provider factory usage.
+- `ui/src/api/runtimeMode.ts` — remove; runtime mode branching is not part of the target design.
 - `ui/src/app/App.tsx` — routes for browser and review renderer.
 - `ui/src/features/history/HistoryPage.tsx` — direct target for SQL-backed history/body diff.
 - `ui/src/features/review/ReviewDocPage.tsx` — review HTML hydration.
