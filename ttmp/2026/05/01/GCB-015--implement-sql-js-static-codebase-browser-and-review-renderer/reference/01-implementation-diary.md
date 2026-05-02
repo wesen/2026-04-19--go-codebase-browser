@@ -17,6 +17,20 @@ Owners: []
 RelatedFiles:
     - Path: cmd/codebase-browser/cmds/review/export.go
       Note: Step 2 CLI wrapper around staticapp.Export
+    - Path: cmd/codebase-browser/cmds/review/index.go
+      Note: Updated review index help text for static export only in Step 10 (commit 45de723)
+    - Path: cmd/codebase-browser/cmds/review/patterns.go
+      Note: Moved defaultPatterns helper after deleting serve.go in Step 10 (commit 45de723)
+    - Path: cmd/codebase-browser/cmds/review/root.go
+      Note: Removed review serve command registration in Step 10 (commit 45de723)
+    - Path: cmd/codebase-browser/cmds/review/serve.go
+      Note: Deleted deprecated review runtime server command in Step 10 (commit 45de723)
+    - Path: docs/help/review-reference.md
+      Note: Updated schema help with static export table and no review serve command in Step 10 (commit 45de723)
+    - Path: docs/help/review-user-guide.md
+      Note: Updated help to document static export workflow only in Step 10 (commit 45de723)
+    - Path: internal/review/server.go
+      Note: Deleted deprecated review HTTP wrapper in Step 10 (commit 45de723)
     - Path: internal/staticapp/export.go
       Note: Step 2 static-only export packaging
     - Path: internal/staticapp/manifest.go
@@ -55,6 +69,7 @@ LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -1314,3 +1329,155 @@ This file was added after the browser reported a missing `sql-wasm-browser.wasm`
 - Do not add `ServerQueryProvider`.
 - Do not add `/api/*` fallbacks.
 - If a feature is not yet SQL-backed, either implement it through `SqlJsQueryProvider` or make it explicitly unavailable in the static-only UI.
+
+## Step 10: Validate sql.js static smoke and delete `review serve`
+
+This step picked up from the end-of-day handoff. I first reran the static export/browser smoke after adding `sql-wasm-browser.wasm`, then removed the old `review serve` runtime command and the review-specific Go HTTP server wrapper.
+
+This is a clean-cut deletion: `review` now indexes and exports, but does not run a Go review server. The exported browser is the runtime surface for review docs and history widgets.
+
+### Prompt Context
+
+**User prompt (verbatim):** "read the diary of GCB-015, catch up, and then continue workign on the tasks, committing at appropriat einterval, and keeping a detailed diary."
+
+**Assistant interpretation:** Re-read the GCB-015 diary/task context, resume from the handoff, validate the sql.js static path, continue focused implementation/deletion tasks, commit, and record the work.
+
+**Inferred user intent:** Continue the static-only migration without losing context or leaving undocumented/deprecated paths behind.
+
+**Commit (code):** 45de723 — "Remove review serve runtime path"
+
+### What I did
+
+- Read the GCB-015 implementation diary, tasks, and design doc context.
+- Reran baseline validation:
+  - `go test ./internal/staticapp ./cmd/codebase-browser`
+  - `pnpm -C ui run typecheck`
+- Recreated a smoke DB and static export:
+  - `go run ./cmd/codebase-browser review index --commits HEAD~2..HEAD --docs /tmp/reviews/static-smoke.md --db /tmp/gcb015-sqljs-smoke.db`
+  - `go run ./cmd/codebase-browser review export --db /tmp/gcb015-sqljs-smoke.db --out /tmp/gcb015-sqljs-export`
+- Served the export with `python3 -m http.server 8781`.
+- Reopened `http://localhost:8781/#/review/static-smoke` in Playwright.
+- Confirmed that after reload, sql.js initialized successfully and browser console had no errors.
+- Confirmed no `/api/*` network requests were made.
+- Opened the direct history route:
+  - `http://localhost:8781/#/history?symbol=sym:github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/review.func.Register`
+- Confirmed the history page rendered a body diff from SQL without `STATIC_NOT_PRECOMPUTED`.
+- Removed `review serve` from the review command tree:
+  - deleted `cmd/codebase-browser/cmds/review/serve.go`
+  - removed `newServeCmd()` registration from `cmd/codebase-browser/cmds/review/root.go`
+- Deleted the review-specific HTTP wrapper:
+  - `internal/review/server.go`
+- Added `cmd/codebase-browser/cmds/review/patterns.go` to keep `defaultPatterns()` for `review index` and `review db create` after deleting `serve.go`.
+- Updated help docs away from server mode:
+  - `docs/help/review-user-guide.md`
+  - `docs/help/review-reference.md`
+- Verified the command list no longer includes `review serve`:
+  - `go run ./cmd/codebase-browser review --help`
+- Ran validation after deletion:
+  - `gofmt -w cmd/codebase-browser/cmds/review/root.go cmd/codebase-browser/cmds/review/index.go cmd/codebase-browser/cmds/review/patterns.go`
+  - `go test ./internal/review ./cmd/codebase-browser`
+  - `go build ./cmd/codebase-browser`
+  - `pnpm -C ui run typecheck`
+- Marked completed tasks in `tasks.md`, including:
+  - T05.7
+  - T07.7
+  - T08.6–T08.9
+  - T09.7
+  - T09.8
+  - T10.8
+  - T10.10
+  - T11.2
+  - T11.3
+
+### Why
+
+- The ticket target is static-only: Go indexes/exports, then exits.
+- `review serve` kept an explicit runtime Go server path and `/api/review/*` routes alive.
+- The static smoke showed sql.js now loads and can answer the original generic history/body-diff route, so deleting the old review runtime path is appropriate.
+
+### What worked
+
+- Adding `sql-wasm-browser.wasm` fixed the previous sql.js initialization failure once the page was reloaded against the newly exported bundle.
+- The review doc page loaded from the exported static DB.
+- The direct history route rendered the `Register` symbol history and body diff without `STATIC_NOT_PRECOMPUTED`.
+- Playwright network inspection found no `/api/*` requests during the checked static pages.
+- `review --help` now lists only:
+  - `db`
+  - `export`
+  - `index`
+
+### What didn't work
+
+- The first Playwright navigation still showed old console errors from the previous missing-WASM load. A manual reload of the page after confirming the file existed produced a clean console. This appears to have been browser/session cache state rather than an export problem.
+- The repository's embedded source/index/static snapshots still contain old generated references to `review serve` and `NewReviewServer` under paths such as `internal/sourcefs/embed/source/...` and `internal/indexfs/embed/index.json`. I did not regenerate or delete those generated artifacts in this step because the code build and command surface are already clean. This should be decided as a separate generated-artifact cleanup.
+
+### What I learned
+
+- `sql-wasm-browser.wasm` is required by the current Vite/sql.js bundle even though `sql-wasm.wasm` is also present.
+- The original `STATIC_NOT_PRECOMPUTED` class of failure is addressed for the tested direct history route: the body diff is now computed from SQLite snapshots and BLOBs in the browser.
+- Removing `serve.go` also removed the only definition of `defaultPatterns()`, so a tiny `patterns.go` helper was needed for `review index` and `review db create`.
+
+### What was tricky to build
+
+- The deletion was mostly straightforward, but the stale generated embeds made grep output noisy. Actual source references in `cmd`, `internal/review`, and active help docs are gone, while generated snapshots still reflect older repository state.
+- Browser console output needed care: the first console read still included previous errors, but `page.reload({ waitUntil: 'networkidle' })` against the current export produced zero errors.
+
+### What warrants a second pair of eyes
+
+- Decide whether `internal/sourcefs/embed/source/*`, `internal/indexfs/embed/index.json`, and old `internal/sourcefs/embed/source/internal/static/embed/precomputed.json` should be regenerated, deleted, or ignored during this migration. They still mention deleted server paths because they are snapshots.
+- Review whether the root `serve` command outside the `review` tree should remain for the older embedded-index browser. This step only removed `review serve`, not the general `serve` command.
+- Review the help docs to ensure the static-export workflow is now the only documented review workflow.
+
+### What should be done in the future
+
+- Fix or explicitly defer the remaining placeholder SQL provider methods:
+  - snippet refs;
+  - source refs;
+  - file xref;
+  - query concepts.
+- Fix `getSnippet(kind='signature')` to return the actual signature.
+- Remove old TinyGo/static review export code and `PrecomputedReview` model once no build/runtime path uses it.
+- Add real Playwright regression tests for the static review doc route and direct history route.
+
+### Code review instructions
+
+- Start with `cmd/codebase-browser/cmds/review/root.go` to confirm `newServeCmd()` is gone.
+- Review `cmd/codebase-browser/cmds/review/patterns.go` to confirm the moved helper is unchanged.
+- Review deleted files:
+  - `cmd/codebase-browser/cmds/review/serve.go`
+  - `internal/review/server.go`
+- Review help docs:
+  - `docs/help/review-user-guide.md`
+  - `docs/help/review-reference.md`
+- Validate with:
+  - `go test ./internal/review ./cmd/codebase-browser`
+  - `go build ./cmd/codebase-browser`
+  - `pnpm -C ui run typecheck`
+  - `go run ./cmd/codebase-browser review --help`
+
+### Technical details
+
+Static smoke commands used:
+
+```bash
+go test ./internal/staticapp ./cmd/codebase-browser
+pnpm -C ui run typecheck
+rm -f /tmp/gcb015-sqljs-smoke.db
+go run ./cmd/codebase-browser review index \
+  --commits HEAD~2..HEAD \
+  --docs /tmp/reviews/static-smoke.md \
+  --db /tmp/gcb015-sqljs-smoke.db
+rm -rf /tmp/gcb015-sqljs-export
+go run ./cmd/codebase-browser review export \
+  --db /tmp/gcb015-sqljs-smoke.db \
+  --out /tmp/gcb015-sqljs-export
+cd /tmp/gcb015-sqljs-export
+python3 -m http.server 8781
+```
+
+Validated routes:
+
+```text
+http://localhost:8781/#/review/static-smoke
+http://localhost:8781/#/history?symbol=sym:github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/review.func.Register
+```

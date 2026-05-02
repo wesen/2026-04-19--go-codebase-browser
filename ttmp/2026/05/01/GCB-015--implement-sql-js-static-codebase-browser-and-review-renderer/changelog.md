@@ -153,3 +153,18 @@ End-of-day handoff: documented current GCB-015 sql.js cutover status, validation
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — End-of-day handoff Step 9
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/public/sql-wasm-browser.wasm — Added after browser requested this sql.js WASM asset
 
+
+## 2026-05-01
+
+Step 10: Validated sql.js static smoke with zero /api requests, verified direct history body diff no longer reports STATIC_NOT_PRECOMPUTED, and removed review serve plus the review HTTP server wrapper (commit 45de723).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/cmd/codebase-browser/cmds/review/patterns.go — Preserved defaultPatterns for index/db commands
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/cmd/codebase-browser/cmds/review/root.go — Removed review serve registration
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/cmd/codebase-browser/cmds/review/serve.go — Deleted deprecated review runtime command
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/docs/help/review-reference.md — Updated static export schema help
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/docs/help/review-user-guide.md — Updated static export workflow help
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/review/server.go — Deleted deprecated review HTTP server wrapper
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 10
+
