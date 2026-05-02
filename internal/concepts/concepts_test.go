@@ -72,11 +72,11 @@ func TestRenderConcept(t *testing.T) {
 		t.Fatal(err)
 	}
 	concept := Compile(spec, "symbols/exported-functions.sql", "symbols/exported-functions.sql", "test")
-	sql, err := RenderConcept(concept, map[string]any{"package": "internal/server", "limit": "10"})
+	sql, err := RenderConcept(concept, map[string]any{"package": "internal/staticapp", "limit": "10"})
 	if err != nil {
 		t.Fatalf("RenderConcept() error = %v", err)
 	}
-	for _, want := range []string{"'internal/server'", "'%internal/server%'", "LIMIT 10"} {
+	for _, want := range []string{"'internal/staticapp'", "'%internal/staticapp%'", "LIMIT 10"} {
 		if !strings.Contains(sql, want) {
 			t.Fatalf("rendered SQL missing %q:\n%s", want, sql)
 		}
