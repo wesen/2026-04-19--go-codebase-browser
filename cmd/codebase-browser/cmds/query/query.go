@@ -52,7 +52,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			defer store.Close()
+			defer func() { _ = store.Close() }()
 			return runSQL(ctx, store.DB(), cmd.OutOrStdout(), sqlText, opts.format)
 		},
 	}
@@ -91,7 +91,7 @@ func runSQL(ctx context.Context, db *sql.DB, out io.Writer, sqlText, format stri
 		_, _ = fmt.Fprintln(out, "ok")
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	switch format {
 	case "", "table":

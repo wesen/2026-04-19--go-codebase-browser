@@ -53,7 +53,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("open history db: %w", err)
 			}
-			defer store.Close()
+			defer func() { _ = store.Close() }()
 
 			diff, err := store.DiffCommits(ctx, oldHash, newHash)
 			if err != nil {
@@ -113,6 +113,10 @@ func printDiff(diff *history.CommitDiff, onlyType string) {
 			case history.ChangeModified, history.ChangeMoved:
 				lineInfo = fmt.Sprintf("lines %d-%d → %d-%d",
 					s.OldStartLine, s.OldEndLine, s.NewStartLine, s.NewEndLine)
+			case history.ChangeSignatureChanged:
+				lineInfo = "signature changed"
+			case history.ChangeUnchanged:
+				lineInfo = "unchanged"
 			}
 			fmt.Printf("  %-16s %-8s %-30s %s\n", s.ChangeType, s.Kind, s.Name, lineInfo)
 		}

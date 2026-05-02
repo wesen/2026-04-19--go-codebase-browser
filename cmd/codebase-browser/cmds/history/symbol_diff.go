@@ -49,7 +49,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("open history db: %w", err)
 			}
-			defer store.Close()
+			defer func() { _ = store.Close() }()
 
 			// Resolve name to symbol ID if needed.
 			targetID := symbolID

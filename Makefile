@@ -1,4 +1,8 @@
-.PHONY: help frontend-check frontend-build generate build smoke clean tidy test lint docs-smoke
+GOLANGCI_LINT_VERSION ?= $(shell cat .golangci-lint-version)
+GOLANGCI_LINT_BIN  ?= $(CURDIR)/.bin/golangci-lint
+GOLANGCI_LINT_ARGS ?= --timeout=5m ./cmd/... ./pkg/...
+
+.PHONY: help frontend-check frontend-build generate build smoke clean tidy test lint lintmax docs-smoke golangci-lint-install bump-glazed
 
 BINARY := codebase-browser
 PKG    := github.com/wesen/codebase-browser
@@ -11,9 +15,10 @@ help:
 	@echo "  build           Build single embedded binary (tag: embed)"
 	@echo "  smoke           Build the CLI"
 	@echo "  test            go test ./..."
-	@echo "  lint            go vet ./..."
-	@echo "  tidy            go mod tidy"
+	@echo "  lint            golangci-lint run ./cmd/... ./pkg/..."
+	@echo "  lintmax         golangci-lint run with max-same-issues=100"
 	@echo "  docs-smoke      Smoke-test docs examples (index, export, verify)"
+	@echo "  bump-glazed     Bump go-go-golems packages to latest"
 
 
 frontend-check:
@@ -36,8 +41,17 @@ smoke: build
 test:
 	go test ./... -count=1
 
-lint:
-	go vet ./...
+golangci-lint-install:
+	mkdir -p $(dir $(GOLANGCI_LINT_BIN))
+	GOBIN=$(dir $(GOLANGCI_LINT_BIN)) GOWORK=off go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+
+lint: golangci-lint-install
+	GOWORK=off $(GOLANGCI_LINT_BIN) config verify
+	GOWORK=off $(GOLANGCI_LINT_BIN) run -v $(GOLANGCI_LINT_ARGS)
+
+lintmax: golangci-lint-install
+	GOWORK=off $(GOLANGCI_LINT_BIN) config verify
+	GOWORK=off $(GOLANGCI_LINT_BIN) run -v --max-same-issues=100 $(GOLANGCI_LINT_ARGS)
 
 tidy:
 	go mod tidy
@@ -68,3 +82,9 @@ docs-smoke:
 	  echo "docs-smoke: checking DB content..."; \
 	  sqlite3 "$$OUT/db/codebase.db" "SELECT slug FROM review_docs;" | grep -q "01-pr-review-static-export" || { echo "example doc not in export DB"; exit 1; }; \
 	  echo "docs-smoke: PASSED"
+
+# Bump all go-go-golems packages to their latest versions.
+bump-glazed:
+	GOWORK=off go get github.com/go-go-golems/glazed@latest
+	GOWORK=off go get github.com/go-go-golems/clay@latest
+	GOWORK=off go mod tidy

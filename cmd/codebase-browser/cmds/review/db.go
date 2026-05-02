@@ -53,7 +53,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("create review db: %w", err)
 			}
-			defer store.Close()
+			defer func() { _ = store.Close() }()
 
 			opts := review.IndexOptions{
 				RepoRoot:     repoRoot,

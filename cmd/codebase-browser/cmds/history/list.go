@@ -23,7 +23,7 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("open history db: %w", err)
 			}
-			defer store.Close()
+			defer func() { _ = store.Close() }()
 
 			commits, err := store.ListCommits(ctx)
 			if err != nil {

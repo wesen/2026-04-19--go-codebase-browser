@@ -100,7 +100,7 @@ func newConceptCommand(concept *concepts.Concept, opts *options) *cobra.Command 
 			if err != nil {
 				return err
 			}
-			defer store.Close()
+			defer func() { _ = store.Close() }()
 			return runSQL(cmd.Context(), store.DB(), cmd.OutOrStdout(), rendered, opts.format)
 		},
 	}
@@ -129,14 +129,15 @@ func addParamFlag(cmd *cobra.Command, values map[string]any, param concepts.Para
 	case concepts.ParamStringList, concepts.ParamIntList:
 		values[name] = defaultStringSlice(param.Default)
 		addValueFlag(cmd.Flags(), name, short, help, &stringSliceValue{values: values, name: name})
-	default:
+	case concepts.ParamChoice:
 		values[name] = defaultString(param.Default)
 		addValueFlag(cmd.Flags(), name, short, help, &stringValue{values: values, name: name})
-		if param.Type == concepts.ParamChoice {
-			_ = cmd.RegisterFlagCompletionFunc(name, func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-				return param.Choices, cobra.ShellCompDirectiveNoFileComp
-			})
-		}
+		_ = cmd.RegisterFlagCompletionFunc(name, func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+			return param.Choices, cobra.ShellCompDirectiveNoFileComp
+		})
+	case concepts.ParamString:
+		values[name] = defaultString(param.Default)
+		addValueFlag(cmd.Flags(), name, short, help, &stringValue{values: values, name: name})
 	}
 }
 

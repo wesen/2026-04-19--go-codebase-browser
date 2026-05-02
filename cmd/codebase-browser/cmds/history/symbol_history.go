@@ -35,7 +35,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("open history db: %w", err)
 			}
-			defer store.Close()
+			defer func() { _ = store.Close() }()
 
 			targetID := symbolID
 			if targetID == "" && name != "" {
@@ -67,7 +67,7 @@ LIMIT  ?`, targetID, limit)
 			if err != nil {
 				return err
 			}
-			defer rows.Close()
+			defer func() { _ = rows.Close() }()
 
 			fmt.Printf("Symbol: %s\n\n", targetID)
 			fmt.Printf("%-10s %-19s %-10s %-12s %s\n",
