@@ -1,7 +1,7 @@
 ---
 Title: Write public website documentation for codebase-browser
 Ticket: GCB-016
-Status: active
+Status: complete
 Topics:
     - codebase-browser
     - documentation-tooling
@@ -15,10 +15,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-05-02T10:09:54.34659498-04:00
+LastUpdated: 2026-05-02T10:50:46.981219775-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Write public website documentation for codebase-browser
 
