@@ -87,6 +87,7 @@ RelatedFiles:
       Note: |-
         Task checklist that drives diary steps
         Marked sqlRows/blob/byte-offset and go-test validation tasks done in Step 20
+        Marked resolveCommitRef tests done in Step 21
     - Path: ui/index.html
       Note: Removed wasm_exec.js script tag in Step 11 (commit 12d31ec)
     - Path: ui/package.json
@@ -113,10 +114,13 @@ RelatedFiles:
       Note: Step 4 static-only provider singleton
     - Path: ui/src/api/sourceApi.ts
       Note: Removed placeholder empty source/snippet/file-xref responses in Step 16 (commit 5a0e840)
+    - Path: ui/src/api/sqlJsQueryProvider.test.ts
+      Note: Added commit-ref provider tests in Step 21
     - Path: ui/src/api/sqlJsQueryProvider.ts
       Note: |-
         Step 4 initial SQL provider
         Added SQL-backed snippet refs
+        Added injectable DB loader seam for provider tests in Step 21
     - Path: ui/src/api/sqljs/sqlJsDb.ts
       Note: Step 1 sql.js and DB singleton loader
     - Path: ui/src/api/sqljs/sqlRows.test.ts
@@ -149,6 +153,7 @@ LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -2804,3 +2809,76 @@ I fixed this by converting both files to real `describe`/`it` Vitest tests inste
   - `pnpm -C ui run test`
   - `pnpm -C ui run typecheck`
   - `go test ./...`
+
+## Step 21: Add provider-level commit-ref tests
+
+After adding low-level sql.js row tests, I added the first provider-level unit tests around commit reference resolution.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue filling in Phase 10 tests after Step 20.
+
+**Inferred user intent:** Increase confidence in the sql.js runtime by testing semantic provider behavior, not only low-level row helpers.
+
+### What I did
+
+- Added dependency injection to `SqlJsQueryProvider`:
+  - default behavior still loads the real static DB with `getStaticDb()`;
+  - tests can pass a small async DB loader returning an in-memory sql.js database.
+- Added `ui/src/api/sqlJsQueryProvider.test.ts` covering:
+  - `listCommits()` sorts newest first;
+  - `listCommits()` ignores rows whose `error` is not empty;
+  - `resolveCommitRef('HEAD')`;
+  - `resolveCommitRef('HEAD~N')`;
+  - full hash resolution;
+  - short-hash resolution;
+  - unique-prefix resolution;
+  - missing refs;
+  - out-of-range `HEAD~N`;
+  - ambiguous prefixes;
+  - structured `QueryError` instances.
+- Marked T10.3 done in `tasks.md`.
+
+### Why
+
+Commit ref resolution is a central browser behavior because history pages and inline review widgets accept human-friendly refs like `HEAD`, `HEAD~1`, short hashes, and prefixes. This is easy to regress when changing SQL queries or sorting, so it now has a focused test fixture.
+
+### What worked
+
+- In-memory sql.js DBs are sufficient for provider-level tests when the provider accepts a DB loader.
+- The production singleton path remains unchanged: `getSqlJsProvider()` still constructs `new SqlJsQueryProvider()` with the default `getStaticDb` loader.
+- `pnpm -C ui run test` passed with 4 test files and 12 tests.
+- `pnpm -C ui run typecheck` passed.
+
+### What didn't work
+
+No blocker in this step.
+
+### What I learned
+
+- A tiny constructor seam is enough to test provider semantics without browser fetch mocks or fixture DB files.
+- The commit resolver sorts commits by `AuthorTime` ascending internally, even though `listCommits()` presents them newest first. The test now locks in this distinction.
+
+### What was tricky to build
+
+- The provider has many methods that call the DB. Replacing direct `getStaticDb()` calls with `this.getDb()` across the class was necessary so tests do not accidentally fetch `manifest.json` or `db/codebase.db`.
+
+### What warrants a second pair of eyes
+
+- Review the constructor injection seam to confirm it stays internal/simple and does not complicate production usage.
+- Review whether future provider tests should share the same fixture helper or move it into a test utility module.
+
+### What should be done in the future
+
+- Add provider-level tests for body diffs and file/source xrefs using a richer in-memory schema.
+- Add Playwright tests against a real static export to complement these unit tests.
+
+### Code review instructions
+
+- Review `ui/src/api/sqlJsQueryProvider.ts` and confirm production behavior is unchanged by the injected loader default.
+- Review `ui/src/api/sqlJsQueryProvider.test.ts` for the `HEAD~N` and ambiguous-prefix cases.
+- Validate with:
+  - `pnpm -C ui run test`
+  - `pnpm -C ui run typecheck`

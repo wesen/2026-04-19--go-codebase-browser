@@ -296,3 +296,15 @@ Step 20: Added UI Vitest runner and sql.js row/BLOB/byte-offset tests; converted
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/packages/ui/src/highlight/go.test.ts — Converted to Vitest
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/packages/ui/src/highlight/ts.test.ts — Converted to Vitest
 
+
+## 2026-05-01
+
+Step 21: Added provider-level Vitest coverage for listCommits and resolveCommitRef using an in-memory sql.js database and an injectable provider DB loader.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 21
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md — Updated test task status
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqlJsQueryProvider.test.ts — Added commit ref tests
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqlJsQueryProvider.ts — Added injectable DB loader seam
+

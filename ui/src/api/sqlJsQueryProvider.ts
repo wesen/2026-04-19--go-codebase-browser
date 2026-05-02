@@ -14,9 +14,14 @@ import type {
   SymbolDiff,
   SymbolHistoryEntry,
 } from './historyApi';
+import type initSqlJs from 'sql.js';
+
 import { QueryError } from './queryErrors';
 import { getStaticDb } from './sqljs/sqlJsDb';
 import { extractUtf8Range, queryAll, queryOne, sqlBlobToBytes, type SqlRow } from './sqljs/sqlRows';
+
+type Database = initSqlJs.Database;
+type DbLoader = () => Promise<Database>;
 
 type CommitRowSQL = SqlRow & {
   Hash: string;
@@ -154,6 +159,12 @@ export function resetSqlJsProviderForTests(): void {
 }
 
 export class SqlJsQueryProvider {
+  constructor(private readonly loadDb: DbLoader = getStaticDb) {}
+
+  private async getDb(): Promise<Database> {
+    return this.loadDb();
+  }
+
   async getIndex(): Promise<IndexSummary> {
     const commit = await this.resolveCommitRef('HEAD');
     const [packages, files, symbols] = await Promise.all([
@@ -189,7 +200,7 @@ export class SqlJsQueryProvider {
 
   async getSymbol(id: string): Promise<Symbol> {
     const commit = await this.resolveCommitRef('HEAD');
-    const db = await getStaticDb();
+    const db = await this.getDb();
     const row = queryOne<SymbolSQL>(db, symbolSelectSQL + ' WHERE commit_hash = ? AND id = ?', [commit, id]);
     if (!row) throw new QueryError('NOT_FOUND', `symbol not found: ${id}`);
     return toSymbol(row);
@@ -197,7 +208,7 @@ export class SqlJsQueryProvider {
 
   async searchSymbols(query: string, kind = ''): Promise<Symbol[]> {
     const commit = await this.resolveCommitRef('HEAD');
-    const db = await getStaticDb();
+    const db = await this.getDb();
     const like = `%${query}%`;
     return queryAll<SymbolSQL>(db, symbolSelectSQL + `
       WHERE commit_hash = ?
@@ -293,7 +304,7 @@ export class SqlJsQueryProvider {
   }
 
   async listCommits(): Promise<CommitRow[]> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     return queryAll<CommitRowSQL>(db, `
       SELECT hash AS Hash,
              short_hash AS ShortHash,
@@ -345,7 +356,7 @@ export class SqlJsQueryProvider {
   }
 
   async getSymbolHistory(symbolId: string): Promise<SymbolHistoryEntry[]> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     return queryAll<SymbolHistorySQL>(db, `
       SELECT symbol_id AS symbolId,
              name,
@@ -406,7 +417,7 @@ export class SqlJsQueryProvider {
   async getCommitDiff(from: string, to: string): Promise<CommitDiff> {
     const oldHash = await this.resolveCommitRef(from);
     const newHash = await this.resolveCommitRef(to);
-    const db = await getStaticDb();
+    const db = await this.getDb();
     const files = queryAll<FileDiffSQL>(db, fileDiffSQL, [oldHash, newHash, newHash, oldHash, oldHash, newHash]);
     const symbols = queryAll<SymbolDiffSQL>(db, symbolDiffSQL, [oldHash, newHash, newHash, oldHash, oldHash, newHash]);
     return {
@@ -472,7 +483,7 @@ export class SqlJsQueryProvider {
   }
 
   async listReviewDocs(): Promise<ReviewDocMeta[]> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     return queryAll<ReviewDocMetaSQL>(db, `
       SELECT slug, title
       FROM static_review_rendered_docs
@@ -481,7 +492,7 @@ export class SqlJsQueryProvider {
   }
 
   async getReviewDoc(slug: string): Promise<DocPage> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     const row = queryOne<ReviewDocSQL>(db, `
       SELECT slug,
              title,
@@ -502,7 +513,7 @@ export class SqlJsQueryProvider {
   }
 
   private async getPackagesAtCommit(commit: string): Promise<Package[]> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     return queryAll<PackageSQL>(db, `
       SELECT id,
              import_path AS importPath,
@@ -524,7 +535,7 @@ export class SqlJsQueryProvider {
   }
 
   private async getFilesAtCommit(commit: string): Promise<File[]> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     return queryAll<FileSQL>(db, `
       SELECT id,
              path,
@@ -550,7 +561,7 @@ export class SqlJsQueryProvider {
   }
 
   private async getSymbolsAtCommit(commit: string): Promise<Symbol[]> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     return queryAll<SymbolSQL>(db, symbolSelectSQL + `
       WHERE commit_hash = ?
       ORDER BY package_id, file_id, start_line, name
@@ -558,7 +569,7 @@ export class SqlJsQueryProvider {
   }
 
   private async getFileContentMeta(path: string, commit: string): Promise<FileContentMetaSQL> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     const row = queryOne<FileContentMetaSQL>(db, `
       SELECT id AS fileId,
              COALESCE(NULLIF(content_hash, ''), sha256) AS contentHash
@@ -570,7 +581,7 @@ export class SqlJsQueryProvider {
   }
 
   private async getBodyMeta(commitHash: string, symbolId: string): Promise<BodyMetaSQL> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     const row = queryOne<BodyMetaSQL>(db, `
       SELECT s.id AS symbolId,
              s.name AS name,
@@ -593,7 +604,7 @@ export class SqlJsQueryProvider {
   }
 
   private async getContentBytes(contentHash: string): Promise<Uint8Array> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     const row = queryOne<ContentSQL>(db, `
       SELECT content
       FROM file_contents
@@ -622,7 +633,7 @@ export class SqlJsQueryProvider {
   }
 
   private async getRefRecordsFrom(symbolId: string, commit: string): Promise<RefRecord[]> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     return queryAll<RefRecordSQL>(db, refRecordSelectSQL + `
       WHERE commit_hash = ? AND from_symbol_id = ?
       ORDER BY to_symbol_id, kind
@@ -630,7 +641,7 @@ export class SqlJsQueryProvider {
   }
 
   private async getRefRecordsTo(symbolId: string, commit: string): Promise<RefRecord[]> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     return queryAll<RefRecordSQL>(db, refRecordSelectSQL + `
       WHERE commit_hash = ? AND to_symbol_id = ?
       ORDER BY from_symbol_id, kind
@@ -638,7 +649,7 @@ export class SqlJsQueryProvider {
   }
 
   private async getRefRecordsInFile(commit: string, fileId: string): Promise<RefRecord[]> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     return queryAll<RefRecordSQL>(db, refRecordSelectSQL + `
       WHERE commit_hash = ? AND file_id = ?
       ORDER BY start_offset, end_offset
@@ -646,7 +657,7 @@ export class SqlJsQueryProvider {
   }
 
   private async getRefRecordsInFileRange(commit: string, fileId: string, startOffset: number, endOffset: number): Promise<RefRecord[]> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     return queryAll<RefRecordSQL>(db, refRecordSelectSQL + `
       WHERE commit_hash = ?
         AND file_id = ?
@@ -657,7 +668,7 @@ export class SqlJsQueryProvider {
   }
 
   private async getRefRecordsToFileSymbols(commit: string, fileId: string): Promise<RefRecord[]> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     return queryAll<RefRecordSQL>(db, refRecordSelectSQLWithAlias + `
       JOIN snapshot_symbols target
         ON target.commit_hash = r.commit_hash
@@ -673,7 +684,7 @@ export class SqlJsQueryProvider {
   }
 
   private async getRefRecordsFromFileSymbols(commit: string, fileId: string): Promise<RefRecord[]> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     return queryAll<RefRecordSQL>(db, refRecordSelectSQLWithAlias + `
       JOIN snapshot_symbols source
         ON source.commit_hash = r.commit_hash
@@ -689,7 +700,7 @@ export class SqlJsQueryProvider {
   }
 
   private async getSymbolMeta(symbolId: string, commit: string): Promise<SymbolMetaSQL | null> {
-    const db = await getStaticDb();
+    const db = await this.getDb();
     return queryOne<SymbolMetaSQL>(db, `
       SELECT id, name, kind
       FROM snapshot_symbols

@@ -116,7 +116,7 @@ This ticket is a clean-cut implementation of a static-only runtime:
 
 - [x] T10.1 Add Go tests for manifest writing and DB copy layout.
 - [x] T10.2 Add Go tests for `static_review_rendered_docs` generation.
-- [ ] T10.3 Add TypeScript tests for `resolveCommitRef()`.
+- [x] T10.3 Add TypeScript tests for `resolveCommitRef()`.
 - [x] T10.4 Add TypeScript tests for sql.js row helpers and BLOB decoding.
 - [x] T10.5 Add TypeScript tests for body extraction by byte offsets.
 - [ ] T10.6 Add Playwright regression for static review doc rendering with zero `/api/*` requests.
