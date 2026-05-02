@@ -11,20 +11,20 @@ This ticket is a clean-cut implementation of a static-only runtime:
 
 ### Phase 0 — Ticket setup and implementation bookkeeping
 
-- [ ] T00.1 Create and maintain an implementation diary for every substantive change.
+- [x] T00.1 Create and maintain an implementation diary for every substantive change.
 - [ ] T00.2 Keep this task list updated as design details become implementation details.
 - [ ] T00.3 After each focused implementation slice, run relevant validation and commit code/docs intentionally.
 - [ ] T00.4 Keep `docmgr doctor --ticket GCB-015 --stale-after 30` passing.
 
 ### Phase 1 — Frontend sql.js dependency and DB bootstrap
 
-- [ ] T01.1 Add `sql.js` to `ui/package.json` with pnpm.
-- [ ] T01.2 Add type coverage for `sql.js` using `@types/sql.js` or a local declaration file if needed.
-- [ ] T01.3 Ensure `sql-wasm.wasm` is copied into the final static export root or another known browser-loadable path.
-- [ ] T01.4 Add `ui/src/api/sqljs/sqlJsDb.ts` with a singleton sql.js initializer and `getStaticDb()` loader.
-- [ ] T01.5 Add `ui/src/api/sqljs/sqlRows.ts` with `queryAll`, `queryOne`, and statement cleanup helpers.
-- [ ] T01.6 Add BLOB/text helper functions for decoding `file_contents.content` values returned by sql.js.
-- [ ] T01.7 Add a small smoke helper or test query that can read `SELECT COUNT(*) FROM commits` from `db/codebase.db`.
+- [x] T01.1 Add `sql.js` to `ui/package.json` with pnpm.
+- [x] T01.2 Add type coverage for `sql.js` using `@types/sql.js` or a local declaration file if needed.
+- [x] T01.3 Ensure `sql-wasm.wasm` is copied into the final static export root or another known browser-loadable path.
+- [x] T01.4 Add `ui/src/api/sqljs/sqlJsDb.ts` with a singleton sql.js initializer and `getStaticDb()` loader.
+- [x] T01.5 Add `ui/src/api/sqljs/sqlRows.ts` with `queryAll`, `queryOne`, and statement cleanup helpers.
+- [x] T01.6 Add BLOB/text helper functions for decoding `file_contents.content` values returned by sql.js.
+- [x] T01.7 Add a small smoke helper or test query that can read `SELECT COUNT(*) FROM commits` from `db/codebase.db`.
 
 ### Phase 2 — Static export packaging in Go
 

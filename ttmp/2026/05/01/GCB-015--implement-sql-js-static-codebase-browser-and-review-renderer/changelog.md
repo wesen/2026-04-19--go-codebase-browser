@@ -34,3 +34,18 @@ Expanded detailed implementation tasks and created the implementation diary for 
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Implementation diary initialized
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md — Detailed phased task checklist
 
+
+## 2026-05-01
+
+Step 1: Added sql.js dependency, sql-wasm public asset, DB bootstrap helpers, SQL row helpers, and BLOB byte-range utilities.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 1
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md — Marked Phase 1 bootstrap tasks complete
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/package.json — Added sql.js dependency and type package
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/pnpm-lock.yaml — Updated dependency lockfile
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/public/sql-wasm.wasm — Browser-loadable sql.js WASM runtime
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqljs/sqlJsDb.ts — Static SQLite DB loader
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqljs/sqlRows.ts — Prepared statement and BLOB helpers
+
