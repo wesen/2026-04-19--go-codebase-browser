@@ -10,7 +10,6 @@ import { SourcePage } from '../features/source/SourcePage';
 import { SearchPanel } from '../features/tree/SearchPanel';
 import { DocPage, DocList } from '../features/doc/DocPage';
 import { ReviewDocPage, ReviewDocList } from '../features/review/ReviewDocPage';
-import { QueryConceptsPage } from '../features/query/QueryConceptsPage';
 import { HistoryPage } from '../features/history/HistoryPage';
 import { useGetIndexQuery } from '../api/indexApi';
 import type { Package } from '../api/types';
@@ -25,11 +24,6 @@ export function App() {
           <aside data-part="sidebar">
             <Header onToggleTheme={() => setDark((d) => !d)} dark={dark} />
             <SearchPanel />
-            <div style={{ marginBottom: 12 }}>
-              <Link to="/queries" style={{ fontWeight: 600, color: 'var(--cb-color-accent)', textDecoration: 'none' }}>
-                Structured queries
-              </Link>
-            </div>
             <div style={{ marginBottom: 12 }}>
               <Link to="/history" style={{ fontWeight: 600, color: 'var(--cb-color-accent)', textDecoration: 'none' }}>
                 History
@@ -50,8 +44,6 @@ export function App() {
               <Route path="/source/*" element={<SourcePage />} />
               <Route path="/doc/:slug" element={<DocPage />} />
               <Route path="/review/:slug" element={<ReviewDocPage />} />
-              <Route path="/queries" element={<QueryConceptsPage />} />
-              <Route path="/queries/*" element={<QueryConceptsPage />} />
               <Route path="/history" element={<HistoryPage />} />
             </Routes>
           </main>
