@@ -1898,3 +1898,166 @@ React.useEffect(() => {
   document.querySelector<HTMLElement>('[data-part="main"]')?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
 }, [pathname, search, hash]);
 ```
+
+## Step 14: Investigate why recent body diffs showed no changes
+
+This step investigated a validation confusion rather than changing code. The UI said there was no difference between the last two commits for `review.Register`, and the user asked to try a richer 20-commit dataset.
+
+The important finding is that commit range size alone is not enough. Without `--worktrees`, the review history indexer records the current checkout's source snapshot for every commit in the range, so symbol bodies can appear identical across history even when older commits really differed. For accurate per-commit source snapshots, use `review index --worktrees`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "why does the UI say that there is no difference between the last 2 commits, can you maybe try with like 20 commits, so that we have a bit richer data?"
+
+**Assistant interpretation:** Explain the no-diff result and generate a richer 20-commit static export to validate whether the UI can show body changes.
+
+**Inferred user intent:** Distinguish a real UI/body-diff bug from an impoverished or incorrectly indexed smoke dataset.
+
+**Commit (code):** N/A — validation and diary only
+
+### What I did
+
+- Built a 20-commit smoke DB without worktrees:
+
+```bash
+rm -f /tmp/gcb015-sqljs-smoke-20.db
+go run ./cmd/codebase-browser review index \
+  --commits HEAD~20..HEAD \
+  --docs /tmp/reviews/static-smoke.md \
+  --db /tmp/gcb015-sqljs-smoke-20.db
+rm -rf /tmp/gcb015-sqljs-export-20
+go run ./cmd/codebase-browser review export \
+  --db /tmp/gcb015-sqljs-smoke-20.db \
+  --out /tmp/gcb015-sqljs-export-20
+```
+
+- Queried for symbols with more than one body hash and found none in the top results; `Register` stayed identical across all 20 rows.
+- Realized this was because the default non-worktree path indexes the current checkout's source tree for each commit.
+- Built a 20-commit smoke DB with worktrees:
+
+```bash
+rm -f /tmp/gcb015-sqljs-smoke-20-worktrees.db
+go run ./cmd/codebase-browser review index \
+  --commits HEAD~20..HEAD \
+  --docs /tmp/reviews/static-smoke.md \
+  --db /tmp/gcb015-sqljs-smoke-20-worktrees.db \
+  --worktrees \
+  --parallelism 2
+rm -rf /tmp/gcb015-sqljs-export-20-worktrees
+go run ./cmd/codebase-browser review export \
+  --db /tmp/gcb015-sqljs-smoke-20-worktrees.db \
+  --out /tmp/gcb015-sqljs-export-20-worktrees
+```
+
+- Queried the worktree-backed DB for symbols with multiple body hashes:
+
+```sql
+select symbol_id, name, count(distinct body_hash) as bodies, count(*) as n
+from symbol_history
+where body_hash != ''
+group by symbol_id
+having bodies > 1
+order by bodies desc, n desc
+limit 20;
+```
+
+- Found richer data, including:
+  - `review.newExportCmd` with 3 distinct body hashes across 20 commits;
+  - `review.Register` with 2 distinct body hashes across 20 commits;
+  - `review.newIndexCmd` with 2 distinct body hashes;
+  - `wasm.Init` and `wasm.SearchCtx` with 2 distinct body hashes.
+- Served the richer export on port 8783:
+
+```bash
+cd /tmp/gcb015-sqljs-export-20-worktrees
+python3 -m http.server 8783
+```
+
+- Opened:
+
+```text
+http://localhost:8783/#/history?symbol=sym:github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/review.func.Register
+```
+
+- Confirmed the UI now shows 20 history rows and two different body hashes for `Register`:
+  - newest body hash prefix: `998585a`
+  - older body hash prefix: `0987b08`
+- Confirmed the body diff panel picked a broad changed range:
+  - `7f19193 → 4b1936b`
+  - `lines 5-18 → lines 5-17`
+
+### Why
+
+- The static body-diff UI was not necessarily wrong; the input DB was too narrow and, more importantly, not indexed with commit-specific worktrees.
+- For recent commits, the last two commits were diary/UI-only changes that did not alter `review.Register`, so the message "No body changes" was correct for that selected pair.
+- For non-worktree multi-commit indexing, all snapshots can reflect the current checkout, making historical body diffs uninteresting or misleading.
+
+### What worked
+
+- The 20-commit worktree-backed DB produced meaningful historical symbol changes.
+- The static sql.js UI rendered the richer `Register` history and body diff.
+- No application `/api/*` requests were involved.
+
+### What didn't work
+
+- The 20-commit DB without `--worktrees` did not produce useful body-diff history because all symbol bodies appeared identical.
+- Browser console still reports a harmless missing favicon:
+
+```text
+Failed to load resource: the server responded with a status of 404 (File not found) @ /favicon.ico
+```
+
+This is not an application API/runtime failure.
+
+### What I learned
+
+- `--worktrees` is essential for accurate per-commit snapshots when the indexer needs real source content at each commit.
+- A larger commit range is useful only if the snapshots correspond to those commits.
+- The UI's body-hash history table is a useful diagnostic: identical body hashes across many commits usually means either the symbol did not change or the index input is not commit-specific.
+
+### What was tricky to build
+
+- The first 20-commit attempt looked richer by commit count but still had identical body hashes. The key was checking `count(distinct body_hash)` in SQLite rather than relying on visual intuition.
+- The user's original route focused on `review.Register`, which only changed at one point in the 20-commit range; many adjacent pairs still have no body difference. The UI's default selection now spans the oldest changed body to newest, so it does show a diff in the worktree-backed export.
+
+### What warrants a second pair of eyes
+
+- Review whether `review index` should warn when indexing a multi-commit range without `--worktrees`, because this can surprise users expecting accurate per-commit source snapshots.
+- Review whether the UI should explicitly explain "selected commits have identical body hashes" when no body diff is shown.
+- Review whether static smoke scripts should always use `--worktrees` for history/body-diff validation.
+
+### What should be done in the future
+
+- Consider changing smoke docs/commands to use `--worktrees` when validating historical body diffs.
+- Consider adding an indexer warning for multi-commit ranges without worktrees.
+- Add a richer fixture/export for Playwright tests based on a symbol known to change across the indexed range.
+
+### Code review instructions
+
+- No code changed in this step.
+- To reproduce the useful validation state, serve:
+
+```bash
+cd /tmp/gcb015-sqljs-export-20-worktrees
+python3 -m http.server 8783
+```
+
+- Open:
+
+```text
+http://localhost:8783/#/history?symbol=sym:github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/review.func.Register
+```
+
+### Technical details
+
+Useful SQL diagnostic:
+
+```sql
+select symbol_id, name, count(distinct body_hash) as bodies, count(*) as n
+from symbol_history
+where body_hash != ''
+group by symbol_id
+having bodies > 1
+order by bodies desc, n desc
+limit 20;
+```

@@ -204,3 +204,12 @@ Step 13: Added route-change scroll reset and replaced the flat package sidebar w
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/app/App.tsx — Route scroll reset and package tree navigation
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/packages/ui/src/theme/base.css — Tree active/root/nesting styles
 
+
+## 2026-05-01
+
+Step 14: Investigated no-diff history smoke; found non-worktree multi-commit indexing reuses current checkout snapshots, while a 20-commit --worktrees export shows real body hash changes for review.Register and newExportCmd.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 14 validation finding
+
