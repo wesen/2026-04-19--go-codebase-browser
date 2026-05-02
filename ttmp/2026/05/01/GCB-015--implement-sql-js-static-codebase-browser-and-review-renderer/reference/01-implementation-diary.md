@@ -33,6 +33,14 @@ RelatedFiles:
       Note: Step 1 dependency lock updates
     - Path: ui/public/sql-wasm.wasm
       Note: Step 1 browser sql.js WASM runtime asset
+    - Path: ui/src/api/historyApi.ts
+      Note: Step 4 provider-backed history RTK endpoints
+    - Path: ui/src/api/queryErrors.ts
+      Note: Step 4 provider error normalization
+    - Path: ui/src/api/queryProvider.ts
+      Note: Step 4 static-only provider singleton
+    - Path: ui/src/api/sqlJsQueryProvider.ts
+      Note: Step 4 initial SQL provider
     - Path: ui/src/api/sqljs/sqlJsDb.ts
       Note: Step 1 sql.js and DB singleton loader
     - Path: ui/src/api/sqljs/sqlRows.ts
@@ -43,6 +51,7 @@ LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -357,4 +366,96 @@ Expected smoke result:
 
 ```text
 static-smoke|Static Export Smoke Review|4203|3341|[]
+```
+
+## Step 4: Add the first SqlJsQueryProvider and move history API to provider query functions
+
+This step adds the first semantic frontend provider over sql.js. The provider can list commits, resolve commit refs, load symbol history, and compute symbol body diffs directly from SQLite BLOB content and symbol byte offsets.
+
+I also rewrote `historyApi.ts` away from server/static endpoint-string routing. Its RTK Query endpoints now call provider methods through `queryFn`, which is the desired target pattern for the static-only runtime.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue implementing the static-only sql.js runtime and record progress/failures.
+
+**Inferred user intent:** Start replacing the old `/api`/TinyGo transport with SQL-backed frontend queries.
+
+**Commit (code):** pending — provider/history slice not committed yet
+
+### What I did
+
+- Added `ui/src/api/queryErrors.ts` with `QueryError` and RTK error normalization.
+- Added `ui/src/api/queryProvider.ts` with:
+  - `CodebaseQueryProvider` interface;
+  - a singleton `getQueryProvider()` returning `SqlJsQueryProvider`;
+  - no `ServerQueryProvider` and no runtime-mode branching.
+- Added `ui/src/api/sqlJsQueryProvider.ts` with initial implementations for:
+  - `listCommits()`;
+  - `resolveCommitRef()`;
+  - `getCommit()`;
+  - `getSymbolHistory()`;
+  - `getSymbolBodyDiff()`;
+  - placeholder `getCommitDiff()` returning empty diff data;
+  - placeholder `getImpact()` returning an empty graph.
+- Rewrote `ui/src/api/historyApi.ts` to use RTK `queryFn` calls against the provider instead of `/api/history/*` endpoint strings.
+- Marked T04.1–T04.8 and T05.1–T05.6 complete.
+
+### Why
+
+- The target frontend has one runtime data path: `SqlJsQueryProvider -> sql.js -> db/codebase.db`.
+- The direct history/body-diff path is the most important first provider capability because it fixes the architectural class of `STATIC_NOT_PRECOMPUTED` failures.
+- RTK Query can still be used for caching/hooks, but it should call semantic provider methods rather than encode HTTP URLs.
+
+### What worked
+
+- `pnpm -C ui run typecheck` passed after the provider and `historyApi.ts` rewrite.
+- Type-only imports from `historyApi.ts` let provider code reuse existing frontend result shapes without runtime import cycles.
+- The byte-offset body extraction path is now represented in TypeScript using `Uint8Array` slicing before UTF-8 decoding.
+
+### What didn't work
+
+- I did not browser-test `/history?symbol=...` yet because other app shell pieces still use the old TinyGo/precomputed index APIs (`indexApi` and `wasmClient`). The provider is typechecked but the whole app still needs the generic browser API migration before end-to-end static runtime validation.
+- `getCommitDiff()` and `getImpact()` are placeholders in this step. They exist to satisfy the provider interface while the next phases implement SQL diff and impact semantics.
+
+### What I learned
+
+- It is feasible to keep RTK Query while removing server endpoints: `queryFn` is enough to route hooks to provider methods.
+- The current frontend type shapes are PascalCase for history/diff results, so the provider returns those shapes for compatibility with existing widgets.
+
+### What was tricky to build
+
+- The main TypeScript design issue was avoiding a runtime cycle between `historyApi.ts` and provider files. The provider imports history result shapes using `import type`, which is erased at runtime. `historyApi.ts` imports the provider at runtime and calls it from `queryFn`.
+
+### What warrants a second pair of eyes
+
+- Review whether provider result types should continue importing from `historyApi.ts` or move into a neutral `queryTypes.ts` file. A neutral types file would probably be cleaner before the provider expands to packages/symbols/source/review docs.
+- Review the placeholder `getCommitDiff()` and `getImpact()` behavior. It is intentionally incomplete and should not be mistaken for final functionality.
+
+### What should be done in the future
+
+- Implement SQL commit diff with SQLite-compatible `UNION ALL` queries.
+- Implement refs and impact BFS over `snapshot_refs`.
+- Migrate `indexApi`, package/symbol/source pages, and review docs away from TinyGo/precomputed assumptions so the whole app can run from sql.js.
+
+### Code review instructions
+
+- Start with `ui/src/api/historyApi.ts` to see the endpoint-string removal.
+- Then review `ui/src/api/queryProvider.ts` for the static-only singleton provider.
+- Then review `ui/src/api/sqlJsQueryProvider.ts`, especially `getSymbolBodyDiff()` and its private `getBodyMeta()` / `getContentBytes()` helpers.
+- Validate with `pnpm -C ui run typecheck`.
+
+### Technical details
+
+Body diff SQL path:
+
+```text
+getSymbolBodyDiff(from, to, symbolId)
+  -> resolveCommitRef(from/to)
+  -> snapshot_symbols + snapshot_files for byte ranges and content hashes
+  -> file_contents for BLOBs
+  -> Uint8Array.slice(startOffset, endOffset)
+  -> TextDecoder utf-8
+  -> simpleUnifiedDiff(oldBody, newBody)
 ```

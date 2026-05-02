@@ -50,23 +50,23 @@ This ticket is a clean-cut implementation of a static-only runtime:
 
 ### Phase 4 — SqlJsQueryProvider core API
 
-- [ ] T04.1 Add `ui/src/api/queryErrors.ts` with structured `QueryError` codes.
-- [ ] T04.2 Add `ui/src/api/queryProvider.ts` with the semantic provider interface and singleton getter.
-- [ ] T04.3 Add `ui/src/api/sqlJsQueryProvider.ts` implementing the provider over sql.js.
-- [ ] T04.4 Implement `manifest()` by reading `manifest.json`.
-- [ ] T04.5 Implement `listCommits()` with SQL over `commits`.
-- [ ] T04.6 Implement `resolveCommitRef()` supporting `HEAD`, `HEAD~N`, full hashes, short hashes, and unique prefixes.
-- [ ] T04.7 Implement `getCommit()` using `resolveCommitRef()` and SQL.
-- [ ] T04.8 Add provider-result normalization helpers for RTK Query `queryFn` endpoints.
+- [x] T04.1 Add `ui/src/api/queryErrors.ts` with structured `QueryError` codes.
+- [x] T04.2 Add `ui/src/api/queryProvider.ts` with the semantic provider interface and singleton getter.
+- [x] T04.3 Add `ui/src/api/sqlJsQueryProvider.ts` implementing the provider over sql.js.
+- [x] T04.4 Implement `manifest()` by reading `manifest.json`.
+- [x] T04.5 Implement `listCommits()` with SQL over `commits`.
+- [x] T04.6 Implement `resolveCommitRef()` supporting `HEAD`, `HEAD~N`, full hashes, short hashes, and unique prefixes.
+- [x] T04.7 Implement `getCommit()` using `resolveCommitRef()` and SQL.
+- [x] T04.8 Add provider-result normalization helpers for RTK Query `queryFn` endpoints.
 
 ### Phase 5 — History and body diff route parity
 
-- [ ] T05.1 Implement `getSymbolHistory(symbolId)` from the `symbol_history` view.
-- [ ] T05.2 Implement SQL lookup for symbol body metadata at a commit.
-- [ ] T05.3 Implement SQL lookup for file content by `content_hash`.
-- [ ] T05.4 Implement byte-offset-safe body extraction from `Uint8Array` content.
-- [ ] T05.5 Implement `getSymbolBodyDiff(from, to, symbolId)` with old/new bodies and unified diff text.
-- [ ] T05.6 Refactor `ui/src/api/historyApi.ts` history/body-diff endpoints to use provider `queryFn` calls.
+- [x] T05.1 Implement `getSymbolHistory(symbolId)` from the `symbol_history` view.
+- [x] T05.2 Implement SQL lookup for symbol body metadata at a commit.
+- [x] T05.3 Implement SQL lookup for file content by `content_hash`.
+- [x] T05.4 Implement byte-offset-safe body extraction from `Uint8Array` content.
+- [x] T05.5 Implement `getSymbolBodyDiff(from, to, symbolId)` with old/new bodies and unified diff text.
+- [x] T05.6 Refactor `ui/src/api/historyApi.ts` history/body-diff endpoints to use provider `queryFn` calls.
 - [ ] T05.7 Verify `/history?symbol=sym:...Register` no longer reports `STATIC_NOT_PRECOMPUTED`.
 
 ### Phase 6 — Commit diff, refs, and impact from SQL

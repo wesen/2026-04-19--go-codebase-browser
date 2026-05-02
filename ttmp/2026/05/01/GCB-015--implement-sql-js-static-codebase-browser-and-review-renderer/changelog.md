@@ -75,3 +75,17 @@ Step 3: Added export-time review doc rendering into static_review_rendered_docs 
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 3
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md — Marked rendered review doc tasks complete
 
+
+## 2026-05-01
+
+Step 4: Added SqlJsQueryProvider skeleton, SQL-backed commit/history/body-diff methods, and rewrote historyApi to provider queryFn calls without /api endpoint parsing.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 4
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md — Marked provider and core history tasks complete
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/historyApi.ts — RTK Query endpoints now call provider methods
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/queryErrors.ts — Structured provider errors
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/queryProvider.ts — Static-only provider singleton
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqlJsQueryProvider.ts — Initial sql.js provider with commits
+
