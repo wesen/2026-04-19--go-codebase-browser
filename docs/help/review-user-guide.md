@@ -196,7 +196,8 @@ For team review meetings:
 
 For large PRs (50+ commits), the review DB can grow large because each commit stores a full snapshot. Strategies:
 
-- Use `--worktrees` for accurate per-commit extraction (slower but correct).
+- Multi-commit ranges automatically use git worktrees so each source/symbol/ref snapshot matches its commit.
+- Use `--parallelism N` to control how many worktrees are indexed concurrently.
 - Use a smaller range: `HEAD~20..HEAD` instead of `main..feature`.
 - The `file_contents` table deduplicates identical files across commits, so content bloat is bounded.
 

@@ -18,7 +18,6 @@ func newIndexCmd() *cobra.Command {
 		docsPaths    []string
 		patterns     []string
 		includeTests bool
-		worktrees    bool
 		parallelism  int
 	)
 
@@ -33,9 +32,13 @@ The database contains:
 
 This is the input for 'review export', which packages a static sql.js browser.
 
+For multi-commit ranges, review indexing automatically uses git worktrees so
+source, symbol, reference, and body-hash snapshots match each commit. A single
+commit is indexed directly from the current checkout.
+
 Examples:
   codebase-browser review index --commits HEAD~10..HEAD --docs ./reviews/pr-42.md --db pr-42.db
-  codebase-browser review index --commits HEAD~5..HEAD --docs ./reviews/ --db review.db --worktrees`,
+  codebase-browser review index --commits HEAD --docs ./reviews/current.md --db review.db`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
@@ -64,7 +67,6 @@ Examples:
 				DocsPaths:    docsPaths,
 				Patterns:     patterns,
 				IncludeTests: includeTests,
-				Worktrees:    worktrees,
 				Parallelism:  parallelism,
 				OnProgress: func(phase string, done, total int, detail string) {
 					fmt.Fprintf(os.Stderr, "  [%s %d/%d] %s\n", phase, done, total, detail)
@@ -93,8 +95,7 @@ Examples:
 	cmd.Flags().StringArrayVar(&docsPaths, "docs", nil, "Markdown files or directories to index")
 	cmd.Flags().StringArrayVar(&patterns, "patterns", nil, "Go package patterns for extraction")
 	cmd.Flags().BoolVar(&includeTests, "include-tests", true, "Include test files")
-	cmd.Flags().BoolVar(&worktrees, "worktrees", false, "Use git worktrees for per-commit extraction")
-	cmd.Flags().IntVar(&parallelism, "parallelism", 1, "Max concurrent worktrees")
+	cmd.Flags().IntVar(&parallelism, "parallelism", 1, "Max concurrent worktrees for multi-commit indexing")
 
 	_ = cmd.MarkFlagRequired("docs")
 

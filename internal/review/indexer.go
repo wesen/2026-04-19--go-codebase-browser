@@ -23,7 +23,6 @@ type IndexOptions struct {
 	DocsPaths    []string
 	Patterns     []string
 	IncludeTests bool
-	Worktrees    bool
 	Parallelism  int
 	OnProgress   func(phase string, done, total int, detail string)
 	SkipDocs     bool
@@ -57,12 +56,17 @@ func IndexReview(ctx context.Context, store *Store, opts IndexOptions) (*IndexRe
 	}
 
 	// ── Phase 2: index commits ──
+	// Multi-commit review databases must contain source/symbol/ref snapshots for
+	// each commit, not the current checkout repeated N times. The current
+	// extractor is filesystem-oriented, so use git worktrees automatically for
+	// commit ranges and keep direct indexing only for single-commit snapshots.
+	useWorktrees := len(commits) > 1
 	histOpts := history.IndexOptions{
 		RepoRoot:     opts.RepoRoot,
 		Commits:      commits,
 		Patterns:     opts.Patterns,
 		IncludeTests: opts.IncludeTests,
-		Worktrees:    opts.Worktrees,
+		Worktrees:    useWorktrees,
 		Parallelism:  opts.Parallelism,
 		OnProgress: func(done, total int, shortHash, message string) {
 			result.CommitsIndexed = done

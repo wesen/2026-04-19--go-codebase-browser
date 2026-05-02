@@ -17,7 +17,6 @@ func newDBCmd() *cobra.Command {
 		commitRange  string
 		patterns     []string
 		includeTests bool
-		worktrees    bool
 		parallelism  int
 	)
 
@@ -30,9 +29,13 @@ This is the artifact you hand to an LLM for code review analysis.
 The database contains commits, snapshot_symbols, snapshot_files, snapshot_refs,
 and file_contents — but no review documents.
 
+For multi-commit ranges, review database creation automatically uses git
+worktrees so source, symbol, reference, and body-hash snapshots match each
+commit. A single commit is indexed directly from the current checkout.
+
 Examples:
   codebase-browser review db create --commits HEAD~10..HEAD --db pr-42.db
-  codebase-browser review db create --commits main..feature --db review.db --worktrees`,
+  codebase-browser review db create --commits HEAD --db current.db`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
@@ -57,7 +60,6 @@ Examples:
 				CommitRange:  commitRange,
 				Patterns:     patterns,
 				IncludeTests: includeTests,
-				Worktrees:    worktrees,
 				Parallelism:  parallelism,
 				SkipDocs:     true,
 				OnProgress: func(phase string, done, total int, detail string) {
@@ -85,8 +87,7 @@ Examples:
 	cmd.Flags().StringVar(&commitRange, "commits", "", "Git log range spec (e.g. HEAD~10..HEAD)")
 	cmd.Flags().StringArrayVar(&patterns, "patterns", nil, "Go package patterns for extraction")
 	cmd.Flags().BoolVar(&includeTests, "include-tests", true, "Include test files")
-	cmd.Flags().BoolVar(&worktrees, "worktrees", false, "Use git worktrees for per-commit extraction")
-	cmd.Flags().IntVar(&parallelism, "parallelism", 1, "Max concurrent worktrees")
+	cmd.Flags().IntVar(&parallelism, "parallelism", 1, "Max concurrent worktrees for multi-commit indexing")
 
 	return cmd
 }
