@@ -1,6 +1,6 @@
 import { createApi, type BaseQueryFn } from '@reduxjs/toolkit/query/react';
-import { getQueryProvider } from './queryProvider';
 import { normalizeQueryError } from './queryErrors';
+import { getSqlJsProvider } from './sqlJsQueryProvider';
 
 export interface CommitRow {
   Hash: string;
@@ -136,31 +136,31 @@ export const historyApi = createApi({
   baseQuery: noopBaseQuery,
   endpoints: (builder) => ({
     listCommits: builder.query<CommitRow[], void>({
-      queryFn: () => providerResult(() => getQueryProvider().listCommits()),
+      queryFn: () => providerResult(() => getSqlJsProvider().listCommits()),
     }),
     getCommit: builder.query<CommitRow, string>({
-      queryFn: (hash) => providerResult(() => getQueryProvider().getCommit(hash)),
+      queryFn: (hash) => providerResult(() => getSqlJsProvider().getCommit(hash)),
     }),
     getCommitSymbols: builder.query<SymbolAtCommit[], string>({
       queryFn: async () => ({ data: [] }),
     }),
     getDiff: builder.query<CommitDiff, { from: string; to: string }>({
-      queryFn: ({ from, to }) => providerResult(() => getQueryProvider().getCommitDiff(from, to)),
+      queryFn: ({ from, to }) => providerResult(() => getSqlJsProvider().getCommitDiff(from, to)),
     }),
     getSymbolHistory: builder.query<SymbolHistoryEntry[], { symbolId: string; limit?: number }>({
       queryFn: ({ symbolId, limit }) =>
         providerResult(async () => {
-          const entries = await getQueryProvider().getSymbolHistory(symbolId);
+          const entries = await getSqlJsProvider().getSymbolHistory(symbolId);
           return limit && limit > 0 ? entries.slice(0, limit) : entries;
         }),
     }),
     getSymbolBodyDiff: builder.query<BodyDiffResult, { from: string; to: string; symbolId: string }>({
       queryFn: ({ from, to, symbolId }) =>
-        providerResult(() => getQueryProvider().getSymbolBodyDiff(from, to, symbolId)),
+        providerResult(() => getSqlJsProvider().getSymbolBodyDiff(from, to, symbolId)),
     }),
     getImpact: builder.query<ImpactResponse, { sym: string; dir?: 'usedby' | 'uses'; depth?: number; commit?: string }>({
       queryFn: ({ sym, dir = 'usedby', depth = 2, commit }) =>
-        providerResult(() => getQueryProvider().getImpact({ symbolId: sym, direction: dir, depth, commit })),
+        providerResult(() => getSqlJsProvider().getImpact({ symbolId: sym, direction: dir, depth, commit })),
     }),
   }),
 });

@@ -100,3 +100,18 @@ Step 5: Implemented SQL-backed commit diffs, refs, and TypeScript impact BFS in 
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md — Marked Phase 6 SQL diff/impact tasks complete
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqlJsQueryProvider.ts — Commit diff SQL
 
+
+## 2026-05-01
+
+Step 6: Removed provider wrapper/runtime-mode helper and routed review docs through SqlJsQueryProvider only, with no server or WASM fallback.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 6
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md — Marked clean-cut frontend API tasks complete
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/docApi.ts — Review doc APIs now use sql.js provider only
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/historyApi.ts — History APIs call getSqlJsProvider directly
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/queryProvider.ts — Removed wrapper provider layer
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/runtimeMode.ts — Removed obsolete runtime-mode helper
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqlJsQueryProvider.ts — Owns the only provider singleton and review doc SQL methods
+

@@ -33,6 +33,8 @@ RelatedFiles:
       Note: Step 1 dependency lock updates
     - Path: ui/public/sql-wasm.wasm
       Note: Step 1 browser sql.js WASM runtime asset
+    - Path: ui/src/api/docApi.ts
+      Note: Step 6 SQL-only review doc API
     - Path: ui/src/api/historyApi.ts
       Note: Step 4 provider-backed history RTK endpoints
     - Path: ui/src/api/queryErrors.ts
@@ -51,6 +53,7 @@ LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -559,3 +562,93 @@ getImpact(root, direction, depth, commit)
   -> add edge to node
   -> enqueue unseen neighbor until max depth
 ```
+
+## Step 6: Remove provider wrapper and route review docs through sql.js only
+
+This step responds to the clean-cut instruction directly: I removed the generic provider wrapper file and changed the frontend APIs touched so far to import `SqlJsQueryProvider` directly. I also rewrote `docApi.ts` so review document list/detail queries read from the SQL provider instead of trying server or WASM fallbacks.
+
+This keeps the architecture honest. There is no `ServerQueryProvider`, no runtime-mode switch, and no compatibility fallback for review docs. The only target runtime is sql.js over `db/codebase.db`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "make sure you kill depercated / unnecessary code right away, clean cutover, no backwards compatibililty, no wrapper APIs.
+
+continue"
+
+**Assistant interpretation:** Stop leaving transitional abstraction layers or old fallbacks in place; remove deprecated static/server compatibility paths as soon as the sql.js path exists.
+
+**Inferred user intent:** Keep the implementation simple and avoid accumulating legacy paths that obscure the static-only target architecture.
+
+**Commit (code):** pending — clean-cut frontend API slice not committed yet
+
+### What I did
+
+- Removed `ui/src/api/queryProvider.ts`.
+- Removed `ui/src/api/runtimeMode.ts`.
+- Added singleton helpers directly in `ui/src/api/sqlJsQueryProvider.ts`:
+  - `getSqlJsProvider()`
+  - `resetSqlJsProviderForTests()`
+- Rewrote `ui/src/api/historyApi.ts` to import `getSqlJsProvider()` directly.
+- Rewrote `ui/src/api/docApi.ts` to use provider `queryFn` calls only.
+- Removed server fetch fallbacks and WASM fallbacks from `docApi.ts`.
+- Implemented review doc list/detail frontend access through:
+  - `SqlJsQueryProvider.listReviewDocs()`
+  - `SqlJsQueryProvider.getReviewDoc(slug)`
+- Marked T08.1, T08.2, T09.1, T09.2, and T09.3 complete.
+
+### Why
+
+- The ticket now explicitly says there is no runtime Go server and no wrapper/provider duality.
+- Keeping a generic provider wrapper would be harmless technically, but it violates the user's requested clean cutover and adds a layer without a second implementation.
+- Review docs already exist in `static_review_rendered_docs`, so there is no reason for `docApi` to probe `/api/review/docs` or use `wasmBaseQuery`.
+
+### What worked
+
+- `pnpm -C ui run typecheck` passed after deleting the wrapper and runtime-mode file.
+- `rg -n "runtimeMode|queryProvider|isStaticExport" ui/src` returned no matches.
+
+### What didn't work
+
+- There are still remaining old TinyGo/WASM users in `indexApi.ts`, `sourceApi.ts`, and `xrefApi.ts`. I did not remove them in this step because their SQL replacements need package/symbol/source/xref provider methods first.
+
+### What I learned
+
+- The review doc path can be cleanly switched to SQL now because Step 3 already writes `static_review_rendered_docs` into the copied DB.
+- The frontend no longer needs the runtime-mode helper for the parts already migrated.
+
+### What was tricky to build
+
+- The main risk was removing the provider wrapper while `queryProvider.ts` types were imported by history APIs. The fix was to let `historyApi.ts` and `docApi.ts` call `getSqlJsProvider()` directly and keep the shared return types in their existing API files for now.
+
+### What warrants a second pair of eyes
+
+- Review whether `listDocs` and `getDoc` should remain in `docApi.ts` returning empty/provider review results or be deleted entirely if only review docs are part of the static-only product.
+- Review the remaining TinyGo/WASM users and confirm the next cutover order: index/package/symbol/source first, then xrefs/snippets.
+
+### What should be done in the future
+
+- Replace `indexApi.ts`, `sourceApi.ts`, and `xrefApi.ts` with SQL-backed implementations.
+- Delete `wasmClient.ts` once no frontend code imports it.
+
+### Code review instructions
+
+- Review `ui/src/api/docApi.ts` for removal of server/WASM fallback behavior.
+- Review `ui/src/api/historyApi.ts` for direct `getSqlJsProvider()` usage.
+- Review `ui/src/api/sqlJsQueryProvider.ts` for the provider singleton and review doc methods.
+- Validate with:
+  - `pnpm -C ui run typecheck`
+  - `rg -n "runtimeMode|queryProvider|isStaticExport" ui/src`
+
+### Technical details
+
+The target frontend API pattern is now:
+
+```text
+RTK Query endpoint
+  -> queryFn
+  -> getSqlJsProvider().method(...)
+  -> sql.js
+  -> db/codebase.db
+```
+
+There is no `ServerQueryProvider` and no `/api/*` fallback.

@@ -1,3 +1,4 @@
+import type { DocPage, ReviewDocMeta, SnippetRef } from './docApi';
 import type {
   BodyDiffResult,
   CommitDiff,
@@ -68,6 +69,27 @@ type SymbolMetaSQL = SqlRow & {
   name: string;
   kind: string;
 };
+
+type ReviewDocMetaSQL = SqlRow & ReviewDocMeta;
+
+type ReviewDocSQL = SqlRow & {
+  slug: string;
+  title: string;
+  html: string;
+  snippetsJson: string;
+  errorsJson: string;
+};
+
+let provider: SqlJsQueryProvider | null = null;
+
+export function getSqlJsProvider(): SqlJsQueryProvider {
+  if (!provider) provider = new SqlJsQueryProvider();
+  return provider;
+}
+
+export function resetSqlJsProviderForTests(): void {
+  provider = null;
+}
 
 export class SqlJsQueryProvider {
   async listCommits(): Promise<CommitRow[]> {
@@ -246,6 +268,36 @@ export class SqlJsQueryProvider {
       depth: maxDepth,
       commit,
       nodes: [...nodeByID.values()],
+    };
+  }
+
+  async listReviewDocs(): Promise<ReviewDocMeta[]> {
+    const db = await getStaticDb();
+    return queryAll<ReviewDocMetaSQL>(db, `
+      SELECT slug, title
+      FROM static_review_rendered_docs
+      ORDER BY slug
+    `).map((row) => ({ slug: row.slug, title: row.title }));
+  }
+
+  async getReviewDoc(slug: string): Promise<DocPage> {
+    const db = await getStaticDb();
+    const row = queryOne<ReviewDocSQL>(db, `
+      SELECT slug,
+             title,
+             html,
+             snippets_json AS snippetsJson,
+             errors_json AS errorsJson
+      FROM static_review_rendered_docs
+      WHERE slug = ?
+    `, [slug]);
+    if (!row) throw new QueryError('NOT_FOUND', `review doc not found: ${slug}`);
+    return {
+      slug: row.slug,
+      title: row.title,
+      html: row.html,
+      snippets: parseJSON<SnippetRef[]>(row.snippetsJson, []),
+      errors: parseJSON<string[]>(row.errorsJson, []),
     };
   }
 
@@ -459,6 +511,14 @@ function fallbackName(symbolId: string): string {
   const trimmed = symbolId.startsWith('sym:') ? symbolId.slice(4) : symbolId;
   const lastDot = trimmed.lastIndexOf('.');
   return lastDot >= 0 ? trimmed.slice(lastDot + 1) : trimmed;
+}
+
+function parseJSON<T>(raw: string, fallback: T): T {
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
 }
 
 function simpleUnifiedDiff(oldText: string, newText: string): string {

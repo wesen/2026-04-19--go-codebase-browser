@@ -1,6 +1,6 @@
-import { createApi } from '@reduxjs/toolkit/query/react';
-import { wasmBaseQuery } from './wasmClient';
-import { isStaticExport } from './runtimeMode';
+import { createApi, type BaseQueryFn } from '@reduxjs/toolkit/query/react';
+import { getSqlJsProvider } from './sqlJsQueryProvider';
+import { normalizeQueryError } from './queryErrors';
 
 export interface SnippetRef {
   stubId: string;
@@ -33,67 +33,34 @@ export interface ReviewDocMeta {
   title: string;
 }
 
+type ProviderError = { status: string; data?: string };
+
+const noopBaseQuery: BaseQueryFn<void, unknown, ProviderError> = async () => ({ data: undefined });
+
+async function providerResult<T>(fn: () => Promise<T>): Promise<{ data: T } | { error: ProviderError }> {
+  try {
+    return { data: await fn() };
+  } catch (err) {
+    return { error: normalizeQueryError(err) };
+  }
+}
+
 export const docApi = createApi({
   reducerPath: 'docApi',
-  baseQuery: wasmBaseQuery,
+  baseQuery: noopBaseQuery,
   keepUnusedDataFor: 3600,
   endpoints: (b) => ({
     listDocs: b.query<PageMeta[], void>({
-      queryFn: async (_arg, api, extraOptions) => {
-        // In server-backed mode, prefer the live /api/doc endpoint so newly
-        // added markdown pages are visible without regenerating the static
-        // WASM precomputed bundle. Fall back to WASM for static deployments.
-        if (!isStaticExport()) {
-          try {
-            const resp = await fetch('/api/doc');
-            if (resp.ok) return { data: await resp.json() };
-          } catch {}
-        }
-        return wasmBaseQuery('docPages', api as any, extraOptions as any) as any;
-      },
+      queryFn: async () => ({ data: [] }),
     }),
     getDoc: b.query<DocPage, string>({
-      queryFn: async (slug, api, extraOptions) => {
-        if (!isStaticExport()) {
-          try {
-            const resp = await fetch(`/api/doc/${encodeURIComponent(slug)}`);
-            if (resp.ok) return { data: await resp.json() };
-          } catch {}
-        }
-        return wasmBaseQuery(`docPage:${slug}`, api as any, extraOptions as any) as any;
-      },
+      queryFn: (slug) => providerResult(() => getSqlJsProvider().getReviewDoc(slug)),
     }),
     listReviewDocs: b.query<ReviewDocMeta[], void>({
-      queryFn: async (_arg, api, extraOptions) => {
-        // Prefer server-backed review docs API, fall back to WASM.
-        if (!isStaticExport()) {
-          try {
-            const resp = await fetch('/api/review/docs');
-            if (resp.ok) {
-              const data = await resp.json();
-              // Server returns DocMeta[] with slug, title, path, indexedAt
-              return { data: data.map((d: any) => ({ slug: d.slug, title: d.title })) };
-            }
-          } catch {}
-        }
-        const result = await wasmBaseQuery('reviewDocs', api as any, extraOptions as any) as any;
-        if (result.data) {
-          // WASM returns ReviewDocLite[] — map to ReviewDocMeta
-          return { data: result.data.map((d: any) => ({ slug: d.slug, title: d.title })) };
-        }
-        return result;
-      },
+      queryFn: () => providerResult(() => getSqlJsProvider().listReviewDocs()),
     }),
     getReviewDoc: b.query<DocPage, string>({
-      queryFn: async (slug, api, extraOptions) => {
-        if (!isStaticExport()) {
-          try {
-            const resp = await fetch(`/api/review/docs/${encodeURIComponent(slug)}`);
-            if (resp.ok) return { data: await resp.json() };
-          } catch {}
-        }
-        return wasmBaseQuery(`reviewDoc:${slug}`, api as any, extraOptions as any) as any;
-      },
+      queryFn: (slug) => providerResult(() => getSqlJsProvider().getReviewDoc(slug)),
     }),
   }),
 });

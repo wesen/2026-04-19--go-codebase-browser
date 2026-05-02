@@ -91,8 +91,8 @@ This ticket is a clean-cut implementation of a static-only runtime:
 
 ### Phase 8 — Review document SQL coverage
 
-- [ ] T08.1 Implement `listReviewDocs()` from `static_review_rendered_docs`.
-- [ ] T08.2 Implement `getReviewDoc(slug)` from `static_review_rendered_docs`.
+- [x] T08.1 Implement `listReviewDocs()` from `static_review_rendered_docs`.
+- [x] T08.2 Implement `getReviewDoc(slug)` from `static_review_rendered_docs`.
 - [ ] T08.3 Update review doc hydration to use generic `data-codebase-widget` placeholders.
 - [ ] T08.4 Add a generic `CodebaseWidget` dispatcher.
 - [ ] T08.5 Ensure `codebase-snippet` uses SQL-backed symbol/source queries.
@@ -103,9 +103,9 @@ This ticket is a clean-cut implementation of a static-only runtime:
 
 ### Phase 9 — Remove obsolete runtime paths
 
-- [ ] T09.1 Remove or stop using `ui/src/api/runtimeMode.ts`.
-- [ ] T09.2 Remove static/server branching from frontend API files.
-- [ ] T09.3 Remove `/api/*` endpoint-string parsing from `historyApi.ts` and `docApi.ts`.
+- [x] T09.1 Remove or stop using `ui/src/api/runtimeMode.ts`.
+- [x] T09.2 Remove static/server branching from frontend API files.
+- [x] T09.3 Remove `/api/*` endpoint-string parsing from `historyApi.ts` and `docApi.ts`.
 - [ ] T09.4 Remove `reviewData` from WASM initialization.
 - [ ] T09.5 Remove or deprecate TinyGo review query exports for commits, histories, diffs, impacts, body diffs, and review docs.
 - [ ] T09.6 Remove `PrecomputedReview` as a static runtime data model.
