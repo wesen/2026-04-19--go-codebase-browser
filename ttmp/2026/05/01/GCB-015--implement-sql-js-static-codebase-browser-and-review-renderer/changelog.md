@@ -226,3 +226,16 @@ Step 15: Removed manual review --worktrees flags and made review indexing automa
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/review/indexer.go — Automatic worktree mode based on resolved commit count
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 15
 
+
+## 2026-05-01
+
+Step 16: Completed SQL-backed signature snippets, snippet refs, source refs, and file xrefs, and removed stale server-backed UI error copy (commit 5a0e840).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 16
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sourceApi.ts — Provider-backed ref and file xref endpoints
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqlJsQueryProvider.ts — SQL source/snippet/file xref provider methods
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/history/HistoryPage.tsx — Static SQLite error copy
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/query/QueryConceptsPage.tsx — Static concept-unavailable copy
+

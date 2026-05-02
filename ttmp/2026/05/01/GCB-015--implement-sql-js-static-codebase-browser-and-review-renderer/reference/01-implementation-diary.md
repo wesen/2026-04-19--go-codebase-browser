@@ -81,14 +81,22 @@ RelatedFiles:
       Note: Step 4 provider error normalization
     - Path: ui/src/api/queryProvider.ts
       Note: Step 4 static-only provider singleton
+    - Path: ui/src/api/sourceApi.ts
+      Note: Removed placeholder empty source/snippet/file-xref responses in Step 16 (commit 5a0e840)
     - Path: ui/src/api/sqlJsQueryProvider.ts
-      Note: Step 4 initial SQL provider
+      Note: |-
+        Step 4 initial SQL provider
+        Added SQL-backed snippet refs
     - Path: ui/src/api/sqljs/sqlJsDb.ts
       Note: Step 1 sql.js and DB singleton loader
     - Path: ui/src/api/sqljs/sqlRows.ts
       Note: Step 1 prepared statement and BLOB utilities
     - Path: ui/src/app/App.tsx
       Note: Added route scroll reset and collapsible package tree in Step 13 (commit cc18c22)
+    - Path: ui/src/features/history/HistoryPage.tsx
+      Note: Replaced stale server-backed history error copy in Step 16 (commit 5a0e840)
+    - Path: ui/src/features/query/QueryConceptsPage.tsx
+      Note: Replaced stale server-backed query concept copy in Step 16 (commit 5a0e840)
     - Path: ui/src/packages/ui/src/theme/base.css
       Note: Added package tree styling in Step 13 (commit cc18c22)
 ExternalSources: []
@@ -97,6 +105,7 @@ LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -2195,4 +2204,124 @@ histOpts := history.IndexOptions{
     Worktrees: useWorktrees,
     // ...
 }
+```
+
+## Step 16: Complete SQL source, snippet reference, and file xref queries
+
+This step removes the intentional placeholder behavior left in the source/snippet/xref frontend APIs. Snippets and source pages now get link refs from `snapshot_refs`, signature snippets return real signatures, and file-level xref panels are backed by SQL instead of empty arrays.
+
+I also cleaned up stale static UI copy that still referred to server-backed APIs. The active static frontend should describe failures as SQLite/export issues, not as instructions to run a Go server.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, continue, leave no stone unturned, i want this code to be clean and elegant"
+
+**Assistant interpretation:** Continue the cleanup thoroughly, remove placeholders and stale server wording, validate, commit, and keep the diary current.
+
+**Inferred user intent:** Push the static sql.js migration beyond a minimal working state toward a polished, internally consistent codebase.
+
+**Commit (code):** 5a0e840 — "Complete SQL source reference queries"
+
+### What I did
+
+- Updated `ui/src/api/sqlJsQueryProvider.ts`:
+  - selected `signature` and `fileId` in body metadata;
+  - fixed `getSnippet(kind='signature')` to return `signature || name`;
+  - added `getSnippetRefs(symbolId, commitRef)`;
+  - added `getSourceRefs(path, commitRef)`;
+  - added `getFileXref(path, commitRef)`;
+  - added SQL helpers for refs in a file, refs in a symbol byte range, refs to file-local symbols, and refs from file-local symbols.
+- Updated `ui/src/api/sourceApi.ts`:
+  - `getSnippetRefs` now calls `SqlJsQueryProvider.getSnippetRefs`;
+  - `getSourceRefs` now calls `SqlJsQueryProvider.getSourceRefs`;
+  - `getFileXref` now calls `SqlJsQueryProvider.getFileXref`.
+- Updated stale UI error copy:
+  - `ui/src/features/history/HistoryPage.tsx` now describes SQLite export/load failures instead of server-backed history API failures;
+  - `ui/src/features/query/QueryConceptsPage.tsx` now says structured query concepts are not packaged in this static export instead of telling users to run `codebase-browser serve`.
+
+### Why
+
+- Empty snippet/source/file-xref responses were acceptable only during the clean cutover. They made code render, but lost navigation richness.
+- The static-only frontend should not contain server-mode UX instructions.
+- Signature directives should render actual function/type signatures, not just symbol names.
+
+### What worked
+
+- `pnpm -C ui run typecheck` passed.
+- `review export` succeeded against `/tmp/gcb015-auto-worktrees.db`.
+- Playwright confirmed symbol pages now render snippet links and SQL-backed xrefs for `review.Register`.
+- Playwright confirmed source pages now render link refs and the file xref panel:
+  - `Used by (1)`
+  - `Uses (5)`
+- Playwright found no `/api/*` resource requests.
+
+### What didn't work
+
+- The first source-page validation still showed `Failed to load xrefs`. The SQL itself was valid in `sqlite3`, but the browser was still running the previous built asset. After rebuilding/exporting and hard reloading the page, the file xref panel loaded correctly.
+- There is still a harmless missing favicon 404 in the browser console. It is not an application API call.
+
+### What I learned
+
+- The same `snapshot_refs` table can drive all three UI features:
+  - snippet-local links by filtering refs to a symbol's file and byte range;
+  - source-file links by filtering refs to a file;
+  - file xrefs by joining refs to source/target `snapshot_symbols` and excluding intra-file references.
+- Static-export validation after a frontend rebuild often needs a hard reload because the browser may hold the previous hashed JS asset.
+
+### What was tricky to build
+
+- File xref SQL joins `snapshot_refs` to `snapshot_symbols` twice. The aliased query must qualify columns from `snapshot_refs` (`r.start_line`, `r.from_symbol_id`, etc.) to avoid ambiguity with symbol columns.
+- Snippet refs need offsets relative to the snippet, while source refs need file offsets. The provider computes snippet-relative offsets with `ref.startOffset - symbol.startOffset`.
+- External refs may not have a matching target/source symbol row. The file-xref joins use `LEFT JOIN` on the opposite side and `COALESCE(..., '') != fileId` so external symbols remain visible.
+
+### What warrants a second pair of eyes
+
+- Review whether file-level xrefs should include or exclude intra-file references. The current implementation excludes them to match the previous server-side comment in `FileXrefPanel`.
+- Review whether source/snippet refs should filter out zero-length or invalid byte ranges. Current code clamps length with `Math.max(0, end-start)`.
+- Review whether query concepts should be removed from the sidebar entirely until packaged concepts exist.
+
+### What should be done in the future
+
+- Add TypeScript/provider tests around source refs, snippet refs, and file xrefs once a sql.js fixture harness exists.
+- Add Playwright assertions for linkified source/snippet refs and file xref panel content.
+- Decide whether to package structured query concepts or remove the route from the static browser.
+
+### Code review instructions
+
+- Review `ui/src/api/sqlJsQueryProvider.ts`:
+  - `getSnippetRefs`
+  - `getSourceRefs`
+  - `getFileXref`
+  - `getRefRecordsInFileRange`
+  - `getRefRecordsToFileSymbols`
+  - `getRefRecordsFromFileSymbols`
+- Review `ui/src/api/sourceApi.ts` to confirm placeholder empty responses are gone.
+- Review static-only UX copy in:
+  - `ui/src/features/history/HistoryPage.tsx`
+  - `ui/src/features/query/QueryConceptsPage.tsx`
+- Validate with:
+  - `pnpm -C ui run typecheck`
+  - `go run ./cmd/codebase-browser review export --db /tmp/gcb015-auto-worktrees.db --out /tmp/gcb015-clean-export`
+  - open `/source/cmd/codebase-browser/cmds/review/root.go` and confirm source links plus file xrefs render.
+
+### Technical details
+
+Snippet refs:
+
+```text
+symbol metadata -> file_id + start_offset/end_offset
+snapshot_refs where file_id matches and ref range is inside symbol range
+file offsets -> snippet-relative offsets
+```
+
+File xrefs:
+
+```text
+usedBy:
+  refs whose target symbol is declared in this file
+  and whose source symbol is outside this file
+
+uses:
+  refs whose source symbol is declared in this file
+  and whose target symbol is outside this file
 ```
