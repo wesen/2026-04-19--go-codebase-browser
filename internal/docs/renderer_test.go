@@ -6,8 +6,8 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/wesen/codebase-browser/internal/browser"
-	"github.com/wesen/codebase-browser/internal/indexer"
+	"github.com/go-go-golems/codebase-browser/internal/browser"
+	"github.com/go-go-golems/codebase-browser/internal/indexer"
 )
 
 func fixtureLoaded(t *testing.T) (*browser.Loaded, fstest.MapFS) {

@@ -11,7 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	cbsqlite "github.com/wesen/codebase-browser/internal/sqlite"
+	cbsqlite "github.com/go-go-golems/codebase-browser/internal/sqlite"
 )
 
 type options struct {

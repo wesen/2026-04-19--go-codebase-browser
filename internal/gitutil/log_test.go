@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/wesen/codebase-browser/internal/gitutil"
+	"github.com/go-go-golems/codebase-browser/internal/gitutil"
 )
 
 func TestLogCommits(t *testing.T) {

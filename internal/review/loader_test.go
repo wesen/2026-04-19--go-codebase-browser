@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wesen/codebase-browser/internal/gitutil"
-	"github.com/wesen/codebase-browser/internal/indexer"
+	"github.com/go-go-golems/codebase-browser/internal/gitutil"
+	"github.com/go-go-golems/codebase-browser/internal/indexer"
 )
 
 func TestLoadLatestSnapshot(t *testing.T) {

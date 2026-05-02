@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/wesen/codebase-browser/internal/gitutil"
-	"github.com/wesen/codebase-browser/internal/indexer"
+	"github.com/go-go-golems/codebase-browser/internal/gitutil"
+	"github.com/go-go-golems/codebase-browser/internal/indexer"
 )
 
 // LoadSnapshot bulk-loads a single commit's index into the history database.

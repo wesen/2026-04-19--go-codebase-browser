@@ -12,8 +12,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/wesen/codebase-browser/internal/indexer"
-	cbsqlite "github.com/wesen/codebase-browser/internal/sqlite"
+	"github.com/go-go-golems/codebase-browser/internal/indexer"
+	cbsqlite "github.com/go-go-golems/codebase-browser/internal/sqlite"
 )
 
 func main() {

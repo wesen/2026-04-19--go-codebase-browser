@@ -25,8 +25,8 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/renderer/html"
 
-	"github.com/wesen/codebase-browser/internal/browser"
-	"github.com/wesen/codebase-browser/internal/indexer"
+	"github.com/go-go-golems/codebase-browser/internal/browser"
+	"github.com/go-go-golems/codebase-browser/internal/indexer"
 )
 
 // SnippetRef is one resolved snippet embedding inside a doc page.

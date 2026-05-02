@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/wesen/codebase-browser/internal/history"
+	"github.com/go-go-golems/codebase-browser/internal/history"
 	_ "github.com/mattn/go-sqlite3"
 )
 

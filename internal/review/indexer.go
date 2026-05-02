@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wesen/codebase-browser/internal/browser"
-	"github.com/wesen/codebase-browser/internal/docs"
-	"github.com/wesen/codebase-browser/internal/gitutil"
-	"github.com/wesen/codebase-browser/internal/history"
+	"github.com/go-go-golems/codebase-browser/internal/browser"
+	"github.com/go-go-golems/codebase-browser/internal/docs"
+	"github.com/go-go-golems/codebase-browser/internal/gitutil"
+	"github.com/go-go-golems/codebase-browser/internal/history"
 )
 
 // IndexOptions controls the review indexing process.

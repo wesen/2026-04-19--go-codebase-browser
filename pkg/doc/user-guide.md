@@ -88,7 +88,7 @@ Review guides are regular markdown files with special fenced code blocks that th
 Use full `sym:` IDs or short forms:
 
 ```markdown
-Full:  sym:github.com/wesen/codebase-browser/internal/indexer.func.Extract
+Full:  sym:github.com/go-go-golems/codebase-browser/internal/indexer.func.Extract
 Short: indexer.Extract                    # unambiguous
 Short: indexer.Store.LoadSnapshot         # method: pkg.Recv.Method
 ```

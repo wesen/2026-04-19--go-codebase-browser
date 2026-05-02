@@ -34,7 +34,7 @@ func (GoExtractor) Extract(_ context.Context, opts ExtractOptions) (*Index, erro
 // records). Nil inputs are skipped.
 func Merge(parts []*Index) (*Index, error) {
 	out := &Index{Version: "1"}
-	seenPkg := map[string]string{}  // id → language (for error messages)
+	seenPkg := map[string]string{} // id → language (for error messages)
 	seenFile := map[string]string{}
 	seenSym := map[string]string{}
 	langs := map[string]bool{}

@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/wesen/codebase-browser/internal/indexer"
+	"github.com/go-go-golems/codebase-browser/internal/indexer"
 )
 
 // Loaded wraps the deserialised index with auxiliary lookup maps.

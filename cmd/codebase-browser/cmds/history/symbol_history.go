@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/wesen/codebase-browser/internal/history"
+	"github.com/go-go-golems/codebase-browser/internal/history"
 )
 
 func newSymbolHistoryCmd() *cobra.Command {

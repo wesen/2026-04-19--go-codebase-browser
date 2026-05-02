@@ -46,13 +46,13 @@ type SymbolDiff struct {
 
 // DiffStats counts the different types of changes.
 type DiffStats struct {
-	FilesAdded      int
-	FilesRemoved    int
-	FilesModified   int
-	SymbolsAdded    int
-	SymbolsRemoved  int
-	SymbolsModified int
-	SymbolsMoved    int
+	FilesAdded       int
+	FilesRemoved     int
+	FilesModified    int
+	SymbolsAdded     int
+	SymbolsRemoved   int
+	SymbolsModified  int
+	SymbolsMoved     int
 	SymbolsUnchanged int
 }
 

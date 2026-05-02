@@ -17,8 +17,8 @@ import (
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/spf13/cobra"
 
-	"github.com/wesen/codebase-browser/internal/browser"
-	"github.com/wesen/codebase-browser/internal/docs"
+	"github.com/go-go-golems/codebase-browser/internal/browser"
+	"github.com/go-go-golems/codebase-browser/internal/docs"
 )
 
 type RenderCommand struct {

@@ -1,6 +1,6 @@
 package concepts
 
-import builtinconcepts "github.com/wesen/codebase-browser/concepts"
+import builtinconcepts "github.com/go-go-golems/codebase-browser/concepts"
 
 func EmbeddedSourceRoot() SourceRoot {
 	return SourceRoot{

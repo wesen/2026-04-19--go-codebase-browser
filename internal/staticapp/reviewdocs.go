@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/wesen/codebase-browser/internal/docs"
-	"github.com/wesen/codebase-browser/internal/review"
+	"github.com/go-go-golems/codebase-browser/internal/docs"
+	"github.com/go-go-golems/codebase-browser/internal/review"
 )
 
 const createRenderedReviewDocsSQL = `

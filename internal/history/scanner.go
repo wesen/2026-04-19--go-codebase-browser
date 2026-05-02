@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/wesen/codebase-browser/internal/gitutil"
+	"github.com/go-go-golems/codebase-browser/internal/gitutil"
 )
 
 // ScanOptions controls how commits are discovered for indexing.

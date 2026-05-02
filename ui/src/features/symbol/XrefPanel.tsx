@@ -58,7 +58,7 @@ export function XrefPanel({ symbolId }: XrefPanelProps) {
 }
 
 // shortenID extracts the last ~2 path segments for display.
-// sym:github.com/wesen/codebase-browser/internal/indexer.func.SymbolID ->
+// sym:github.com/go-go-golems/codebase-browser/internal/indexer.func.SymbolID ->
 //   internal/indexer.func.SymbolID
 function shortenID(id: string): string {
   const body = id.replace(/^sym:/, '');

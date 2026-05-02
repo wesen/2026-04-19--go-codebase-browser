@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/wesen/codebase-browser/internal/gitutil"
-	"github.com/wesen/codebase-browser/internal/history"
+	"github.com/go-go-golems/codebase-browser/internal/gitutil"
+	"github.com/go-go-golems/codebase-browser/internal/history"
 )
 
 func newSymbolDiffCmd() *cobra.Command {

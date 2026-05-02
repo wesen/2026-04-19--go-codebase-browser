@@ -263,8 +263,8 @@ sym:<importPath>.method.<Recv>.<name>       # method
 ```
 
 Examples:
-- `sym:github.com/wesen/codebase-browser/internal/indexer.func.Extract`
-- `sym:github.com/wesen/codebase-browser/internal/indexer.method.Store.LoadSnapshot`
+- `sym:github.com/go-go-golems/codebase-browser/internal/indexer.func.Extract`
+- `sym:github.com/go-go-golems/codebase-browser/internal/indexer.method.Store.LoadSnapshot`
 
 Short refs (used in markdown directives) are resolved by matching the last segment against unambiguous symbols in the given package.
 

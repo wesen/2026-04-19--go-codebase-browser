@@ -11,5 +11,5 @@ FROM refs r
 JOIN symbols source ON source.id = r.from_symbol_id
 JOIN symbols target ON target.id = r.to_symbol_id
 JOIN files f ON f.id = r.file_id
-WHERE source.id = 'sym:github.com/wesen/codebase-browser/internal/server.method.Server.handleIndex'
+WHERE source.id = 'sym:github.com/go-go-golems/codebase-browser/internal/server.method.Server.handleIndex'
 ORDER BY f.path, r.start_line;

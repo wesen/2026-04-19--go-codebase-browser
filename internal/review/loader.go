@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/wesen/codebase-browser/internal/browser"
-	"github.com/wesen/codebase-browser/internal/indexer"
+	"github.com/go-go-golems/codebase-browser/internal/browser"
+	"github.com/go-go-golems/codebase-browser/internal/indexer"
 )
 
 // LoadLatestSnapshot reconstructs a *browser.Loaded from the most recent
@@ -153,4 +153,3 @@ func loadSnapshotIndex(ctx context.Context, db *sql.DB, commitHash string) (*ind
 
 	return idx, nil
 }
-
