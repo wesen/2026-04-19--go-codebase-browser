@@ -114,8 +114,8 @@ This ticket is a clean-cut implementation of a static-only runtime:
 
 ### Phase 10 — Tests and validation
 
-- [ ] T10.1 Add Go tests for manifest writing and DB copy layout.
-- [ ] T10.2 Add Go tests for `static_review_rendered_docs` generation.
+- [x] T10.1 Add Go tests for manifest writing and DB copy layout.
+- [x] T10.2 Add Go tests for `static_review_rendered_docs` generation.
 - [ ] T10.3 Add TypeScript tests for `resolveCommitRef()`.
 - [ ] T10.4 Add TypeScript tests for sql.js row helpers and BLOB decoding.
 - [ ] T10.5 Add TypeScript tests for body extraction by byte offsets.
