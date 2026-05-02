@@ -1,34 +1,22 @@
 # codebase-browser
 
-A single-binary documentation browser for Go + TypeScript codebases. A
-build-time indexer walks the AST, the Go binary embeds the resulting
-`index.json` (and a snapshot of the source tree), and a small React SPA
-renders packages, files, symbols, cross-references, and doc pages — all
-served from the one binary with no runtime dependencies.
+Turn a code review into a static, shareable browser. `codebase-browser` indexes a commit range, source files, symbols, references, and markdown review notes into a SQLite database. Then `review export` packages a React application and that SQLite database into a standalone directory. The browser opens `db/codebase.db` locally with [sql.js](https://sql.js/) — no Go server, no runtime API calls.
 
-The browser can document *itself*: markdown pages under
-`internal/docs/embed/pages/` can embed live source via
-`codebase-snippet sym=<id>` directives, resolved against the embedded
-index at request time. See `03-meta.md` for a worked example.
+Reviewers can read prose, inspect symbol diffs, follow callers and callees, browse source files, and query the same database with SQL or an LLM.
 
 ## Why
 
-- **One binary, one download.** The index, the source, and the SPA are
-  all embedded. Ship it with your library so readers can browse without
-  cloning.
-- **Cross-language in the same index.** The Go extractor
-  (`golang.org/x/tools/go/packages`) and the TypeScript extractor
-  (TS Compiler API, in Node) emit records in the same shape. They merge
-  into one file; the server is language-agnostic.
-- **Deterministic.** Stable symbol IDs (`sym:<importPath>.<kind>.<name>`)
-  survive file moves; sorted output gives reproducible builds.
+- **Static, shareable artifacts.** Export a directory anyone can serve with any static file server. No Go process at read time.
+- **SQLite as the runtime boundary.** The indexer writes SQLite; the browser reads SQLite; an LLM reads the same SQLite file. One artifact for human and machine consumers.
+- **Symbol-level diffs and history.** Instead of reviewing only file-level patches, embed symbol-level diffs, impact graphs, and history timelines directly in prose review guides.
+- **Review guides as markdown.** Write review notes in markdown with special fenced blocks that become interactive widgets in the exported browser.
 
 ## Feature tour
 
 ### Literate review guides
 
 Markdown docs can embed guided, interactive review flows. The `codebase-commit-walk`
-widget below composes smaller semantic widgets into a step-by-step walkthrough:
+widget composes smaller semantic widgets into a step-by-step walkthrough:
 start with change size, inspect files, drill into a symbol diff, zoom in on an
 annotated snippet, check history, and finish with impact.
 
@@ -60,96 +48,93 @@ embedded review guides.
 
 ## Quick start
 
-Prerequisites: Go 1.22+ and optional Docker for the hermetic Dagger build path.
-Node 22+ and pnpm 10.x are needed when building the static browser frontend or
-working on the TypeScript indexer directly.
+Prerequisites: Go 1.22+ and optional Docker for the hermetic Dagger build path. Node 22+ and pnpm 10.x are needed when building the static browser frontend.
 
 ```bash
-# 1) Optional: install UI deps for local frontend / indexer work
+# 1) Optional: install UI deps
 pnpm -C ui install
-pnpm -C tools/ts-indexer install
 
 # 2) Build the CLI
 make build
 
-# 3) Create a review SQLite database and export the standalone browser
-./bin/codebase-browser review db create --range "HEAD~10..HEAD" --db /tmp/codebase.db --reviews ./reviews
-./bin/codebase-browser review export --db /tmp/codebase.db --out /tmp/codebase-browser-export
+# 3) Write a review guide with embedded widgets
+mkdir -p ./reviews
+cat > ./reviews/pr-42.md << 'EOF'
+# PR #42: Add strict mode to Extract
 
-# 4) Serve the export with any static file server
-python3 -m http.server 8784 --directory /tmp/codebase-browser-export
+## Changes
+
+```codebase-diff sym=staticapp.Export from=HEAD~1 to=HEAD
+```
+EOF
+
+# 4) Index commits and review docs into SQLite
+./bin/codebase-browser review index \
+  --commits HEAD~10..HEAD \
+  --docs ./reviews/pr-42.md \
+  --db /tmp/pr-42.db
+
+# 5) Export a static browser bundle
+./bin/codebase-browser review export \
+  --db /tmp/pr-42.db \
+  --out /tmp/pr-42-static
+
+# 6) Serve with any static file server
+python3 -m http.server 8784 --directory /tmp/pr-42-static
 # open http://localhost:8784/#/
 ```
 
-## Building the index
+The exported browser loads `manifest.json`, opens `db/codebase.db` with sql.js, and answers code navigation questions locally. There is no Go runtime server and no `/api/*` requests.
 
-`go generate ./internal/indexfs` runs `codebase-browser index build
---lang auto`, which:
+## Architecture
 
-1. Walks the Go module at `--module-root` (default `.`) via
-   `golang.org/x/tools/go/packages` and extracts every top-level
-   declaration plus cross-references from function bodies.
-2. Shells to `cmd/build-ts-index`, which runs the Node extractor
-   (`tools/ts-indexer`) on the TypeScript module at `--ts-module-root`
-   (default `ui`). Dagger orchestrates a `node:22` container with a
-   pnpm `CacheVolume`; set `BUILD_TS_LOCAL=1` to fall back to local
-   `pnpm + node` when Docker isn't available.
-3. Calls `indexer.Merge` to stitch both parts together, detecting
-   duplicate IDs rather than silently dropping records.
-4. Writes `internal/indexfs/embed/index.json`, picked up by the
-   `//go:embed` in `internal/indexfs/embed.go` on the next build.
+```
+Git commit range ──▶ indexer (Go) ──▶ SQLite review DB
+                                     │
+                                     ▼
+                    review export ──▶ static directory
+                                        ├── index.html
+                                        ├── manifest.json
+                                        ├── db/codebase.db   ◀── browser opens with sql.js
+                                        └── WASM assets
+```
 
-Separately, `go generate ./internal/sourcefs` mirrors the repository
-source tree into `internal/sourcefs/embed/source/`, excluding build
-outputs and local caches so snippet lookups stay deterministic.
+The exported directory is a static React SPA. No Go server runs at read time.
+Query engine is `sql.js` (SQLite compiled to WebAssembly). All data requests
+go to the local SQLite file, not to `/api/*` endpoints.
 
-Flags on `codebase-browser index build`:
+For documentation on writing review guides, run:
 
-| Flag | Default | Purpose |
-|------|---------|---------|
-| `--lang` | `go` | `go`, `ts`, or `auto` |
-| `--module-root` | `.` | Go module root (contains `go.mod`) |
-| `--ts-module-root` | `ui` | TypeScript module root |
-| `--index-path` | `internal/indexfs/embed/index.json` | Merged output |
-| `--ts-index-path` | `internal/indexfs/embed/index-ts.json` | Intermediate TS JSON |
-| `--pretty` | `true` | Indent JSON |
+```bash
+./bin/codebase-browser help user-guide          # tutorial
+./bin/codebase-browser help db-reference         # schema reference
+./bin/codebase-browser help markdown-block-reference  # directive reference
+```
 
 ## Adding a doc page
 
-Drop a markdown file under `internal/docs/embed/pages/`. Any fenced
-block with an info string of `codebase-snippet`, `codebase-signature`,
-or `codebase-doc` is replaced at render time with the named symbol's
-body, signature, or godoc respectively:
-
-````markdown
-## My component
-
-```codebase-signature sym=sym:ui/src/packages/ui/src/SymbolCard.func.SymbolCard
-```
-
-```codebase-snippet sym=github.com/wesen/codebase-browser/internal/indexer.Merge
-```
-````
+Drop a markdown file under `internal/docs/embed/pages/`. Any fenced block with an info string of `codebase-snippet`, `codebase-signature`, or `codebase-doc` is replaced at render time with the named symbol's body, signature, or godoc.
 
 Short refs work for unambiguous cases: `github.com/.../indexer.Merge`.
-Use full `sym:` IDs when a name collides across files in the same
-package (common in TS — multiple `*.stories.tsx` with `const meta`).
+Use full `sym:` IDs when a name collides across files in the same package.
 
 ## Repo layout
 
 ```
-cmd/codebase-browser/     Main CLI (glazed commands: review, index, doc, symbol)
+cmd/codebase-browser/     Main CLI (glazed commands: review, history, index, query, symbol)
 cmd/build-ts-index/       Dagger orchestrator for the Node TS extractor
 internal/indexer/         Go AST → Index JSON + Merge
-internal/browser/         Index loader shared by CLI/indexing paths
+internal/browser/         Index loader shared by CLI and indexing paths
 internal/review/          Git/review document indexing into SQLite
 internal/staticapp/       Standalone sql.js export packaging
 internal/sourcefs/        Source tree embed (for snippet slicing)
 internal/indexfs/         index.json embed + go:generate wiring
 internal/docs/            Markdown renderer + embedded doc pages
+internal/history/         Git-aware history: per-commit snapshots, diffs
 tools/ts-indexer/         Node + TS Compiler API extractor
-ui/                       React SPA (RTK-Query + Storybook)
-ttmp/                     Ticket workspaces (docmgr)
+ui/                       React SPA (RTK-Query + Storybook, sql.js browser layer)
+pkg/doc/                   Glazed help pages (user-guide, db-reference, markdown-block-reference)
+ttmp/                      Ticket workspaces (docmgr)
 ```
 
 ## Testing
@@ -159,16 +144,21 @@ make test                 # go test ./... (indexer, docs, review, static export)
 pnpm -C ui run typecheck  # tsc --noEmit for the SPA
 pnpm -C tools/ts-indexer test  # vitest (extractor + xref + JSX fixtures)
 make smoke                # build the CLI and run --help
+make docs-smoke           # smoke-test docs examples (create DB, export, verify)
 ```
 
 ## Documentation
 
+Help pages embedded in the binary (run `./bin/codebase-browser help <topic>`):
+
+| Topic | Description |
+|-------|-------------|
+| `user-guide` | Tutorial: write review markdown guides with ` ```codebase-* ``` ` blocks |
+| `db-reference` | Schema reference and SQL query patterns for the review SQLite database |
+| `markdown-block-reference` | Canonical reference for every `codebase-*` directive |
+
 Tickets and design docs live under `ttmp/`:
 
-- **GCB-001** — original design, 10-phase implementation plan for the
-  Go-only browser.
-- **GCB-002** — TypeScript support via Node + Dagger, merge pass,
-  frontend dispatcher.
-
-Both tickets carry a diary (`reference/01-investigation-diary.md`) and
-a design doc (`design-doc/01-*.md`).
+- **GCB-015** — static sql.js browser implementation.
+- **GCB-014** — architecture redesign from embedded-index to sql.js export.
+- **GCB-001** — original design and 10-phase implementation plan.
