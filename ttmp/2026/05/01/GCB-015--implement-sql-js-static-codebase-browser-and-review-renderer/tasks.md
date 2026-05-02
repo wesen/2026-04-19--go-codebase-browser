@@ -117,12 +117,12 @@ This ticket is a clean-cut implementation of a static-only runtime:
 - [x] T10.1 Add Go tests for manifest writing and DB copy layout.
 - [x] T10.2 Add Go tests for `static_review_rendered_docs` generation.
 - [ ] T10.3 Add TypeScript tests for `resolveCommitRef()`.
-- [ ] T10.4 Add TypeScript tests for sql.js row helpers and BLOB decoding.
-- [ ] T10.5 Add TypeScript tests for body extraction by byte offsets.
+- [x] T10.4 Add TypeScript tests for sql.js row helpers and BLOB decoding.
+- [x] T10.5 Add TypeScript tests for body extraction by byte offsets.
 - [ ] T10.6 Add Playwright regression for static review doc rendering with zero `/api/*` requests.
 - [ ] T10.7 Add Playwright regression for direct `/history?symbol=sym:...Register` body diff rendering.
 - [x] T10.8 Validate `pnpm -C ui run typecheck`.
-- [ ] T10.9 Validate `go test ./...` or a documented narrower package set if full test suite is too slow/noisy.
+- [x] T10.9 Validate `go test ./...` or a documented narrower package set if full test suite is too slow/noisy.
 - [x] T10.10 Validate a manual static export served with `python3 -m http.server`.
 
 ### Phase 11 — Documentation and delivery

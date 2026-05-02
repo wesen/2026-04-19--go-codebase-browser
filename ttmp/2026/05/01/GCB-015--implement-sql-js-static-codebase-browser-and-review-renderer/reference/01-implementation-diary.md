@@ -84,11 +84,15 @@ RelatedFiles:
     - Path: ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/design-doc/01-sql-js-static-frontend-architecture-and-implementation-guide.md
       Note: Architecture source for implementation decisions
     - Path: ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md
-      Note: Task checklist that drives diary steps
+      Note: |-
+        Task checklist that drives diary steps
+        Marked sqlRows/blob/byte-offset and go-test validation tasks done in Step 20
     - Path: ui/index.html
       Note: Removed wasm_exec.js script tag in Step 11 (commit 12d31ec)
     - Path: ui/package.json
-      Note: Step 1 added sql.js dependencies
+      Note: |-
+        Step 1 added sql.js dependencies
+        Added Vitest test script/dependency in Step 20
     - Path: ui/pnpm-lock.yaml
       Note: Step 1 dependency lock updates
     - Path: ui/public/sql-wasm-browser.wasm
@@ -115,6 +119,8 @@ RelatedFiles:
         Added SQL-backed snippet refs
     - Path: ui/src/api/sqljs/sqlJsDb.ts
       Note: Step 1 sql.js and DB singleton loader
+    - Path: ui/src/api/sqljs/sqlRows.test.ts
+      Note: Added sql.js row/BLOB/byte-offset tests in Step 20
     - Path: ui/src/api/sqljs/sqlRows.ts
       Note: Step 1 prepared statement and BLOB utilities
     - Path: ui/src/api/store.ts
@@ -129,6 +135,10 @@ RelatedFiles:
       Note: |-
         Replaced stale server-backed query concept copy in Step 16 (commit 5a0e840)
         Deleted unpackaged structured concepts page in Step 17 (commit 714708c)
+    - Path: ui/src/packages/ui/src/highlight/go.test.ts
+      Note: Converted Go tokenizer smoke script to Vitest in Step 20
+    - Path: ui/src/packages/ui/src/highlight/ts.test.ts
+      Note: Converted TS tokenizer smoke script to Vitest in Step 20
     - Path: ui/src/packages/ui/src/theme/base.css
       Note: Added package tree styling in Step 13 (commit cc18c22)
     - Path: ui/vite.config.ts
@@ -139,6 +149,7 @@ LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -2713,3 +2724,83 @@ review export
 browser
   -> sql.js opens db/codebase.db locally
 ```
+
+## Step 20: Add UI unit test runner and sql.js row helper tests
+
+With the obsolete runtimes removed, I started filling in the regression-test gap for the remaining sql.js frontend runtime.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue the GCB-015 cleanup/validation path by adding regression tests for the static sql.js runtime.
+
+**Inferred user intent:** Move from cleanup toward confidence-building tests around the new single runtime.
+
+### What I did
+
+- Added `vitest` to the UI package and a `pnpm -C ui run test` script.
+- Added `ui/src/api/sqljs/sqlRows.test.ts` covering:
+  - `queryAll` over an in-memory sql.js DB;
+  - `queryOne` hit and miss behavior;
+  - `sqlBlobToBytes` for `Uint8Array`, numeric arrays, strings, and undefined;
+  - `sqlBlobToText` decoding;
+  - `extractUtf8Range` slicing by byte offsets before UTF-8 decoding;
+  - invalid byte-range errors.
+- Converted the existing tokenizer smoke files from side-effect scripts into proper Vitest suites:
+  - `ui/src/packages/ui/src/highlight/go.test.ts`
+  - `ui/src/packages/ui/src/highlight/ts.test.ts`
+- Updated `tasks.md`:
+  - marked T10.4 done;
+  - marked T10.5 done;
+  - marked T10.9 done because `go test ./...` now passes after the runtime cleanup.
+
+### Why
+
+The byte-offset test is important because Go symbol offsets are byte offsets, not JavaScript UTF-16 indices. A body diff that slices after decoding can break on non-ASCII source text. This test locks in the correct behavior: slice `Uint8Array` first, then decode.
+
+### What worked
+
+- `pnpm -C ui run test` passed with 3 test files and 9 tests.
+- `pnpm -C ui run typecheck` passed.
+- The sql.js package works directly in Vitest/Node for in-memory query-helper tests.
+
+### What didn't work
+
+The first `pnpm -C ui run test` failed because Vitest discovered the old tokenizer `*.test.ts` smoke scripts, but those files did not define any suites:
+
+```text
+Error: No test suite found in file .../highlight/go.test.ts
+Error: No test suite found in file .../highlight/ts.test.ts
+```
+
+I fixed this by converting both files to real `describe`/`it` Vitest tests instead of excluding them.
+
+### What I learned
+
+- UI already had files named `*.test.ts`, so adding Vitest immediately made those files part of the test suite.
+- This was useful: instead of creating a special test include pattern, the old tokenizer smoke checks now run under the same test command.
+
+### What was tricky to build
+
+- The latest Vitest initially installed as 4.x, which has a peer dependency on newer Vite versions. I pinned the UI package to Vitest 2.x to match the existing Vite 5 setup.
+
+### What warrants a second pair of eyes
+
+- Review whether Vitest 2.x is the right long-term version for this UI package while Storybook and Vite remain on their current versions.
+- Review whether the sql.js row tests should grow into provider-level tests with a fixture SQLite DB.
+
+### What should be done in the future
+
+- Add provider-level tests for `resolveCommitRef()` using a small in-memory DB or a checked-in fixture export DB.
+- Add Playwright regression tests for the static export browser.
+- Consider adding `pnpm -C ui run test` to CI once CI config is updated.
+
+### Code review instructions
+
+- Review `ui/src/api/sqljs/sqlRows.test.ts` for the byte-offset assertion around `a🙂b`.
+- Review converted tokenizer tests to confirm their original smoke coverage was preserved.
+- Validate with:
+  - `pnpm -C ui run test`
+  - `pnpm -C ui run typecheck`
+  - `go test ./...`

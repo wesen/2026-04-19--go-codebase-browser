@@ -282,3 +282,17 @@ Step 19: Deleted obsolete Go serve command, internal/server HTTP API runtime, in
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 19
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/vite.config.ts — Removed /api proxy
 
+
+## 2026-05-01
+
+Step 20: Added UI Vitest runner and sql.js row/BLOB/byte-offset tests; converted tokenizer smoke scripts into real Vitest suites.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 20
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md — Updated test task status
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/package.json — Added test script and Vitest dependency
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqljs/sqlRows.test.ts — Added sql.js row helper tests
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/packages/ui/src/highlight/go.test.ts — Converted to Vitest
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/packages/ui/src/highlight/ts.test.ts — Converted to Vitest
+
