@@ -15,10 +15,14 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/codebase-browser/cmds/review/db.go
+      Note: Removed review db create --worktrees flag in Step 15 (commit c8ee93d)
     - Path: cmd/codebase-browser/cmds/review/export.go
       Note: Step 2 CLI wrapper around staticapp.Export
     - Path: cmd/codebase-browser/cmds/review/index.go
-      Note: Updated review index help text for static export only in Step 10 (commit 45de723)
+      Note: |-
+        Updated review index help text for static export only in Step 10 (commit 45de723)
+        Removed review index --worktrees flag in Step 15 (commit c8ee93d)
     - Path: cmd/codebase-browser/cmds/review/patterns.go
       Note: Moved defaultPatterns helper after deleting serve.go in Step 10 (commit 45de723)
     - Path: cmd/codebase-browser/cmds/review/root.go
@@ -28,11 +32,15 @@ RelatedFiles:
     - Path: docs/help/review-reference.md
       Note: Updated schema help with static export table and no review serve command in Step 10 (commit 45de723)
     - Path: docs/help/review-user-guide.md
-      Note: Updated help to document static export workflow only in Step 10 (commit 45de723)
+      Note: |-
+        Updated help to document static export workflow only in Step 10 (commit 45de723)
+        Updated large-range guidance for automatic worktrees in Step 15 (commit c8ee93d)
     - Path: internal/review/export.go
       Note: Deleted old PrecomputedReview builder in Step 11 (commit 12d31ec)
     - Path: internal/review/export_test.go
       Note: Deleted tests for removed PrecomputedReview builder in Step 11 (commit 12d31ec)
+    - Path: internal/review/indexer.go
+      Note: Auto-selects worktrees for multi-commit review indexing in Step 15 (commit c8ee93d)
     - Path: internal/review/server.go
       Note: Deleted deprecated review HTTP wrapper in Step 10 (commit 45de723)
     - Path: internal/staticapp/export.go
@@ -89,6 +97,7 @@ LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -2060,4 +2069,130 @@ group by symbol_id
 having bodies > 1
 order by bodies desc, n desc
 limit 20;
+```
+
+## Step 15: Auto-enable worktrees for multi-commit review indexing
+
+This step removes the review command's manual `--worktrees` choice. The review indexer now decides automatically: a single commit is indexed directly from the current checkout, while any multi-commit range uses git worktrees so each snapshot corresponds to the commit being indexed.
+
+This matches the static website product shape. A multi-commit review/export without commit-specific snapshots is misleading, so the CLI should not ask users to remember a correctness flag.
+
+### Prompt Context
+
+**User prompt (verbatim):** "i would just eliminate the flag, and when there is more than 1 commit to index, use worktrees, if we only request a single commit, then we don't need the worktrees, right?"
+
+**Assistant interpretation:** Remove the manual review `--worktrees` flag and make review indexing select direct-vs-worktree mode based on resolved commit count.
+
+**Inferred user intent:** Prevent invalid/misleading multi-commit static exports by making the correct historical indexing mode automatic.
+
+**Commit (code):** c8ee93d — "Auto-enable worktrees for multi-commit review indexing"
+
+### What I did
+
+- Updated `internal/review/indexer.go`:
+  - removed `Worktrees` from `review.IndexOptions`;
+  - resolved commits first;
+  - set `useWorktrees := len(commits) > 1`;
+  - passed that value to `history.IndexCommits`.
+- Updated `cmd/codebase-browser/cmds/review/index.go`:
+  - removed local `worktrees` variable;
+  - removed `--worktrees` flag;
+  - updated long help to say multi-commit ranges automatically use worktrees;
+  - kept `--parallelism` as the tuning knob for multi-commit indexing.
+- Updated `cmd/codebase-browser/cmds/review/db.go` similarly:
+  - removed `--worktrees` flag;
+  - documented automatic worktree behavior;
+  - kept `--parallelism`.
+- Updated `docs/help/review-user-guide.md` large-range guidance:
+  - removed manual `--worktrees` instruction;
+  - explained automatic worktrees for multi-commit ranges;
+  - kept `--parallelism N` as the operator control.
+
+### Why
+
+- The static review website is only trustworthy for history/diff/source-at-commit behavior if multi-commit snapshots are commit-specific.
+- The previous flag allowed users to generate a DB with many commits but repeated current-checkout snapshots.
+- Single-commit indexing still does not need worktrees because the current checkout is expected to be the one snapshot being indexed.
+
+### What worked
+
+- `go test ./internal/review ./internal/staticapp ./cmd/codebase-browser` passed.
+- `review index --help` no longer lists `--worktrees`.
+- `review db create --help` no longer lists `--worktrees`.
+- A 20-commit review index **without** a `--worktrees` flag now produced real body-history variation for `review.Register`:
+
+```bash
+rm -f /tmp/gcb015-auto-worktrees.db
+go run ./cmd/codebase-browser review index \
+  --commits HEAD~20..HEAD \
+  --docs /tmp/reviews/static-smoke.md \
+  --db /tmp/gcb015-auto-worktrees.db \
+  --parallelism 2
+sqlite3 /tmp/gcb015-auto-worktrees.db "
+  select count(*) from commits where error='';
+  select symbol_id, name, count(distinct body_hash) bodies
+  from symbol_history
+  where symbol_id='sym:github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/review.func.Register'
+  group by symbol_id;
+"
+```
+
+Result:
+
+```text
+20
+sym:github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/review.func.Register|Register|2
+```
+
+### What didn't work
+
+- No implementation command failed in this step.
+- The underlying `history.IndexOptions` still exposes `Worktrees` because the older standalone `history scan` command still has that flag. This step intentionally changed the review/static-export path, not the older generic history command.
+
+### What I learned
+
+- The cleanest product rule is based on resolved commit count, not the raw `--commits` string. `HEAD` can resolve to one commit; `HEAD~20..HEAD` resolves to many.
+- `--parallelism` remains useful even after removing `--worktrees`; it now means "how many automatic worktrees may be processed concurrently for multi-commit indexing."
+
+### What was tricky to build
+
+- The review command needs to resolve commits before deciding indexing mode. That already happened in `IndexReview`, so the automatic selection belongs there rather than in each CLI wrapper.
+- Removing `Worktrees` from `review.IndexOptions` avoids hidden callers still forcing unsafe behavior through the review path.
+
+### What warrants a second pair of eyes
+
+- Review whether the standalone `history scan --worktrees` command should receive the same automatic behavior or whether it should remain a lower-level expert command.
+- Review whether single-commit indexing should verify that the current checkout actually matches the requested commit. Today it assumes the operator asked for a current snapshot.
+- Review whether `--parallelism` should default above 1 now that worktrees are automatic for multi-commit ranges.
+
+### What should be done in the future
+
+- Consider a git-object-backed extractor so multi-commit indexing no longer requires checkout worktrees at all.
+- Consider renaming help text from "Max concurrent worktrees" to a more user-level phrase if needed.
+- Add a regression test around automatic worktree selection once commit-range/git fixture testing is available.
+
+### Code review instructions
+
+- Review `internal/review/indexer.go` around `useWorktrees := len(commits) > 1`.
+- Review CLI files to confirm `--worktrees` is gone:
+  - `cmd/codebase-browser/cmds/review/index.go`
+  - `cmd/codebase-browser/cmds/review/db.go`
+- Review `docs/help/review-user-guide.md` for updated large-range guidance.
+- Validate with:
+  - `go test ./internal/review ./internal/staticapp ./cmd/codebase-browser`
+  - `go run ./cmd/codebase-browser review index --help | grep worktrees` should not show a `--worktrees` flag;
+  - a multi-commit `review index` without `--worktrees` should produce distinct body hashes for a known changed symbol.
+
+### Technical details
+
+Automatic mode selection:
+
+```go
+commits, err := gitutil.LogCommits(ctx, opts.RepoRoot, opts.CommitRange)
+// ...
+useWorktrees := len(commits) > 1
+histOpts := history.IndexOptions{
+    Worktrees: useWorktrees,
+    // ...
+}
 ```

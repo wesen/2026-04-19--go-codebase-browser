@@ -213,3 +213,16 @@ Step 14: Investigated no-diff history smoke; found non-worktree multi-commit ind
 
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 14 validation finding
 
+
+## 2026-05-01
+
+Step 15: Removed manual review --worktrees flags and made review indexing automatically use worktrees for multi-commit ranges while keeping direct indexing for single-commit snapshots (commit c8ee93d).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/cmd/codebase-browser/cmds/review/db.go — Removed --worktrees flag and updated help
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/cmd/codebase-browser/cmds/review/index.go — Removed --worktrees flag and updated help
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/docs/help/review-user-guide.md — Documented automatic multi-commit worktrees
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/review/indexer.go — Automatic worktree mode based on resolved commit count
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 15
+
