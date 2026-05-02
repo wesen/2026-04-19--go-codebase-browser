@@ -10,9 +10,7 @@ help:
 	@echo "  frontend-check  TypeScript check"
 	@echo "  frontend-build  Vite production build -> ui/dist/public/"
 	@echo "  generate        Run go generate on the generator packages (builds index + copies assets)"
-	@echo "  generate-static Run go generate for static WASM build"
 	@echo "  build           Build single embedded binary (tag: embed)"
-	@echo "  build-static    Build static WASM artifact -> dist/"
 	@echo "  smoke           Run binary and curl /api/index"
 	@echo "  test            go test ./..."
 	@echo "  lint            go vet ./..."
@@ -33,18 +31,9 @@ frontend-build:
 generate:
 	go generate ./cmd/... ./internal/browser ./internal/docs ./internal/indexer ./internal/indexfs ./internal/server ./internal/sourcefs ./internal/web
 
-generate-static:
-	go generate ./internal/indexfs
-	go generate ./internal/sourcefs
-	go generate ./internal/wasm
-	go generate ./internal/static
-	go generate ./internal/bundle
 
 build: generate
 	go build -tags embed -o bin/$(BINARY) ./cmd/$(BINARY)
-
-build-static: generate-static
-	go run ./internal/bundle/generate_build.go
 
 smoke: build
 	./bin/$(BINARY) serve --addr :3001 &
