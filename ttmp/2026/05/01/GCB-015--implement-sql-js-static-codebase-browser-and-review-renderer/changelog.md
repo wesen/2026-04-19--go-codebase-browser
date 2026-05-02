@@ -183,3 +183,13 @@ Step 11: Removed PrecomputedReview, WASM ReviewData, review-specific TinyGo expo
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/index.html — Removed Go WASM loader script tag
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/public/wasm_exec.js — Deleted unused Go WASM loader asset
 
+
+## 2026-05-01
+
+Step 12: Added Go tests for static export manifest/layout, absence of legacy runtime files, and static_review_rendered_docs generation (commit 35045da).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/staticapp/export_test.go — Tests staticapp export layout and rendered review doc table
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 12
+

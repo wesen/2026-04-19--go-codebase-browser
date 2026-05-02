@@ -37,6 +37,8 @@ RelatedFiles:
       Note: Deleted deprecated review HTTP wrapper in Step 10 (commit 45de723)
     - Path: internal/staticapp/export.go
       Note: Step 2 static-only export packaging
+    - Path: internal/staticapp/export_test.go
+      Note: Added static export layout and rendered review-doc tests in Step 12 (commit 35045da)
     - Path: internal/staticapp/manifest.go
       Note: Step 2 manifest schema
     - Path: internal/staticapp/reviewdocs.go
@@ -83,6 +85,7 @@ LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -1640,4 +1643,124 @@ The old review-data initialization shape is gone:
 ```text
 before: initWasm(index, search, xref, snippets, docManifest, docHTML, reviewData)
 after:  initWasm(index, search, xref, snippets, docManifest, docHTML)
+```
+
+## Step 12: Add static export layout and rendered review-doc tests
+
+This step adds the first focused Go tests for the new `internal/staticapp` export path. The tests cover the two most important Go-side invariants of the sql.js architecture: static export layout/manifest generation and export-time rendered review docs.
+
+The tests also lock in the clean-cut runtime deletion from the previous steps by asserting that `review export` does not emit legacy TinyGo/precomputed runtime files.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 10)
+
+**Assistant interpretation:** Continue implementation by adding validation around the static-only export path after deleting old runtime code.
+
+**Inferred user intent:** Make the new sql.js/static-only behavior safer to change and easier to review.
+
+**Commit (code):** 35045da — "Test static sql.js export layout"
+
+### What I did
+
+- Added `internal/staticapp/export_test.go`.
+- Added `TestExportCopiesDBWritesManifestAndOmitsLegacyRuntimeFiles`:
+  - creates a minimal fixture review/history SQLite DB;
+  - creates a fake `ui/dist/public` tree in a temp working directory;
+  - runs `Export` with `BuildSPA=false`;
+  - asserts `index.html` and `db/codebase.db` are copied;
+  - asserts legacy runtime files are absent:
+    - `precomputed.json`
+    - `search.wasm`
+    - `wasm_exec.js`
+  - asserts `manifest.json` has:
+    - `kind = codebase-browser-sqljs-static-export`
+    - `db.path = db/codebase.db`
+    - `runtime.queryEngine = sql.js`
+    - `runtime.hasGoRuntimeServer = false`
+- Added `TestAddRenderedReviewDocsCreatesStaticTableOnCopiedDB`:
+  - creates a fixture DB with one commit, one minimal snapshot, and one review doc;
+  - runs `AddRenderedReviewDocs`;
+  - asserts `static_review_rendered_docs` contains the rendered `fixture` row;
+  - asserts `snippets_json` and `errors_json` are normalized to `[]`.
+- Marked T10.1 and T10.2 complete.
+
+### Why
+
+- The static export layout is now central to the product. It should be protected by tests rather than only smoke scripts.
+- The clean-cut removal of TinyGo/precomputed runtime artifacts should be an explicit invariant.
+- `static_review_rendered_docs` is the bridge between Go markdown rendering and browser sql.js review loading, so it deserves a unit/integration test.
+
+### What worked
+
+- `go test ./internal/staticapp ./internal/review ./internal/wasm ./cmd/codebase-browser` passed.
+- `pnpm -C ui run typecheck` passed.
+- The export test successfully runs without invoking the real Vite build by using `BuildSPA=false` and a fake `ui/dist/public` tree.
+
+### What didn't work
+
+The first version of the rendered-doc test inserted markdown content through a raw SQL string with `\n` escapes inside a raw Go string. SQLite stored literal backslash-n characters, so the markdown renderer treated the whole line as the heading and returned:
+
+```text
+title = "Fixture Review\\n\\nPlain text."
+```
+
+The test failed with:
+
+```text
+--- FAIL: TestAddRenderedReviewDocsCreatesStaticTableOnCopiedDB (0.01s)
+    export_test.go:85: title = "Fixture Review\\n\\nPlain text."
+```
+
+I fixed it by inserting the markdown content as a SQL parameter with real Go newline characters:
+
+```go
+db.Exec(`INSERT INTO review_docs(...) VALUES (?, ?, ?, ?, '{}', 100)`,
+    "fixture", "Fixture Review", "fixture.md", "# Fixture Review\n\nPlain text.")
+```
+
+### What I learned
+
+- Fixture SQL should use parameters for multiline markdown content to avoid confusing raw-string escaping with actual newlines.
+- `Export` can be tested without a real frontend build by changing the process working directory to a temp tree containing `ui/dist/public`.
+- The absence of old runtime files is easy to assert and should remain part of the regression suite.
+
+### What was tricky to build
+
+- `Export` currently reads `ui/dist/public` relative to the process working directory. The test therefore needs a temporary working directory and cleanup restore. This works, but it highlights that `Export` could eventually accept a SPA build path for easier testing.
+- `AddRenderedReviewDocs` calls `review.LoadLatestSnapshot`, so the test DB needs a minimal but valid commit/package/file/content snapshot even though the review markdown itself is simple.
+
+### What warrants a second pair of eyes
+
+- Review whether fixture DB construction should move to a reusable helper for future staticapp/history/sql.js tests.
+- Review whether `Export` should accept an explicit `SPAPath` option instead of hard-coding `ui/dist/public`.
+- Review whether asserting absence of `search.wasm` is too strict while generic TinyGo artifacts still exist elsewhere in the repository. For `review export`, it should be strict.
+
+### What should be done in the future
+
+- Add TypeScript tests for `resolveCommitRef` and BLOB byte slicing.
+- Add Playwright regression tests for zero `/api/*` and the direct history route.
+- Add export tests that inspect `static_review_rendered_docs` after a full `Export(RenderReviewDocs=true)` call.
+
+### Code review instructions
+
+- Review `internal/staticapp/export_test.go`.
+- Start with the two test functions, then inspect the fixture helpers:
+  - `createStaticAppFixtureDB`
+  - `writeFakeSPABuild`
+  - `withWorkingDir`
+- Validate with:
+  - `go test ./internal/staticapp ./internal/review ./internal/wasm ./cmd/codebase-browser`
+  - `pnpm -C ui run typecheck`
+
+### Technical details
+
+The key runtime-file invariant is now encoded directly in the export test:
+
+```go
+for _, legacy := range []string{"precomputed.json", "search.wasm", "wasm_exec.js"} {
+    if _, err := os.Stat(filepath.Join(outDir, legacy)); err == nil {
+        t.Fatalf("legacy runtime file %s should not be exported", legacy)
+    }
+}
 ```
