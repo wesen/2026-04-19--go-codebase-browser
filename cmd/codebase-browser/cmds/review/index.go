@@ -31,7 +31,7 @@ The database contains:
   - Per-commit snapshots (commits, snapshot_symbols, snapshot_files, snapshot_refs)
   - Review documents (review_docs, review_doc_snippets)
 
-This is the input for both 'review serve' and 'review export'.
+This is the input for 'review export', which packages a static sql.js browser.
 
 Examples:
   codebase-browser review index --commits HEAD~10..HEAD --docs ./reviews/pr-42.md --db pr-42.db

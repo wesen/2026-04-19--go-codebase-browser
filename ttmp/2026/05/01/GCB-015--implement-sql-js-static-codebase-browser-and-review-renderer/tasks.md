@@ -12,9 +12,9 @@ This ticket is a clean-cut implementation of a static-only runtime:
 ### Phase 0 — Ticket setup and implementation bookkeeping
 
 - [x] T00.1 Create and maintain an implementation diary for every substantive change.
-- [ ] T00.2 Keep this task list updated as design details become implementation details.
-- [ ] T00.3 After each focused implementation slice, run relevant validation and commit code/docs intentionally.
-- [ ] T00.4 Keep `docmgr doctor --ticket GCB-015 --stale-after 30` passing.
+- [x] T00.2 Keep this task list updated as design details become implementation details.
+- [x] T00.3 After each focused implementation slice, run relevant validation and commit code/docs intentionally.
+- [x] T00.4 Keep `docmgr doctor --ticket GCB-015 --stale-after 30` passing.
 
 ### Phase 1 — Frontend sql.js dependency and DB bootstrap
 
@@ -67,7 +67,7 @@ This ticket is a clean-cut implementation of a static-only runtime:
 - [x] T05.4 Implement byte-offset-safe body extraction from `Uint8Array` content.
 - [x] T05.5 Implement `getSymbolBodyDiff(from, to, symbolId)` with old/new bodies and unified diff text.
 - [x] T05.6 Refactor `ui/src/api/historyApi.ts` history/body-diff endpoints to use provider `queryFn` calls.
-- [ ] T05.7 Verify `/history?symbol=sym:...Register` no longer reports `STATIC_NOT_PRECOMPUTED`.
+- [x] T05.7 Verify `/history?symbol=sym:...Register` no longer reports `STATIC_NOT_PRECOMPUTED`.
 
 ### Phase 6 — Commit diff, refs, and impact from SQL
 
@@ -87,7 +87,7 @@ This ticket is a clean-cut implementation of a static-only runtime:
 - [x] T07.4 Implement basic symbol search with `LIKE` against name, ID, and signature.
 - [x] T07.5 If FTS was added, switch search to `symbol_search_fts`; otherwise document why basic search is acceptable for now.
 - [x] T07.6 Implement source file lookup from `snapshot_files` + `file_contents`.
-- [ ] T07.7 Refactor package, symbol, source, and search UI paths away from TinyGo/static JSON assumptions.
+- [x] T07.7 Refactor package, symbol, source, and search UI paths away from TinyGo/static JSON assumptions.
 
 ### Phase 8 — Review document SQL coverage
 
@@ -96,10 +96,10 @@ This ticket is a clean-cut implementation of a static-only runtime:
 - [ ] T08.3 Update review doc hydration to use generic `data-codebase-widget` placeholders.
 - [ ] T08.4 Add a generic `CodebaseWidget` dispatcher.
 - [x] T08.5 Ensure `codebase-snippet` uses SQL-backed symbol/source queries.
-- [ ] T08.6 Ensure `codebase-diff` uses SQL-backed body diffs.
-- [ ] T08.7 Ensure `codebase-diff-stats` uses SQL-backed commit diffs.
-- [ ] T08.8 Ensure `codebase-symbol-history` uses SQL-backed symbol history.
-- [ ] T08.9 Ensure `codebase-impact` uses SQL-backed impact BFS.
+- [x] T08.6 Ensure `codebase-diff` uses SQL-backed body diffs.
+- [x] T08.7 Ensure `codebase-diff-stats` uses SQL-backed commit diffs.
+- [x] T08.8 Ensure `codebase-symbol-history` uses SQL-backed symbol history.
+- [x] T08.9 Ensure `codebase-impact` uses SQL-backed impact BFS.
 
 ### Phase 9 — Remove obsolete runtime paths
 
@@ -109,8 +109,8 @@ This ticket is a clean-cut implementation of a static-only runtime:
 - [ ] T09.4 Remove `reviewData` from WASM initialization.
 - [x] T09.5 Remove or deprecate TinyGo review query exports for commits, histories, diffs, impacts, body diffs, and review docs.
 - [ ] T09.6 Remove `PrecomputedReview` as a static runtime data model.
-- [ ] T09.7 Decide whether any Go HTTP server code remains in the repository as dead code; if removed, delete it in a focused commit.
-- [ ] T09.8 Remove `review serve` from the CLI or clearly mark it deleted as part of the clean cutoff.
+- [x] T09.7 Decide whether any Go HTTP server code remains in the repository as dead code; if removed, delete it in a focused commit.
+- [x] T09.8 Remove `review serve` from the CLI or clearly mark it deleted as part of the clean cutoff.
 
 ### Phase 10 — Tests and validation
 
@@ -121,13 +121,13 @@ This ticket is a clean-cut implementation of a static-only runtime:
 - [ ] T10.5 Add TypeScript tests for body extraction by byte offsets.
 - [ ] T10.6 Add Playwright regression for static review doc rendering with zero `/api/*` requests.
 - [ ] T10.7 Add Playwright regression for direct `/history?symbol=sym:...Register` body diff rendering.
-- [ ] T10.8 Validate `pnpm -C ui run typecheck`.
+- [x] T10.8 Validate `pnpm -C ui run typecheck`.
 - [ ] T10.9 Validate `go test ./...` or a documented narrower package set if full test suite is too slow/noisy.
-- [ ] T10.10 Validate a manual static export served with `python3 -m http.server`.
+- [x] T10.10 Validate a manual static export served with `python3 -m http.server`.
 
 ### Phase 11 — Documentation and delivery
 
 - [ ] T11.1 Update the design doc when implementation discoveries change the plan.
-- [ ] T11.2 Update Glazed help entries for sql.js static export behavior.
-- [ ] T11.3 Keep the implementation diary current with commands, failures, commits, and review instructions.
+- [x] T11.2 Update Glazed help entries for sql.js static export behavior.
+- [x] T11.3 Keep the implementation diary current with commands, failures, commits, and review instructions.
 - [ ] T11.4 Upload revised implementation notes to reMarkable after major architecture or implementation milestones.

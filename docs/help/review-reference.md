@@ -8,7 +8,7 @@ Topics:
 - reference
 Commands:
 - review index
-- review serve
+- review export
 - review db create
 IsTopLevel: false
 IsTemplate: false
@@ -18,7 +18,7 @@ SectionType: GeneralTopic
 
 ## Overview
 
-The `codebase-browser review` commands produce a single SQLite database that contains both the indexed commit history and the review markdown documents. This document describes the schema so you can query it directly — either with the `sqlite3` CLI or by pointing an LLM at the `.db` file.
+The `codebase-browser review` commands produce a SQLite database that contains both indexed commit history and review markdown documents. `review export` copies that database to `db/codebase.db` and enriches the copied output database with static-browser tables such as `static_review_rendered_docs`. This document describes the schema so you can query it directly — either with the `sqlite3` CLI or by pointing an LLM at the `.db` file.
 
 ## Database structure
 
@@ -26,6 +26,7 @@ The review database is a standard SQLite file with two groups of tables:
 
 1. **History tables** — per-commit snapshots of the codebase (from `internal/history/schema.go`)
 2. **Review tables** — markdown documents and their resolved snippet references (from `internal/review/schema.go`)
+3. **Static export tables** — export-time browser preparation tables written only to the copied export DB
 
 ## History tables
 
@@ -165,6 +166,19 @@ One row per resolved `codebase-*` directive in a review doc.
 | `params_json` | TEXT | Directive parameters |
 | `start_line` / `end_line` | INTEGER | Line range |
 | `commit_hash` | TEXT | If `commit=` was specified |
+
+### `static_review_rendered_docs`
+
+One row per rendered review document in the exported browser database (`db/codebase.db`). This table is populated by `review export`, not by `review index`.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `slug` | TEXT PK | Review document slug |
+| `title` | TEXT | Rendered document title |
+| `html` | TEXT | Export-time rendered HTML with widget placeholders |
+| `snippets_json` | TEXT | JSON array of resolved snippet/widget metadata |
+| `errors_json` | TEXT | JSON array of render errors; `[]` when clean |
+| `rendered_at` | INTEGER | Unix timestamp when export rendered the document |
 
 ## Common SQL queries
 

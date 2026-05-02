@@ -1,14 +1,14 @@
 ---
-Title: "Writing Code Review Guides"
+Title: "Writing Static Code Review Guides"
 Slug: "review-user-guide"
-Short: "How to write markdown review guides and serve them with codebase-browser review."
+Short: "How to write markdown review guides and export them as a static sql.js codebase browser."
 Topics:
 - code-review
 - markdown
 - tutorial
 Commands:
 - review index
-- review serve
+- review export
 - review db create
 Flags:
 - commits
@@ -22,7 +22,7 @@ SectionType: Tutorial
 
 ## Quick start
 
-Write a markdown file with embedded code widgets, then index and serve it:
+Write a markdown file with embedded code widgets, then index and export it:
 
 ```bash
 # 1. Create a review guide
@@ -49,15 +49,23 @@ codebase-browser review index \
   --docs ./reviews/pr-42.md \
   --db ./reviews/pr-42.db
 
-# 3. Serve it
-codebase-browser review serve --db ./reviews/pr-42.db --addr :3002
+# 3. Export a static browser bundle
+codebase-browser review export \
+  --db ./reviews/pr-42.db \
+  --out ./reviews/pr-42-static
 
-# 4. Open http://localhost:3002 in a browser
+# 4. Serve the directory with any static file server
+cd ./reviews/pr-42-static
+python3 -m http.server 3002
+
+# 5. Open http://localhost:3002/#/review/pr-42 in a browser
 ```
+
+The exported browser loads `manifest.json`, opens `db/codebase.db` with `sql.js`, and queries SQLite locally. There is no Go runtime server and no `/api/*` application API in the static runtime.
 
 ## Writing review markdown files
 
-Review guides are regular markdown files with special fenced code blocks that the renderer replaces with interactive widgets.
+Review guides are regular markdown files with special fenced code blocks that the renderer replaces with interactive widgets during export.
 
 ### Available directives
 
@@ -91,7 +99,7 @@ Short forms fail if ambiguous (two symbols with the same name in the same packag
 
 Most directives accept an optional `commit=` parameter to show the symbol at a specific commit:
 
-```markdown
+````markdown
 Before this PR:
 ```codebase-snippet sym=indexer.Extract commit=HEAD~3
 ```
@@ -99,9 +107,9 @@ Before this PR:
 After this PR:
 ```codebase-snippet sym=indexer.Extract
 ```
-```
+````
 
-When `commit=` is present, the renderer queries the history database for that commit's snapshot instead of the latest index.
+When `commit=` is present, the static browser resolves that commit ref against the exported SQLite database and reads the symbol snapshot at that commit.
 
 ## Commit range syntax
 
@@ -117,13 +125,15 @@ The `--commits` flag accepts any git log range:
 
 For PR reviews, `HEAD~N..HEAD` is usually what you want, where `N` is the number of commits in the PR.
 
-## Sharing review databases
+## Sharing review artifacts
 
-A review database (`.db` file) is a single SQLite file. You can:
+A review export is a static directory plus a SQLite database. You can:
 
-- **Email it:** Attach `pr-42.db` to an email. The recipient runs `codebase-browser review serve --db pr-42.db`.
-- **Store it in CI:** Generate `review.db` in CI and upload it as an artifact.
-- **Query it with an LLM:** Give the `.db` file to an LLM with instructions to run SQL against it. The schema is documented in `review-db-reference`.
+- **Publish it:** Upload the export directory to any static file host.
+- **Share it as an artifact:** Zip the export directory and attach it to a PR or CI run.
+- **Query the DB with an LLM:** Give `db/codebase.db` to an LLM with instructions to run SQL against it. The schema is documented in `review-db-reference`.
+
+The source review database produced by `review index` is also useful on its own as a SQLite artifact, but the browser runtime should use `review export` output.
 
 ## Querying the DB with an LLM
 
@@ -159,7 +169,7 @@ SELECT r.from_symbol_id, s.name, s.signature, r.kind
 FROM snapshot_refs r
 JOIN snapshot_symbols s ON s.id = r.from_symbol_id
   AND s.commit_hash = r.commit_hash
-WHERE r.to_symbol_id = 'sym:github.com/wesen/codebase-browser/internal/indexer.func.Extract'
+WHERE r.to_symbol_id = 'sym:github.com/foo/bar.func.Target'
   AND r.commit_hash = (SELECT hash FROM commits ORDER BY author_time DESC LIMIT 1);
 ```
 
@@ -169,18 +179,18 @@ WHERE r.to_symbol_id = 'sym:github.com/wesen/codebase-browser/internal/indexer.f
 
 1. Write the markdown guide with placeholder text.
 2. Run `review index --commits RANGE --docs ./reviews/ --db review.db`.
-3. Run `review serve --db review.db` and open the browser.
-4. Edit the markdown, re-run `review index` (it overwrites existing docs).
-5. Refresh the browser to see changes.
+3. Run `review export --db review.db --out ./review-static`.
+4. Serve `./review-static` with a static file server.
+5. Edit the markdown, re-run `review index`, re-run `review export`, and refresh the browser.
 
 ### Team reviews
 
 For team review meetings:
 
 1. The PR author writes the review guide.
-2. They run `review index` and share the `.db` file.
-3. Reviewers run `review serve --db shared.db` locally.
-4. Everyone sees the same interactive widgets with no network dependency.
+2. They run `review index` and `review export`.
+3. They share the exported static directory, a zip of it, or a hosted URL.
+4. Everyone sees the same interactive widgets with no Go process running at review time.
 
 ### Large commit ranges
 
@@ -196,7 +206,8 @@ For large PRs (50+ commits), the review DB can grow large because each commit st
 |---------|-------|----------|
 | Symbol not found in rendered doc | Commit range doesn't include the symbol | Widen `--commits` range |
 | Widget shows "doc error" | Ambiguous short ref or missing symbol | Use full `sym:` ID |
-| Serve shows blank page | No docs in DB | Run `review index` with `--docs` |
+| Export shows no review docs | No docs in DB | Run `review index` with `--docs` before `review export` |
+| Browser cannot load sql.js | WASM asset missing from export | Confirm `sql-wasm.wasm` and `sql-wasm-browser.wasm` exist in the export root |
 | Diff widget shows no changes | `from` and `to` commits have same `body_hash` | Check commit range |
 | Large `.db` file | Many commits indexed | Use narrower range or delete old `.db` |
 
@@ -204,4 +215,4 @@ For large PRs (50+ commits), the review DB can grow large because each commit st
 
 - `review-db-reference` — Complete schema reference and SQL query patterns
 - `codebase-browser help history` — History subsystem documentation
-- GCB-010 design doc — Embeddable widget catalog and wireframes
+- GCB-015 design doc — Static-only sql.js browser architecture
