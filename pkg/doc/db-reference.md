@@ -1,6 +1,6 @@
 ---
 Title: "Review Database Reference"
-Slug: "review-db-reference"
+Slug: "db-reference"
 Short: "Schema, tables, and query patterns for the code-review SQLite database."
 Topics:
 - code-review
@@ -280,5 +280,5 @@ The `--commits` flag accepts any git log range specification:
 
 ## See Also
 
-- `review-user-guide` — Tutorial for writing review markdown files
+- `user-guide` — Tutorial for writing review markdown files
 - `codebase-browser help history` — History subsystem commands

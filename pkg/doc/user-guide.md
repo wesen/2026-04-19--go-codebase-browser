@@ -1,6 +1,6 @@
 ---
 Title: "Writing Static Code Review Guides"
-Slug: "review-user-guide"
+Slug: "user-guide"
 Short: "How to write markdown review guides and export them as a static sql.js codebase browser."
 Topics:
 - code-review
@@ -131,7 +131,7 @@ A review export is a static directory plus a SQLite database. You can:
 
 - **Publish it:** Upload the export directory to any static file host.
 - **Share it as an artifact:** Zip the export directory and attach it to a PR or CI run.
-- **Query the DB with an LLM:** Give `db/codebase.db` to an LLM with instructions to run SQL against it. The schema is documented in `review-db-reference`.
+- **Query the DB with an LLM:** Give `db/codebase.db` to an LLM with instructions to run SQL against it. The schema is documented in `db-reference`.
 
 The source review database produced by `review index` is also useful on its own as a SQLite artifact, but the browser runtime should use `review export` output.
 
@@ -214,6 +214,6 @@ For large PRs (50+ commits), the review DB can grow large because each commit st
 
 ## See Also
 
-- `review-db-reference` — Complete schema reference and SQL query patterns
+- `db-reference` — Complete schema reference and SQL query patterns
 - `codebase-browser help history` — History subsystem documentation
 - GCB-015 design doc — Static-only sql.js browser architecture

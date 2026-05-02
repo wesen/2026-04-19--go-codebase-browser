@@ -1,4 +1,4 @@
-package help
+package doc
 
 import (
 	"embed"
@@ -9,7 +9,7 @@ import (
 //go:embed *.md
 var docFS embed.FS
 
-// AddDocToHelpSystem loads review help entries into the Glazed help system.
+// AddDocToHelpSystem loads codebase-browser help entries into the Glazed help system.
 func AddDocToHelpSystem(helpSystem *help.HelpSystem) error {
 	return helpSystem.LoadSectionsFromFS(docFS, ".")
 }
