@@ -214,6 +214,5 @@ For large PRs (50+ commits), the review DB can grow large because each commit st
 
 ## See Also
 
+- `markdown-block-reference` — Canonical reference for every `codebase-*` directive with full parameter tables and examples
 - `db-reference` — Complete schema reference and SQL query patterns
-- `codebase-browser help history` — History subsystem documentation
-- GCB-015 design doc — Static-only sql.js browser architecture
