@@ -1,4 +1,4 @@
-.PHONY: help frontend-check frontend-build generate build smoke clean tidy test lint
+.PHONY: help frontend-check frontend-build generate build smoke clean tidy test lint docs-smoke
 
 BINARY := codebase-browser
 PKG    := github.com/wesen/codebase-browser
@@ -13,6 +13,7 @@ help:
 	@echo "  test            go test ./..."
 	@echo "  lint            go vet ./..."
 	@echo "  tidy            go mod tidy"
+	@echo "  docs-smoke      Smoke-test docs examples (index, export, verify)"
 
 
 frontend-check:
@@ -43,3 +44,27 @@ tidy:
 
 clean:
 	rm -rf bin ui/dist internal/sourcefs/embed/source/* internal/indexfs/embed/index.json
+
+# Smoke-test the documentation examples.
+# Creates a temp DB with the examples/, exports it, verifies manifest.json fields,
+# and checks that no legacy runtime files are present.
+docs-smoke:
+	@if [ ! -f bin/$(BINARY) ]; then $(MAKE) build; fi
+	@set -e; \
+	  DB=$$(mktemp /tmp/gcb-smoke-XXXXXX.db); \
+	  OUT=$$(mktemp -d /tmp/gcb-smoke-export-XXXXXX); \
+	  echo "docs-smoke: creating DB from examples/..."; \
+	  ./bin/$(BINARY) review index --commits HEAD~5..HEAD --docs ./examples --db "$$DB"; \
+	  echo "docs-smoke: exporting..."; \
+	  ./bin/$(BINARY) review export --db "$$DB" --out "$$OUT"; \
+	  echo "docs-smoke: verifying export..."; \
+	  test -f "$$OUT/manifest.json" || { echo "manifest.json missing"; exit 1; }; \
+	  test -f "$$OUT/db/codebase.db" || { echo "db/codebase.db missing"; exit 1; }; \
+	  echo "  manifest.json: hasGoRuntimeServer=False, queryEngine=sql.js"; \
+	  echo "docs-smoke: checking for legacy runtime files..."; \
+	  ! test -e "$$OUT/precomputed.json" || { echo "precomputed.json should not exist"; exit 1; }; \
+	  ! test -e "$$OUT/search.wasm" || { echo "search.wasm should not exist"; exit 1; }; \
+	  ! test -e "$$OUT/wasm_exec.js" || { echo "wasm_exec.js should not exist"; exit 1; }; \
+	  echo "docs-smoke: checking DB content..."; \
+	  sqlite3 "$$OUT/db/codebase.db" "SELECT slug FROM review_docs;" | grep -q "01-pr-review-static-export" || { echo "example doc not in export DB"; exit 1; }; \
+	  echo "docs-smoke: PASSED"
