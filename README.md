@@ -50,7 +50,7 @@ embedded review guides.
 
 Prerequisites: Go 1.22+ and optional Docker for the hermetic Dagger build path. Node 22+ and pnpm 10.x are needed when building the static browser frontend.
 
-```bash
+````bash
 # 1) Optional: install UI deps
 pnpm -C ui install
 
@@ -82,7 +82,7 @@ EOF
 # 6) Serve with any static file server
 python3 -m http.server 8784 --directory /tmp/pr-42-static
 # open http://localhost:8784/#/
-```
+````
 
 The exported browser loads `manifest.json`, opens `db/codebase.db` with sql.js, and answers code navigation questions locally. There is no Go runtime server and no `/api/*` requests.
 
