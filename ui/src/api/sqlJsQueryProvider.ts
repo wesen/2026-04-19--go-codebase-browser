@@ -1,4 +1,5 @@
 import type { DocPage, ReviewDocMeta, SnippetRef } from './docApi';
+import type { File, IndexSummary, Package, PackageLite, Symbol } from './types';
 import type {
   BodyDiffResult,
   CommitDiff,
@@ -80,6 +81,47 @@ type ReviewDocSQL = SqlRow & {
   errorsJson: string;
 };
 
+type PackageSQL = SqlRow & {
+  id: string;
+  importPath: string;
+  name: string;
+  doc: string;
+  language: string;
+};
+
+type FileSQL = SqlRow & {
+  id: string;
+  path: string;
+  packageId: string;
+  size: number;
+  lineCount: number;
+  sha256: string;
+  language: string;
+  buildTagsJson: string;
+};
+
+type SymbolSQL = SqlRow & {
+  id: string;
+  kind: string;
+  name: string;
+  packageId: string;
+  fileId: string;
+  startLine: number;
+  startCol: number;
+  endLine: number;
+  endCol: number;
+  startOffset: number;
+  endOffset: number;
+  doc: string;
+  signature: string;
+  receiverType: string;
+  receiverPointer: number;
+  exported: number;
+  language: string;
+  typeParamsJson: string;
+  tagsJson: string;
+};
+
 let provider: SqlJsQueryProvider | null = null;
 
 export function getSqlJsProvider(): SqlJsQueryProvider {
@@ -92,6 +134,60 @@ export function resetSqlJsProviderForTests(): void {
 }
 
 export class SqlJsQueryProvider {
+  async getIndex(): Promise<IndexSummary> {
+    const commit = await this.resolveCommitRef('HEAD');
+    const [packages, files, symbols] = await Promise.all([
+      this.getPackagesAtCommit(commit),
+      this.getFilesAtCommit(commit),
+      this.getSymbolsAtCommit(commit),
+    ]);
+    return {
+      version: 'sqljs-static',
+      generatedAt: '',
+      module: '',
+      goVersion: '',
+      packages: packages.map((pkg) => ({
+        ...pkg,
+        fileIds: files.filter((file) => file.packageId === pkg.id).map((file) => file.id),
+        symbolIds: symbols.filter((symbol) => symbol.packageId === pkg.id).map((symbol) => symbol.id),
+      })),
+      files,
+      symbols,
+    };
+  }
+
+  async getPackageLites(): Promise<PackageLite[]> {
+    const index = await this.getIndex();
+    return index.packages.map((pkg) => ({
+      id: pkg.id,
+      importPath: pkg.importPath,
+      name: pkg.name,
+      files: pkg.fileIds.length,
+      symbols: pkg.symbolIds.length,
+    }));
+  }
+
+  async getSymbol(id: string): Promise<Symbol> {
+    const commit = await this.resolveCommitRef('HEAD');
+    const db = await getStaticDb();
+    const row = queryOne<SymbolSQL>(db, symbolSelectSQL + ' WHERE commit_hash = ? AND id = ?', [commit, id]);
+    if (!row) throw new QueryError('NOT_FOUND', `symbol not found: ${id}`);
+    return toSymbol(row);
+  }
+
+  async searchSymbols(query: string, kind = ''): Promise<Symbol[]> {
+    const commit = await this.resolveCommitRef('HEAD');
+    const db = await getStaticDb();
+    const like = `%${query}%`;
+    return queryAll<SymbolSQL>(db, symbolSelectSQL + `
+      WHERE commit_hash = ?
+        AND (? = '' OR kind = ?)
+        AND (? = '' OR name LIKE ? OR id LIKE ? OR signature LIKE ?)
+      ORDER BY name
+      LIMIT 100
+    `, [commit, kind, kind, query, like, like, like]).map(toSymbol);
+  }
+
   async listCommits(): Promise<CommitRow[]> {
     const db = await getStaticDb();
     return queryAll<CommitRowSQL>(db, `
@@ -301,6 +397,62 @@ export class SqlJsQueryProvider {
     };
   }
 
+  private async getPackagesAtCommit(commit: string): Promise<Package[]> {
+    const db = await getStaticDb();
+    return queryAll<PackageSQL>(db, `
+      SELECT id,
+             import_path AS importPath,
+             name,
+             doc,
+             language
+      FROM snapshot_packages
+      WHERE commit_hash = ?
+      ORDER BY import_path
+    `, [commit]).map((row) => ({
+      id: row.id,
+      importPath: row.importPath,
+      name: row.name,
+      doc: row.doc,
+      language: row.language,
+      fileIds: [],
+      symbolIds: [],
+    }));
+  }
+
+  private async getFilesAtCommit(commit: string): Promise<File[]> {
+    const db = await getStaticDb();
+    return queryAll<FileSQL>(db, `
+      SELECT id,
+             path,
+             package_id AS packageId,
+             size,
+             line_count AS lineCount,
+             sha256,
+             language,
+             build_tags_json AS buildTagsJson
+      FROM snapshot_files
+      WHERE commit_hash = ?
+      ORDER BY path
+    `, [commit]).map((row) => ({
+      id: row.id,
+      path: row.path,
+      packageId: row.packageId,
+      size: row.size,
+      lineCount: row.lineCount,
+      sha256: row.sha256,
+      language: row.language,
+      buildTags: parseJSON<string[]>(row.buildTagsJson, []),
+    }));
+  }
+
+  private async getSymbolsAtCommit(commit: string): Promise<Symbol[]> {
+    const db = await getStaticDb();
+    return queryAll<SymbolSQL>(db, symbolSelectSQL + `
+      WHERE commit_hash = ?
+      ORDER BY package_id, file_id, start_line, name
+    `, [commit]).map(toSymbol);
+  }
+
   private async getBodyMeta(commitHash: string, symbolId: string): Promise<BodyMetaSQL> {
     const db = await getStaticDb();
     const row = queryOne<BodyMetaSQL>(db, `
@@ -367,6 +519,54 @@ export class SqlJsQueryProvider {
       WHERE commit_hash = ? AND id = ?
     `, [commit, symbolId]);
   }
+}
+
+const symbolSelectSQL = `
+  SELECT id,
+         kind,
+         name,
+         package_id AS packageId,
+         file_id AS fileId,
+         start_line AS startLine,
+         start_col AS startCol,
+         end_line AS endLine,
+         end_col AS endCol,
+         start_offset AS startOffset,
+         end_offset AS endOffset,
+         doc,
+         signature,
+         receiver_type AS receiverType,
+         receiver_pointer AS receiverPointer,
+         exported,
+         language,
+         type_params_json AS typeParamsJson,
+         tags_json AS tagsJson
+  FROM snapshot_symbols
+`;
+
+function toSymbol(row: SymbolSQL): Symbol {
+  return {
+    id: row.id,
+    kind: row.kind,
+    name: row.name,
+    packageId: row.packageId,
+    fileId: row.fileId,
+    range: {
+      startLine: row.startLine,
+      startCol: row.startCol,
+      endLine: row.endLine,
+      endCol: row.endCol,
+      startOffset: row.startOffset,
+      endOffset: row.endOffset,
+    },
+    doc: row.doc,
+    signature: row.signature,
+    receiver: row.receiverType ? { typeName: row.receiverType, pointer: row.receiverPointer !== 0 } : undefined,
+    typeParams: parseJSON<string[]>(row.typeParamsJson, []),
+    exported: row.exported !== 0,
+    tags: parseJSON<string[]>(row.tagsJson, []),
+    language: row.language,
+  };
 }
 
 const fileDiffSQL = `

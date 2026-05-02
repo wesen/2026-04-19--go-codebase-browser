@@ -652,3 +652,93 @@ RTK Query endpoint
 ```
 
 There is no `ServerQueryProvider` and no `/api/*` fallback.
+
+## Step 7: Move index/package/symbol/search APIs to sql.js
+
+This step removes another large TinyGo dependency from the app shell. The package list, index summary, symbol detail, and symbol search APIs now query SQLite through `SqlJsQueryProvider` instead of using `wasmBaseQuery`.
+
+The remaining TinyGo users are now narrower: source/snippet and xref APIs. The home/package/symbol/search parts of the app shell have a SQL path, which is necessary before browser-level static validation can work without `precomputed.json`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 6)
+
+**Assistant interpretation:** Continue the clean cutover by replacing old WASM/precomputed frontend APIs as soon as equivalent SQL provider methods exist.
+
+**Inferred user intent:** Keep deleting obsolete runtime code and avoid compatibility layers.
+
+**Commit (code):** pending — index API SQL slice not committed yet
+
+### What I did
+
+- Added SQL provider methods:
+  - `getIndex()`
+  - `getPackageLites()`
+  - `getSymbol(id)`
+  - `searchSymbols(query, kind)`
+- Added private SQL loaders for latest-commit packages, files, and symbols.
+- Added `toSymbol(row)` conversion into existing frontend `Symbol` shape.
+- Rewrote `ui/src/api/indexApi.ts` to use provider `queryFn` calls only.
+- Removed `wasmBaseQuery` usage from `indexApi.ts`.
+- Marked T07.1–T07.5 complete.
+
+### Why
+
+- `App.tsx`, `PackagePage`, `SymbolPage`, and `SearchPanel` depend on `indexApi`.
+- As long as `indexApi` used TinyGo/precomputed data, the static-only sql.js bundle could not boot cleanly without legacy files.
+- SQL already contains packages, files, and symbols for the latest commit, so this is a natural provider responsibility.
+
+### What worked
+
+- `pnpm -C ui run typecheck` passed.
+- `indexApi.ts` no longer imports `wasmClient`.
+
+### What didn't work
+
+- Source/snippet rendering still depends on `sourceApi.ts` and `wasmClient`.
+- Xrefs still depend on `xrefApi.ts` and `wasmClient`.
+- `getIndex()` currently returns empty `module`, `goVersion`, and `generatedAt` fields because those are not yet represented in the SQLite schema/manifest path. The UI can tolerate this, but it should be revisited.
+
+### What I learned
+
+- Existing frontend pages mostly use `getIndex()` as a denormalized latest snapshot. It is straightforward to reconstruct that snapshot from SQL by grouping package file IDs and symbol IDs in TypeScript.
+- Keeping existing frontend result shapes reduces the amount of UI refactoring required in this slice.
+
+### What was tricky to build
+
+- `Package` rows need `fileIds` and `symbolIds`, but SQLite package rows do not store those arrays. The provider builds them by loading latest files and symbols and grouping by `packageId`.
+- Symbol rows store several JSON fields (`type_params_json`, `tags_json`, `build_tags_json`), so provider conversion must parse those into frontend arrays.
+
+### What warrants a second pair of eyes
+
+- Review `getIndex()` performance. It currently loads all packages/files/symbols for the latest commit and groups in memory, matching the old frontend shape. This is fine for a first cut but may need memoization.
+- Review whether `module` should come from manifest metadata, a DB metadata table, or an indexed package/module field.
+
+### What should be done in the future
+
+- Implement source/snippet queries from SQL so `SymbolPage` can render code without TinyGo snippets.
+- Implement xref queries from SQL so `XrefPanel` can drop `wasmClient`.
+
+### Code review instructions
+
+- Review `ui/src/api/indexApi.ts` for the removal of `wasmBaseQuery`.
+- Review `ui/src/api/sqlJsQueryProvider.ts` around:
+  - `getIndex()`
+  - `getPackageLites()`
+  - `getSymbol()`
+  - `searchSymbols()`
+  - `toSymbol()`
+- Validate with `pnpm -C ui run typecheck`.
+
+### Technical details
+
+Latest snapshot reconstruction:
+
+```text
+resolve HEAD
+  -> load packages at commit
+  -> load files at commit
+  -> load symbols at commit
+  -> for each package, attach fileIds and symbolIds
+  -> return IndexSummary
+```

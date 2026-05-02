@@ -81,11 +81,11 @@ This ticket is a clean-cut implementation of a static-only runtime:
 
 ### Phase 7 — Generic browser SQL coverage
 
-- [ ] T07.1 Implement package list and package detail queries.
-- [ ] T07.2 Implement symbol lookup at commit.
-- [ ] T07.3 Implement symbols-at-commit query for browser pages.
-- [ ] T07.4 Implement basic symbol search with `LIKE` against name, ID, and signature.
-- [ ] T07.5 If FTS was added, switch search to `symbol_search_fts`; otherwise document why basic search is acceptable for now.
+- [x] T07.1 Implement package list and package detail queries.
+- [x] T07.2 Implement symbol lookup at commit.
+- [x] T07.3 Implement symbols-at-commit query for browser pages.
+- [x] T07.4 Implement basic symbol search with `LIKE` against name, ID, and signature.
+- [x] T07.5 If FTS was added, switch search to `symbol_search_fts`; otherwise document why basic search is acceptable for now.
 - [ ] T07.6 Implement source file lookup from `snapshot_files` + `file_contents`.
 - [ ] T07.7 Refactor package, symbol, source, and search UI paths away from TinyGo/static JSON assumptions.
 

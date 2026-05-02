@@ -115,3 +115,15 @@ Step 6: Removed provider wrapper/runtime-mode helper and routed review docs thro
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/runtimeMode.ts — Removed obsolete runtime-mode helper
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqlJsQueryProvider.ts — Owns the only provider singleton and review doc SQL methods
 
+
+## 2026-05-01
+
+Step 7: Moved index/package/symbol/search APIs from TinyGo wasmBaseQuery to SqlJsQueryProvider.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 7
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md — Marked generic browser SQL index/search tasks complete
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/indexApi.ts — Index APIs now use SQL provider queryFns
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqlJsQueryProvider.ts — Added latest package/file/symbol/index/search SQL methods
+

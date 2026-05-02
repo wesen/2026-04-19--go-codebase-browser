@@ -1,28 +1,40 @@
-import { createApi } from '@reduxjs/toolkit/query/react';
-import { wasmBaseQuery } from './wasmClient';
+import { createApi, type BaseQueryFn } from '@reduxjs/toolkit/query/react';
+import { normalizeQueryError } from './queryErrors';
+import { getSqlJsProvider } from './sqlJsQueryProvider';
 import type { IndexSummary, PackageLite, Symbol } from './types';
+
+type ProviderError = { status: string; data?: string };
+
+const noopBaseQuery: BaseQueryFn<void, unknown, ProviderError> = async () => ({ data: undefined });
+
+async function providerResult<T>(fn: () => Promise<T>): Promise<{ data: T } | { error: ProviderError }> {
+  try {
+    return { data: await fn() };
+  } catch (err) {
+    return { error: normalizeQueryError(err) };
+  }
+}
 
 export const indexApi = createApi({
   reducerPath: 'indexApi',
-  baseQuery: wasmBaseQuery,
+  baseQuery: noopBaseQuery,
   tagTypes: ['Index', 'Package', 'Symbol'],
-  // Binary is immutable; aggressive cache is fine.
   keepUnusedDataFor: 3600,
   endpoints: (b) => ({
     getIndex: b.query<IndexSummary, void>({
-      query: () => 'index',
+      queryFn: () => providerResult(() => getSqlJsProvider().getIndex()),
       providesTags: ['Index'],
     }),
     getPackages: b.query<PackageLite[], void>({
-      query: () => 'packages',
+      queryFn: () => providerResult(() => getSqlJsProvider().getPackageLites()),
       providesTags: ['Package'],
     }),
     getSymbol: b.query<Symbol, string>({
-      query: (id) => `symbol:${id}`,
+      queryFn: (id) => providerResult(() => getSqlJsProvider().getSymbol(id)),
       providesTags: (_r, _e, id) => [{ type: 'Symbol', id }],
     }),
     searchSymbols: b.query<Symbol[], { q: string; kind?: string }>({
-      query: ({ q, kind }) => `search:${q}|${kind ?? ''}`,
+      queryFn: ({ q, kind }) => providerResult(() => getSqlJsProvider().searchSymbols(q, kind ?? '')),
     }),
   }),
 });
