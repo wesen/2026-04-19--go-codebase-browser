@@ -31,6 +31,8 @@ RelatedFiles:
       Note: Step 1 added sql.js dependencies
     - Path: ui/pnpm-lock.yaml
       Note: Step 1 dependency lock updates
+    - Path: ui/public/sql-wasm-browser.wasm
+      Note: Step 9 added after browser requested sql-wasm-browser.wasm
     - Path: ui/public/sql-wasm.wasm
       Note: Step 1 browser sql.js WASM runtime asset
     - Path: ui/src/api/docApi.ts
@@ -53,6 +55,7 @@ LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -833,3 +836,481 @@ getSnippet(sym, kind, commit)
   -> file_contents
   -> byte range extraction
 ```
+
+## Step 9: End-of-day handoff — static-only sql.js cutover status
+
+This is the end-of-day handoff entry. Today we moved GCB-015 from design into implementation and made a substantial clean-cut transition toward the sql.js-only runtime. The main pattern is now established: Go packages `db/codebase.db`, React loads it with sql.js, and the frontend APIs increasingly call `SqlJsQueryProvider` directly rather than old Go server endpoints, runtime-mode wrappers, TinyGo WASM, or precomputed JSON.
+
+We did not finish the full migration. The most important thing for tomorrow is to continue from the current partially migrated state, not to reintroduce compatibility paths. The app should keep moving toward one runtime path: `React -> SqlJsQueryProvider -> sql.js -> db/codebase.db`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Time to write a diary up to now. it's the end of the day and we should write down what we were doing and learned for tomorrow, along with a detailed list of th ethings to read to catch back up on, and what to do next. then stop."
+
+**Assistant interpretation:** Stop implementation work, write a detailed handoff diary entry summarizing progress, lessons, files to read, current state, blockers, and next steps for tomorrow.
+
+**Inferred user intent:** Preserve context at the end of the day so the next session can resume safely without rediscovering decisions or current partial state.
+
+**Commit (code):** pending at time of writing — end-of-day diary and sql-wasm-browser asset should be committed together if no further code changes are made.
+
+### What I did today
+
+#### Ticket/docs setup
+
+- Expanded `GCB-015` tasks into detailed, numbered implementation phases.
+- Created this implementation diary:
+  - `ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md`
+- Updated changelog after each focused implementation slice.
+- Kept `docmgr doctor --ticket GCB-015 --stale-after 30` passing after documented steps.
+
+#### Step 1 — sql.js bootstrap
+
+- Added frontend dependencies:
+  - `sql.js`
+  - `@types/sql.js`
+- Added sql.js WASM asset initially:
+  - `ui/public/sql-wasm.wasm`
+- Added DB bootstrap helpers:
+  - `ui/src/api/sqljs/sqlJsDb.ts`
+  - `ui/src/api/sqljs/sqlRows.ts`
+- Added helpers for:
+  - singleton sql.js initialization;
+  - loading `manifest.json`;
+  - loading `db/codebase.db`;
+  - prepared-statement row helpers;
+  - SQLite BLOB to `Uint8Array` / text conversion;
+  - byte-offset UTF-8 extraction.
+
+#### Step 2 — static export packaging
+
+- Added new Go package:
+  - `internal/staticapp`
+- Added:
+  - `internal/staticapp/manifest.go`
+  - `internal/staticapp/export.go`
+- Refactored:
+  - `cmd/codebase-browser/cmds/review/export.go`
+- New export behavior:
+  - builds SPA;
+  - copies SPA assets;
+  - copies SQLite DB to `OUT/db/codebase.db`;
+  - writes `OUT/manifest.json`;
+  - declares `runtime.hasGoRuntimeServer=false`;
+  - no longer writes `precomputed.json` as the target runtime artifact;
+  - no longer copies TinyGo `search.wasm` / `wasm_exec.js` as the target runtime path.
+
+#### Step 3 — rendered review docs in SQLite
+
+- Added:
+  - `internal/staticapp/reviewdocs.go`
+- Added copied-output-DB table:
+
+```sql
+CREATE TABLE IF NOT EXISTS static_review_rendered_docs (
+    slug TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    html TEXT NOT NULL,
+    snippets_json TEXT NOT NULL DEFAULT '[]',
+    errors_json TEXT NOT NULL DEFAULT '[]',
+    rendered_at INTEGER NOT NULL DEFAULT 0
+);
+```
+
+- `review export` now renders review markdown into the copied `db/codebase.db` during export.
+- This removes the need for a runtime Go review-doc rendering server.
+
+#### Step 4 — first SqlJsQueryProvider
+
+- Added:
+  - `ui/src/api/queryErrors.ts`
+  - `ui/src/api/sqlJsQueryProvider.ts`
+- Initially added then later removed wrapper file:
+  - `ui/src/api/queryProvider.ts`
+- Rewrote:
+  - `ui/src/api/historyApi.ts`
+- Implemented SQL-backed methods for:
+  - `listCommits()`;
+  - `resolveCommitRef()`;
+  - `getCommit()`;
+  - `getSymbolHistory()`;
+  - `getSymbolBodyDiff()`.
+- Body diffs now conceptually come from:
+  - `snapshot_symbols` byte ranges;
+  - `snapshot_files` content hash;
+  - `file_contents` BLOBs;
+  - byte slicing before UTF-8 decoding.
+
+#### Step 5 — SQL commit diffs and impact
+
+- Extended `SqlJsQueryProvider` with:
+  - `getCommitDiff()`;
+  - refs queries;
+  - `getImpact()` BFS.
+- Replaced SQLite-incompatible Go `FULL OUTER JOIN` diff idea with SQLite-compatible `UNION ALL` queries.
+- Impact now computes on demand over `snapshot_refs`, not from precomputed impact maps.
+
+#### Step 6 — clean-cut provider and review docs
+
+- Removed wrapper/runtime-mode files:
+  - `ui/src/api/queryProvider.ts`
+  - `ui/src/api/runtimeMode.ts`
+- Rewrote:
+  - `ui/src/api/docApi.ts`
+- `docApi` now uses `getSqlJsProvider()` directly.
+- Removed server and WASM fallbacks from review doc APIs.
+- Added SQL provider methods:
+  - `listReviewDocs()`;
+  - `getReviewDoc(slug)`.
+
+#### Step 7 — index/package/symbol/search APIs to SQL
+
+- Rewrote:
+  - `ui/src/api/indexApi.ts`
+- Extended `SqlJsQueryProvider` with:
+  - `getIndex()`;
+  - `getPackageLites()`;
+  - `getSymbol(id)`;
+  - `searchSymbols(query, kind)`.
+- Reconstructs latest snapshot in TypeScript from SQL:
+  - packages;
+  - files;
+  - symbols;
+  - package `fileIds` / `symbolIds`.
+
+#### Step 8 — remove frontend WASM runtime APIs
+
+- Deleted:
+  - `ui/src/api/wasmClient.ts`
+- Rewrote:
+  - `ui/src/api/sourceApi.ts`
+  - `ui/src/api/xrefApi.ts`
+  - `ui/src/api/conceptsApi.ts`
+- Updated:
+  - `ui/src/features/doc/DocSnippet.tsx`
+  - `ui/src/features/doc/widgets/AnnotationWidget.tsx`
+- Source/snippet/xref APIs now use `SqlJsQueryProvider`.
+- Remaining limitations from this step:
+  - snippet refs return empty arrays;
+  - source refs return empty arrays;
+  - file xref returns empty structure;
+  - query concepts are disabled/unavailable in static runtime for now.
+
+#### End-of-day validation attempt
+
+Ran:
+
+```bash
+go test ./internal/staticapp ./cmd/codebase-browser
+pnpm -C ui run typecheck
+rm -f /tmp/gcb015-sqljs-smoke.db
+go run ./cmd/codebase-browser review index \
+  --commits HEAD~2..HEAD \
+  --docs /tmp/reviews/static-smoke.md \
+  --db /tmp/gcb015-sqljs-smoke.db
+rm -rf /tmp/gcb015-sqljs-export
+go run ./cmd/codebase-browser review export \
+  --db /tmp/gcb015-sqljs-smoke.db \
+  --out /tmp/gcb015-sqljs-export
+```
+
+These passed through export.
+
+Then served the export and opened:
+
+```text
+http://localhost:8781/#/review/static-smoke
+```
+
+Playwright/browser console showed sql.js failing to load:
+
+```text
+Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8781/sql-wasm-browser.wasm:0
+wasm streaming compile failed: TypeError: Failed to execute 'compile' on 'WebAssembly': HTTP status code is not ok
+falling back to ArrayBuffer instantiation
+failed to asynchronously prepare wasm: both async and sync fetching of the wasm failed
+RuntimeError: Aborted(both async and sync fetching of the wasm failed). Build with -sASSERTIONS for more info.
+```
+
+I then discovered `sql.js/dist` contains both:
+
+```text
+sql-wasm.wasm
+sql-wasm-browser.wasm
+```
+
+The bundled JS requested `sql-wasm-browser.wasm`, not only `sql-wasm.wasm`, so I copied:
+
+```bash
+cp ui/node_modules/sql.js/dist/sql-wasm-browser.wasm ui/public/sql-wasm-browser.wasm
+```
+
+I rebuilt/exported and confirmed both files are now present in the export:
+
+```text
+/tmp/gcb015-sqljs-export/sql-wasm-browser.wasm
+/tmp/gcb015-sqljs-export/sql-wasm.wasm
+```
+
+I did **not** rerun the browser validation after adding `sql-wasm-browser.wasm`. That is the first thing to do tomorrow.
+
+### What worked today
+
+- The clean-cut architecture is now reflected in actual code, not only docs.
+- TypeScript typecheck passed after each frontend migration slice.
+- Go package checks/builds passed for the new `internal/staticapp` path.
+- `review export` now produces the new structural layout:
+
+```text
+export/
+  index.html
+  assets/
+  manifest.json
+  db/codebase.db
+  sql-wasm.wasm
+  sql-wasm-browser.wasm  # added at end of day, needs browser re-test
+```
+
+- Review docs are rendered into SQLite table `static_review_rendered_docs`.
+- The frontend no longer has `wasmClient.ts`.
+- The frontend no longer has `runtimeMode.ts`.
+- The frontend no longer has the temporary `queryProvider.ts` wrapper.
+- The visible APIs that previously used old server/TinyGo paths were mostly moved to `SqlJsQueryProvider`.
+
+### What failed or remains incomplete
+
+#### Browser validation failed before `sql-wasm-browser.wasm` was added
+
+The browser requested `sql-wasm-browser.wasm`; only `sql-wasm.wasm` had been copied initially. This produced a hard sql.js initialization failure.
+
+Current follow-up:
+
+- `ui/public/sql-wasm-browser.wasm` has been added but not yet committed or browser-validated.
+- Tomorrow, rebuild/export/serve/open again and confirm sql.js initializes.
+
+#### Some SQL provider methods are intentionally minimal
+
+Current placeholders/limitations:
+
+- `getSnippetRefs()` returns `[]`.
+- `getSourceRefs()` returns `[]`.
+- `getFileXref()` returns empty file xref structure.
+- `conceptsApi` returns empty/unavailable responses.
+- `getSnippet(kind='signature')` currently returns symbol name, not full signature. This is a known buglet from the quick source cutover and should be fixed.
+
+#### App shell may reveal more SQL shape bugs after sql.js loads
+
+Because the browser did not get past sql.js initialization, we have not yet seen whether all queries match actual DB column/value shapes. Expect tomorrow's first real browser run to expose some SQL/runtime bugs.
+
+### What I learned
+
+- The sql.js NPM package can request `sql-wasm-browser.wasm` depending on the bundled module path. Copying only `sql-wasm.wasm` is not enough for the current Vite bundle.
+- Removing compatibility layers early is possible but forces decisive migration ordering. This is good for the target architecture but means intermediate commits can temporarily leave routes partially functional.
+- The database schema is rich enough for most UI behavior. We do not need precomputed JSON for commits, symbols, history, body diffs, basic snippets, xrefs, or impact.
+- The old `precomputed.json` path was mostly a workaround for not having a browser SQL engine. With sql.js, it should stay removed from the target runtime.
+
+### What was tricky
+
+#### Byte offsets vs JavaScript strings
+
+Go symbol ranges are byte offsets. JavaScript strings are UTF-16 indexed. For body snippets and source extraction, the safe path is:
+
+```text
+SQLite BLOB -> Uint8Array -> slice byte offsets -> TextDecoder
+```
+
+Do not decode the whole file to a string and then slice by Go offsets.
+
+#### SQLite commit diff semantics
+
+The Go diff reference used `FULL OUTER JOIN`, but SQLite does not support it. The browser provider uses three-part `UNION ALL` queries for:
+
+- added;
+- removed;
+- modified/moved/signature-changed.
+
+Review parameter ordering carefully if debugging diffs tomorrow.
+
+#### Clean cutover means no hiding behind fallback behavior
+
+Because we removed server/WASM fallbacks, any missing SQL method now shows up directly. That is desired, but it means tomorrow's browser test may reveal several honest missing pieces.
+
+### Things to read tomorrow to catch up
+
+Read these in order:
+
+1. **This diary from Step 6 onward**
+   - Especially Step 8 and this Step 9.
+   - Focus on what has already been removed and what intentionally returns empty data.
+
+2. **Design doc v2**
+   - `ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/design-doc/01-sql-js-static-frontend-architecture-and-implementation-guide.md`
+   - Re-read the v2 static-only runtime section.
+
+3. **Task list**
+   - `ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md`
+   - Check which tasks were marked done today and which ones remain open.
+
+4. **Go export package**
+   - `internal/staticapp/export.go`
+   - `internal/staticapp/manifest.go`
+   - `internal/staticapp/reviewdocs.go`
+   - Understand the export layout and review-doc table generation.
+
+5. **CLI wrapper**
+   - `cmd/codebase-browser/cmds/review/export.go`
+   - Confirm flags and defaults.
+
+6. **sql.js bootstrap**
+   - `ui/src/api/sqljs/sqlJsDb.ts`
+   - `ui/src/api/sqljs/sqlRows.ts`
+   - Pay attention to `locateFile` and WASM asset names.
+
+7. **Main provider**
+   - `ui/src/api/sqlJsQueryProvider.ts`
+   - This is now the central runtime data access file.
+   - Review methods in this order:
+     - `listCommits`
+     - `resolveCommitRef`
+     - `getIndex`
+     - `getSymbol`
+     - `getSymbolHistory`
+     - `getSymbolBodyDiff`
+     - `getCommitDiff`
+     - `getImpact`
+     - `getSource`
+     - `getSnippet`
+     - `getXref`
+     - `listReviewDocs`
+     - `getReviewDoc`
+
+8. **Frontend APIs now calling provider**
+   - `ui/src/api/historyApi.ts`
+   - `ui/src/api/docApi.ts`
+   - `ui/src/api/indexApi.ts`
+   - `ui/src/api/sourceApi.ts`
+   - `ui/src/api/xrefApi.ts`
+   - `ui/src/api/conceptsApi.ts`
+
+9. **Widgets touched for `/api/snippet` removal**
+   - `ui/src/features/doc/DocSnippet.tsx`
+   - `ui/src/features/doc/widgets/AnnotationWidget.tsx`
+
+10. **Schema references**
+    - `internal/history/schema.go`
+    - `internal/review/schema.go`
+    - Use these when debugging SQL column names.
+
+### What to do first tomorrow
+
+1. Commit or verify the current uncommitted asset:
+
+```text
+ui/public/sql-wasm-browser.wasm
+```
+
+2. Re-run baseline validation:
+
+```bash
+go test ./internal/staticapp ./cmd/codebase-browser
+pnpm -C ui run typecheck
+```
+
+3. Rebuild/export the smoke bundle:
+
+```bash
+rm -rf /tmp/gcb015-sqljs-export
+go run ./cmd/codebase-browser review export \
+  --db /tmp/gcb015-sqljs-smoke.db \
+  --out /tmp/gcb015-sqljs-export
+```
+
+If `/tmp/gcb015-sqljs-smoke.db` no longer exists, recreate it:
+
+```bash
+rm -f /tmp/gcb015-sqljs-smoke.db
+go run ./cmd/codebase-browser review index \
+  --commits HEAD~2..HEAD \
+  --docs /tmp/reviews/static-smoke.md \
+  --db /tmp/gcb015-sqljs-smoke.db
+```
+
+4. Serve and open:
+
+```bash
+cd /tmp/gcb015-sqljs-export
+python3 -m http.server 8781
+```
+
+Open:
+
+```text
+http://localhost:8781/#/review/static-smoke
+```
+
+5. In browser/Playwright, check:
+
+- Does sql.js initialize now that `sql-wasm-browser.wasm` is present?
+- Are there any `/api/*` requests?
+- Does the review doc load from `static_review_rendered_docs`?
+- Do widgets render?
+- What SQL errors appear first?
+
+6. Then open direct history route:
+
+```text
+http://localhost:8781/#/history?symbol=sym:github.com/wesen/codebase-browser/cmd/codebase-browser/cmds/review.func.Register
+```
+
+Check whether body diffs load from SQL. This is the original failure class we are trying to eliminate.
+
+### Concrete next implementation tasks
+
+Recommended order:
+
+1. **Fix sql.js WASM asset resolution if still broken.**
+   - Confirm whether `locateFile` needs to explicitly return `sql-wasm-browser.wasm` as well as `sql-wasm.wasm`.
+   - Current asset has been copied but not browser-tested.
+
+2. **Fix first SQL runtime errors from browser validation.**
+   - Expect possible column alias/type problems in `SqlJsQueryProvider`.
+   - Use `sqlite3 /tmp/gcb015-sqljs-export/db/codebase.db` to verify queries.
+
+3. **Fix `getSnippet(kind='signature')`.**
+   - It should return signature, not name.
+   - Body meta currently does not select signature, so either extend metadata or call `getSymbol`.
+
+4. **Implement snippet/source refs or decide UI degradation.**
+   - Current linked code receives empty refs.
+   - This is acceptable for first static SQL boot but should be tracked.
+
+5. **Implement file xref SQL.**
+   - `FileXrefPanel` currently receives empty data.
+
+6. **Decide what to do with query concepts.**
+   - Static-only unavailable state may be fine.
+   - If not part of product, consider removing the route/sidebar link rather than keeping a dead page.
+
+7. **Delete/trim remaining TinyGo static export code.**
+   - Search for old WASM review exports in Go.
+   - Be careful: some generated embedded files may still reference old source until regeneration.
+
+8. **Run browser regression and then commit.**
+   - Only commit after the smoke page reaches a meaningful state or after a focused fix with clear diary entry.
+
+### Current git/worktree note
+
+At the time this handoff was written, the only known uncommitted code artifact should be:
+
+```text
+ui/public/sql-wasm-browser.wasm
+```
+
+This file was added after the browser reported a missing `sql-wasm-browser.wasm`. It should be committed with this diary entry if validation/intent is accepted.
+
+### Review warnings for tomorrow
+
+- Do not reintroduce `wasmClient.ts`.
+- Do not reintroduce `runtimeMode.ts`.
+- Do not add `ServerQueryProvider`.
+- Do not add `/api/*` fallbacks.
+- If a feature is not yet SQL-backed, either implement it through `SqlJsQueryProvider` or make it explicitly unavailable in the static-only UI.

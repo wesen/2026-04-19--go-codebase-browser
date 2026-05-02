@@ -143,3 +143,13 @@ Step 8: Deleted wasmClient and moved source/snippet/xref frontend APIs to SqlJsQ
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/DocSnippet.tsx — Removed /api snippet fetch
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/doc/widgets/AnnotationWidget.tsx — Removed /api snippet fetch
 
+
+## 2026-05-01
+
+End-of-day handoff: documented current GCB-015 sql.js cutover status, validation failure on missing sql-wasm-browser.wasm, files to read tomorrow, and next implementation tasks.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — End-of-day handoff Step 9
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/public/sql-wasm-browser.wasm — Added after browser requested this sql.js WASM asset
+
