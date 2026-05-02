@@ -239,3 +239,16 @@ Step 16: Completed SQL-backed signature snippets, snippet refs, source refs, and
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/history/HistoryPage.tsx — Static SQLite error copy
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/query/QueryConceptsPage.tsx — Static concept-unavailable copy
 
+
+## 2026-05-01
+
+Step 17: Removed the unpackaged structured query concepts UI/API slice from the static browser instead of keeping a dead unavailable route (commit 714708c).
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 17
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/conceptsApi.ts — Deleted
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/store.ts — Removed conceptsApi wiring
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/app/App.tsx — Removed /queries routes and sidebar link
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/features/query/QueryConceptsPage.tsx — Deleted
+

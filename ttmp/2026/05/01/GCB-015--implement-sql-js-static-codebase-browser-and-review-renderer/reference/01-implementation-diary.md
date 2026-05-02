@@ -73,6 +73,8 @@ RelatedFiles:
       Note: Step 1 browser sql.js WASM runtime asset
     - Path: ui/public/wasm_exec.js
       Note: Deleted unused Go WASM loader from static sql.js frontend in Step 11 (commit 12d31ec)
+    - Path: ui/src/api/conceptsApi.ts
+      Note: Deleted unpackaged structured concepts API in Step 17 (commit 714708c)
     - Path: ui/src/api/docApi.ts
       Note: Step 6 SQL-only review doc API
     - Path: ui/src/api/historyApi.ts
@@ -91,12 +93,18 @@ RelatedFiles:
       Note: Step 1 sql.js and DB singleton loader
     - Path: ui/src/api/sqljs/sqlRows.ts
       Note: Step 1 prepared statement and BLOB utilities
+    - Path: ui/src/api/store.ts
+      Note: Removed conceptsApi reducer and middleware in Step 17 (commit 714708c)
     - Path: ui/src/app/App.tsx
-      Note: Added route scroll reset and collapsible package tree in Step 13 (commit cc18c22)
+      Note: |-
+        Added route scroll reset and collapsible package tree in Step 13 (commit cc18c22)
+        Removed Structured queries sidebar link and routes in Step 17 (commit 714708c)
     - Path: ui/src/features/history/HistoryPage.tsx
       Note: Replaced stale server-backed history error copy in Step 16 (commit 5a0e840)
     - Path: ui/src/features/query/QueryConceptsPage.tsx
-      Note: Replaced stale server-backed query concept copy in Step 16 (commit 5a0e840)
+      Note: |-
+        Replaced stale server-backed query concept copy in Step 16 (commit 5a0e840)
+        Deleted unpackaged structured concepts page in Step 17 (commit 714708c)
     - Path: ui/src/packages/ui/src/theme/base.css
       Note: Added package tree styling in Step 13 (commit cc18c22)
 ExternalSources: []
@@ -105,6 +113,7 @@ LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -2325,3 +2334,72 @@ uses:
   refs whose source symbol is declared in this file
   and whose target symbol is outside this file
 ```
+
+## Step 17: Remove unpackaged structured query concepts UI
+
+This step removes the static browser's dead structured-query-concepts route. The page was originally server-backed, then temporarily converted to an explicit unavailable state during the clean cutover. Since concepts are not packaged into the static sql.js export yet, keeping a sidebar link and RTK API slice for them made the product feel unfinished.
+
+Rather than keep a route that always says "not packaged", I deleted the frontend page and API slice. If structured concepts become part of the static product later, they should return as a real SQL/manifest-backed feature.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 16)
+
+**Assistant interpretation:** Continue removing dead or half-ported UI paths to make the static browser cleaner and more elegant.
+
+**Inferred user intent:** Prefer a smaller coherent static product over visible placeholder features.
+
+**Commit (code):** 714708c — "Remove unpackaged query concepts UI"
+
+### What I did
+
+- Deleted `ui/src/api/conceptsApi.ts`.
+- Deleted `ui/src/features/query/QueryConceptsPage.tsx`.
+- Removed `conceptsApi` from `ui/src/api/store.ts` reducers and middleware.
+- Removed the `Structured queries` sidebar link from `ui/src/app/App.tsx`.
+- Removed `/queries` and `/queries/*` routes from `ui/src/app/App.tsx`.
+
+### Why
+
+- Static exports do not currently package concept definitions or concept execution support.
+- The previous static-only unavailable page was honest but not useful.
+- Keeping dead routes contradicts the clean-cut principle for GCB-015.
+
+### What worked
+
+- `pnpm -C ui run typecheck` passed after deleting the page and API slice.
+- `rg -n "conceptsApi|QueryConcepts|Structured queries|server-backed|codebase-browser serve" ui/src` returned no matches.
+
+### What didn't work
+
+- No command failed in this step.
+
+### What I learned
+
+- Removing the page entirely is cleaner than preserving a permanently empty RTK Query API.
+- The static browser now has a smaller navigation surface focused on packaged data: packages, source, symbols, docs, review docs, and history.
+
+### What was tricky to build
+
+- The only dependency fan-out was Redux store wiring plus route/sidebar entries. Deleting the feature was straightforward once those references were removed together.
+
+### What warrants a second pair of eyes
+
+- Confirm that structured query concepts are not required for the current GCB-015 deliverable.
+- If concepts should return, define a static schema/table/manifest source first instead of reintroducing a server-shaped API.
+
+### What should be done in the future
+
+- If desired, add static packaged concepts as a new feature with SQL-backed execution through sql.js.
+- Update broader docs if they mention the sidebar's structured query concept page as part of the static browser.
+
+### Code review instructions
+
+- Review `ui/src/app/App.tsx` for removed `/queries` routes and sidebar link.
+- Review `ui/src/api/store.ts` for removed `conceptsApi` wiring.
+- Confirm deleted files:
+  - `ui/src/api/conceptsApi.ts`
+  - `ui/src/features/query/QueryConceptsPage.tsx`
+- Validate with:
+  - `pnpm -C ui run typecheck`
+  - `rg -n "conceptsApi|QueryConcepts|Structured queries|server-backed|codebase-browser serve" ui/src || true`
