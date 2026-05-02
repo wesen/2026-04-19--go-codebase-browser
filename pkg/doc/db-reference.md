@@ -18,7 +18,16 @@ SectionType: GeneralTopic
 
 ## Overview
 
-The `codebase-browser review` commands produce a SQLite database that contains both indexed commit history and review markdown documents. `review export` copies that database to `db/codebase.db` and enriches the copied output database with static-browser tables such as `static_review_rendered_docs`. This document describes the schema so you can query it directly — either with the `sqlite3` CLI or by pointing an LLM at the `.db` file.
+The `codebase-browser review` commands produce a SQLite database containing both indexed commit history and review markdown documents.
+
+Two separate DB paths matter:
+
+| DB | Produced by | Use |
+|----|-------------|-----|
+| **Source DB** | `review index` or `review db create` | Query with `sqlite3`, hand to an LLM, or use as input to `review export` |
+| **Export DB** (`db/codebase.db`) | `review export` (copies and enriches the source DB) | The static browser opens this file with sql.js. Contains `static_review_rendered_docs` and rendered HTML. |
+
+`review export` copies the source DB to `db/codebase.db` in the output directory, then writes `static_review_rendered_docs` rows into the output DB. The source DB is never modified.
 
 ## Database structure
 
@@ -29,6 +38,8 @@ The review database is a standard SQLite file with two groups of tables:
 3. **Static export tables** — export-time browser preparation tables written only to the copied export DB
 
 ## History tables
+
+> ⚠️ **Byte offsets, not UTF-8 character offsets.** Source bodies are sliced using `start_offset` and `end_offset` from `snapshot_symbols`, which are byte offsets into `file_contents.content` **before** UTF-8 decoding. JavaScript string indexing uses UTF-16 code units. If you extract bytes in JavaScript and then decode as UTF-8, the character positions will not match the offsets in this schema. Always decode the bytes to a string before indexing by character position.
 
 ### `commits`
 
@@ -281,4 +292,4 @@ The `--commits` flag accepts any git log range specification:
 ## See Also
 
 - `user-guide` — Tutorial for writing review markdown files
-- `codebase-browser help history` — History subsystem commands
+- `markdown-block-reference` — Canonical reference for every `codebase-*` directive
