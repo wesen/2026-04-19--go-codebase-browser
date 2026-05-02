@@ -28,16 +28,16 @@ This ticket is a clean-cut implementation of a static-only runtime:
 
 ### Phase 2 — Static export packaging in Go
 
-- [ ] T02.1 Create `internal/staticapp` as the new package for static-only sql.js export packaging.
-- [ ] T02.2 Add `internal/staticapp/manifest.go` with manifest structs and JSON fields.
-- [ ] T02.3 Add `internal/staticapp/export.go` with `Options` and high-level `Export(ctx, opts)` orchestration.
-- [ ] T02.4 Make export copy the SQLite DB to `OUT/db/codebase.db`.
-- [ ] T02.5 Make export write `OUT/manifest.json` with DB path, generated timestamp, feature flags, commit counts, and `hasGoRuntimeServer=false`.
-- [ ] T02.6 Make export copy/build SPA assets into the output directory.
-- [ ] T02.7 Make export copy `sql-wasm.wasm` into the output directory.
-- [ ] T02.8 Decide whether source tree copy remains default or becomes optional; document the decision in the diary.
-- [ ] T02.9 Refactor `cmd/codebase-browser/cmds/review/export.go` into a thin wrapper around `staticapp.Export`.
-- [ ] T02.10 Remove old static-runtime `precomputed.json` generation from `review export` once sql.js provider covers equivalent UI functionality.
+- [x] T02.1 Create `internal/staticapp` as the new package for static-only sql.js export packaging.
+- [x] T02.2 Add `internal/staticapp/manifest.go` with manifest structs and JSON fields.
+- [x] T02.3 Add `internal/staticapp/export.go` with `Options` and high-level `Export(ctx, opts)` orchestration.
+- [x] T02.4 Make export copy the SQLite DB to `OUT/db/codebase.db`.
+- [x] T02.5 Make export write `OUT/manifest.json` with DB path, generated timestamp, feature flags, commit counts, and `hasGoRuntimeServer=false`.
+- [x] T02.6 Make export copy/build SPA assets into the output directory.
+- [x] T02.7 Make export copy `sql-wasm.wasm` into the output directory.
+- [x] T02.8 Decide whether source tree copy remains default or becomes optional; document the decision in the diary.
+- [x] T02.9 Refactor `cmd/codebase-browser/cmds/review/export.go` into a thin wrapper around `staticapp.Export`.
+- [x] T02.10 Remove old static-runtime `precomputed.json` generation from `review export` once sql.js provider covers equivalent UI functionality.
 
 ### Phase 3 — SQLite static-preparation tables
 

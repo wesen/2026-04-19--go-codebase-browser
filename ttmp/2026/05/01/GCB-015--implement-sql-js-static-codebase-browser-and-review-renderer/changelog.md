@@ -49,3 +49,16 @@ Step 1: Added sql.js dependency, sql-wasm public asset, DB bootstrap helpers, SQ
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqljs/sqlJsDb.ts — Static SQLite DB loader
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ui/src/api/sqljs/sqlRows.ts — Prepared statement and BLOB helpers
 
+
+## 2026-05-01
+
+Step 2: Added staticapp package and refactored review export to write a static-only sql.js bundle with manifest.json and db/codebase.db.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/cmd/codebase-browser/cmds/review/export.go — Thin CLI wrapper around staticapp.Export
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/staticapp/export.go — Static-only sql.js export packaging
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/staticapp/manifest.go — Static export manifest types
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 2
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md — Marked static export packaging tasks complete
+

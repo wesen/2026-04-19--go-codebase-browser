@@ -15,6 +15,12 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/codebase-browser/cmds/review/export.go
+      Note: Step 2 CLI wrapper around staticapp.Export
+    - Path: internal/staticapp/export.go
+      Note: Step 2 static-only export packaging
+    - Path: internal/staticapp/manifest.go
+      Note: Step 2 manifest schema
     - Path: ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/design-doc/01-sql-js-static-frontend-architecture-and-implementation-guide.md
       Note: Architecture source for implementation decisions
     - Path: ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md
@@ -35,6 +41,7 @@ LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -139,4 +146,117 @@ getStaticDb()
   -> getStaticManifest()
   -> fetch manifest.db.path or db/codebase.db
   -> new SQL.Database(bytes)
+```
+
+## Step 2: Add static-only export packaging and manifest
+
+This step moves the Go export path toward the new static-only model. I added a new `internal/staticapp` package that packages the built SPA, copies the SQLite database to `db/codebase.db`, and writes a small `manifest.json` declaring `sql.js` as the query engine and `hasGoRuntimeServer=false`.
+
+I also refactored `review export` into a thin wrapper around `staticapp.Export`. This intentionally stops treating `precomputed.json` and TinyGo review data as the primary static runtime artifact. The frontend is not fully migrated yet, so the exported bundle is structurally correct for the new architecture but not yet functionally complete until `SqlJsQueryProvider` is wired into the UI.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue implementing GCB-015 one focused slice at a time and document what changes.
+
+**Inferred user intent:** Establish the Go-side packaging foundation for a static-only sql.js browser runtime.
+
+**Commit (code):** pending — static export packaging slice not committed yet
+
+### What I did
+
+- Added `internal/staticapp/manifest.go` with:
+  - `Manifest`
+  - `DBManifest`
+  - `FeatureManifest`
+  - `RepoManifest`
+  - `CommitManifest`
+  - `RuntimeManifest`
+- Added `internal/staticapp/export.go` with:
+  - `Options`
+  - `Export(ctx, opts)`
+  - SPA build orchestration
+  - SPA asset copy
+  - SQLite DB copy to `db/codebase.db`
+  - manifest inspection/writing
+  - optional source tree copy
+- Rewrote `cmd/codebase-browser/cmds/review/export.go` as a thin command wrapper around `staticapp.Export`.
+- Added `--repo-root` and `--include-source` flags.
+- Made source tree copy optional and defaulted it to false, because the target static runtime should use SQLite/file contents first.
+- Marked T02.1–T02.9 complete in `tasks.md`.
+
+### Why
+
+- The target architecture needs Go to package a SQLite-backed static app, not emit a review-specific JSON/WASM runtime.
+- `manifest.json` is useful boot metadata for the browser and for humans inspecting an export.
+- `db/codebase.db` is the single runtime data source for the browser and the LLM/query artifact.
+
+### What worked
+
+- `gofmt -w internal/staticapp/manifest.go internal/staticapp/export.go cmd/codebase-browser/cmds/review/export.go` succeeded.
+- `go test ./internal/staticapp ./cmd/codebase-browser` passed.
+- `go build ./cmd/codebase-browser` passed.
+- A smoke export succeeded:
+  - indexed `/tmp/reviews/static-smoke.md` into `/tmp/gcb015-staticapp.db`;
+  - exported to `/tmp/gcb015-staticapp-export`;
+  - output contained `manifest.json`, `db/codebase.db`, and `sql-wasm.wasm`.
+- Manifest check showed:
+  - `kind = codebase-browser-sqljs-static-export`
+  - `db.path = db/codebase.db`
+  - `runtime.hasGoRuntimeServer = false`
+- SQLite check showed the copied DB contained 1 commit and 1 review doc in the smoke fixture.
+
+### What didn't work
+
+- No command failed in this step.
+- The exported React app is not expected to be fully usable yet because the frontend still contains old TinyGo/precomputed runtime assumptions. This is an intentional intermediate state and will be fixed by the provider refactor.
+
+### What I learned
+
+- Vite copies `ui/public/sql-wasm.wasm` into the SPA output root, so `staticapp.Export` gets the sql.js WASM asset by copying `ui/dist/public`.
+- The export command no longer needs to copy `search.wasm`, `wasm_exec.js`, or `precomputed.json` for the target architecture.
+
+### What was tricky to build
+
+- The main sequencing issue is that Go export packaging can move to the new layout before the frontend is migrated. That means the export command can produce a structurally correct static-only bundle before the current UI can consume it. This is acceptable for the clean-cut ticket, but it must be clearly recorded so reviewers do not expect end-to-end UI behavior from this intermediate commit.
+
+### What warrants a second pair of eyes
+
+- Review whether `--include-source=false` should be the default now or whether source copy should remain default until DB-backed source pages are complete.
+- Review whether `staticapp` should mutate the copied DB in later steps for rendered docs/FTS, or whether those tables should be added during indexing.
+
+### What should be done in the future
+
+- Add `static_review_rendered_docs` generation on the copied output DB.
+- Add `SqlJsQueryProvider` and refactor the frontend to consume `db/codebase.db`.
+- Delete old precomputed/TinyGo static runtime paths once the provider covers the UI.
+
+### Code review instructions
+
+- Start with `cmd/codebase-browser/cmds/review/export.go` to see the command-level simplification.
+- Then review `internal/staticapp/export.go` for packaging behavior and manifest generation.
+- Validate with:
+  - `go test ./internal/staticapp ./cmd/codebase-browser`
+  - `go build ./cmd/codebase-browser`
+  - a smoke `review export` and inspection of `manifest.json` plus `db/codebase.db`.
+
+### Technical details
+
+Smoke commands used:
+
+```bash
+rm -f /tmp/gcb015-staticapp.db
+go run ./cmd/codebase-browser review index \
+  --commits HEAD~1..HEAD \
+  --docs /tmp/reviews/static-smoke.md \
+  --db /tmp/gcb015-staticapp.db
+
+rm -rf /tmp/gcb015-staticapp-export
+go run ./cmd/codebase-browser review export \
+  --db /tmp/gcb015-staticapp.db \
+  --out /tmp/gcb015-staticapp-export
+
+sqlite3 /tmp/gcb015-staticapp-export/db/codebase.db \
+  'select count(*) from commits; select count(*) from review_docs;'
 ```
