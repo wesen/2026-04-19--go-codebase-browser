@@ -1,27 +1,28 @@
 ---
-Title: Redesign static codebase browser and review export architecture
-Ticket: GCB-014
-Status: archived
+Title: Implement sql.js static codebase browser and review renderer
+Ticket: GCB-015
+Status: active
 Topics:
     - codebase-browser
     - static-export
-    - wasm
+    - sqlite
     - react-frontend
     - review-docs
     - architecture
+    - history
+    - markdown-directives
 DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-05-01T20:12:53.786351913-04:00
+LastUpdated: 2026-05-01T20:12:58.80661533-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
 
-
-# Redesign static codebase browser and review export architecture
+# Implement sql.js static codebase browser and review renderer
 
 ## Overview
 
@@ -40,10 +41,12 @@ Current status: **active**
 
 - codebase-browser
 - static-export
-- wasm
+- sqlite
 - react-frontend
 - review-docs
 - architecture
+- history
+- markdown-directives
 
 ## Tasks
 
