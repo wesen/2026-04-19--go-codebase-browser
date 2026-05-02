@@ -21,6 +21,8 @@ RelatedFiles:
       Note: Step 2 static-only export packaging
     - Path: internal/staticapp/manifest.go
       Note: Step 2 manifest schema
+    - Path: internal/staticapp/reviewdocs.go
+      Note: Step 3 rendered review docs into SQLite
     - Path: ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/design-doc/01-sql-js-static-frontend-architecture-and-implementation-guide.md
       Note: Architecture source for implementation decisions
     - Path: ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md
@@ -41,6 +43,7 @@ LastUpdated: 2026-05-01T20:15:00-04:00
 WhatFor: Use this diary to resume or review GCB-015 implementation work, including what changed, why, commands run, failures, commits, and validation notes.
 WhenToUse: Read before continuing GCB-015 implementation or reviewing commits from this ticket.
 ---
+
 
 
 
@@ -259,4 +262,99 @@ go run ./cmd/codebase-browser review export \
 
 sqlite3 /tmp/gcb015-staticapp-export/db/codebase.db \
   'select count(*) from commits; select count(*) from review_docs;'
+```
+
+## Step 3: Render review documents into the exported SQLite database
+
+This step adds the first static-only derived table inside the copied browser database. Instead of requiring a Go server to render review markdown on demand, `review export` now renders review documents during export and stores the resulting HTML in `static_review_rendered_docs` inside `db/codebase.db`.
+
+This preserves the existing Go markdown/directive renderer while moving runtime document loading to sql.js. The browser will eventually query `static_review_rendered_docs` directly through `SqlJsQueryProvider`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue implementing the sql.js static architecture in dependency-ordered slices.
+
+**Inferred user intent:** Remove Go runtime server responsibilities by shifting render-time work into the export/index step.
+
+**Commit (code):** pending — rendered-review-docs slice not committed yet
+
+### What I did
+
+- Added `internal/staticapp/reviewdocs.go`.
+- Created `static_review_rendered_docs` with columns:
+  - `slug`
+  - `title`
+  - `html`
+  - `snippets_json`
+  - `errors_json`
+  - `rendered_at`
+- Implemented `AddRenderedReviewDocs(ctx, dbPath, repoRoot)`.
+- Updated `staticapp.Export` to run review doc rendering on the copied output DB.
+- Updated the CLI wrapper to set `RenderReviewDocs: true`.
+- Marked T03.2, T03.3, T03.4, and T03.6 complete.
+
+### Why
+
+- The target architecture has no Go server, so review docs cannot depend on `internal/review/server.go` at runtime.
+- Rendering review docs in Go during export avoids porting the markdown/directive renderer to TypeScript immediately.
+- Storing rendered docs in SQLite keeps browser runtime data in the single sql.js database.
+
+### What worked
+
+- `go test ./internal/staticapp ./cmd/codebase-browser` passed.
+- A smoke export rendered `/tmp/reviews/static-smoke.md` into the copied DB.
+- SQLite verification returned one row:
+  - slug `static-smoke`
+  - title `Static Export Smoke Review`
+  - non-empty HTML
+  - non-empty snippets JSON
+  - `errors_json = []`
+
+### What didn't work
+
+- Initial verification showed `errors_json` as `null` because `json.Marshal(nil []string)` returns `null`. I fixed this by normalizing nil `page.Errors` to an empty slice before marshaling. I also normalized nil snippets to an empty `[]docs.SnippetRef{}` for consistency.
+
+### What I learned
+
+- The current Go renderer is already suitable for export-time rendering. It returns enough data (`HTML`, `Snippets`, `Errors`) to persist review docs for browser-side loading.
+- It is safer to read all `review_docs` rows into memory before upserting rendered docs using the same DB connection, rather than writing while iterating an open query cursor.
+
+### What was tricky to build
+
+- The main subtlety was avoiding accidental mutation of the source DB. `staticapp.Export` copies the DB to `OUT/db/codebase.db` first, then calls `AddRenderedReviewDocs` on the copied DB path. This preserves the source database and makes export a packaging/enrichment step.
+
+### What warrants a second pair of eyes
+
+- Review whether `static_review_rendered_docs` should be created during `review index` instead of export. The current design intentionally creates it during export so the source DB remains a pure index/review DB and the copied DB becomes browser-prepared.
+- Review whether renderer placeholder attributes should be changed in Go now or later when the frontend `CodebaseWidget` dispatcher lands.
+
+### What should be done in the future
+
+- Implement `SqlJsQueryProvider.listReviewDocs()` and `getReviewDoc()` against `static_review_rendered_docs`.
+- Rename the renderer's widget marker to `data-codebase-widget` during the widget dispatcher refactor.
+
+### Code review instructions
+
+- Start with `internal/staticapp/reviewdocs.go`.
+- Check that `AddRenderedReviewDocs` opens the copied DB, creates the table, loads the latest snapshot, renders each doc, and upserts rows.
+- Validate with:
+  - `go test ./internal/staticapp ./cmd/codebase-browser`
+  - `go run ./cmd/codebase-browser review export --db /tmp/gcb015-staticapp.db --out /tmp/gcb015-staticapp-export`
+  - `sqlite3 /tmp/gcb015-staticapp-export/db/codebase.db 'select slug,title,errors_json from static_review_rendered_docs;'`
+
+### Technical details
+
+Verification query:
+
+```sql
+select slug,title,length(html),length(snippets_json),errors_json
+from static_review_rendered_docs;
+```
+
+Expected smoke result:
+
+```text
+static-smoke|Static Export Smoke Review|4203|3341|[]
 ```

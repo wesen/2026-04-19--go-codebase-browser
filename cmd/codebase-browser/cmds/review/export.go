@@ -38,11 +38,12 @@ Examples:
 			}
 
 			return staticapp.Export(cmd.Context(), staticapp.Options{
-				DBPath:        dbPath,
-				OutDir:        outDir,
-				RepoRoot:      repoRoot,
-				IncludeSource: includeSource,
-				BuildSPA:      true,
+				DBPath:           dbPath,
+				OutDir:           outDir,
+				RepoRoot:         repoRoot,
+				IncludeSource:    includeSource,
+				BuildSPA:         true,
+				RenderReviewDocs: true,
 			})
 		},
 	}

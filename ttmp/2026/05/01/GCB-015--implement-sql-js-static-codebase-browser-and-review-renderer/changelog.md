@@ -62,3 +62,16 @@ Step 2: Added staticapp package and refactored review export to write a static-o
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 2
 - /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md — Marked static export packaging tasks complete
 
+
+## 2026-05-01
+
+Step 3: Added export-time review doc rendering into static_review_rendered_docs inside the copied SQLite DB.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/cmd/codebase-browser/cmds/review/export.go — Enables RenderReviewDocs in staticapp options
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/staticapp/export.go — Runs AddRenderedReviewDocs on the copied output DB
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/internal/staticapp/reviewdocs.go — Rendered review docs table and export-time renderer
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/reference/01-implementation-diary.md — Recorded Step 3
+- /home/manuel/code/wesen/2026-04-19--go-codebase-browser/ttmp/2026/05/01/GCB-015--implement-sql-js-static-codebase-browser-and-review-renderer/tasks.md — Marked rendered review doc tasks complete
+

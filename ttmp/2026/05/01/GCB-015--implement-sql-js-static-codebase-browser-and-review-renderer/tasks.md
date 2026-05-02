@@ -42,11 +42,11 @@ This ticket is a clean-cut implementation of a static-only runtime:
 ### Phase 3 — SQLite static-preparation tables
 
 - [ ] T03.1 Add optional `static_export_metadata` table creation on the copied output DB.
-- [ ] T03.2 Add `static_review_rendered_docs` table creation on the copied output DB.
-- [ ] T03.3 Render review docs at export time using the existing Go markdown/directive renderer.
-- [ ] T03.4 Store rendered review HTML, snippets JSON, and errors JSON in `static_review_rendered_docs`.
+- [x] T03.2 Add `static_review_rendered_docs` table creation on the copied output DB.
+- [x] T03.3 Render review docs at export time using the existing Go markdown/directive renderer.
+- [x] T03.4 Store rendered review HTML, snippets JSON, and errors JSON in `static_review_rendered_docs`.
 - [ ] T03.5 Add optional `symbol_search_fts` table creation/population or explicitly defer it with a diary note.
-- [ ] T03.6 Ensure all static-preparation DB mutations happen on the copied output DB, not the source DB.
+- [x] T03.6 Ensure all static-preparation DB mutations happen on the copied output DB, not the source DB.
 
 ### Phase 4 — SqlJsQueryProvider core API
 

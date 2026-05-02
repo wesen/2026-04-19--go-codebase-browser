@@ -20,11 +20,12 @@ const manifestKind = "codebase-browser-sqljs-static-export"
 // packager here: it copies a fully indexed SQLite DB next to the SPA and writes
 // enough boot metadata for the browser to open that DB with sql.js.
 type Options struct {
-	DBPath        string
-	OutDir        string
-	RepoRoot      string
-	IncludeSource bool
-	BuildSPA      bool
+	DBPath           string
+	OutDir           string
+	RepoRoot         string
+	IncludeSource    bool
+	BuildSPA         bool
+	RenderReviewDocs bool
 }
 
 // Export writes a static sql.js application bundle to Options.OutDir.
@@ -58,6 +59,13 @@ func Export(ctx context.Context, opts Options) error {
 	dbOutPath := filepath.Join(opts.OutDir, "db", "codebase.db")
 	if err := copyFile(opts.DBPath, dbOutPath); err != nil {
 		return fmt.Errorf("copy SQLite DB: %w", err)
+	}
+
+	if opts.RenderReviewDocs {
+		fmt.Fprintln(os.Stderr, "Rendering review docs into SQLite...")
+		if err := AddRenderedReviewDocs(ctx, dbOutPath, opts.RepoRoot); err != nil {
+			return fmt.Errorf("render review docs: %w", err)
+		}
 	}
 
 	if opts.IncludeSource {
